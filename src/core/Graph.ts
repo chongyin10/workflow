@@ -249,7 +249,7 @@ export class Graph {
         };
         const worldPoint = this.screenToWorld(screenPoint);
 
-        // 检查是否悬停在节点上
+        // 检查是否悬停在节点上（节点优先）
         const nodes = this.getAllNodes();
         let hoveredNode: Node | null = null;
         for (let i = nodes.length - 1; i >= 0; i--) {
@@ -260,22 +260,58 @@ export class Graph {
         }
 
         if (hoveredNode) {
+            // 清除之前的边悬停状态
+            if (this.hoveredEdge) {
+                this.hoveredEdge.setHovered(false);
+                this.hoveredEdge = null;
+            }
             this.canvas.style.cursor = 'grab';
             if (this.hoveredNode !== hoveredNode) {
-                // 清除之前的悬停状态
+                // 清除之前的节点悬停状态
                 if (this.hoveredNode) {
                     this.hoveredNode.setHovered(false);
                 }
-                // 设置新的悬停状态
+                // 设置新的节点悬停状态
                 this.hoveredNode = hoveredNode;
                 this.hoveredNode.setHovered(true);
                 this.scheduleRender();
             }
+            return;
+        }
+
+        // 清除节点悬停状态
+        if (this.hoveredNode) {
+            this.hoveredNode.setHovered(false);
+            this.hoveredNode = null;
+        }
+
+        // 检查是否悬停在边上
+        const edges = this.getAllEdges();
+        let hoveredEdge: Edge | null = null;
+        for (let i = edges.length - 1; i >= 0; i--) {
+            if (edges[i].containsPoint(worldPoint)) {
+                hoveredEdge = edges[i];
+                break;
+            }
+        }
+
+        if (hoveredEdge) {
+            this.canvas.style.cursor = 'pointer';
+            if (this.hoveredEdge !== hoveredEdge) {
+                // 清除之前的边悬停状态
+                if (this.hoveredEdge) {
+                    this.hoveredEdge.setHovered(false);
+                }
+                // 设置新的边悬停状态
+                this.hoveredEdge = hoveredEdge;
+                this.hoveredEdge.setHovered(true);
+                this.scheduleRender();
+            }
         } else {
             this.canvas.style.cursor = this.options.draggable ? 'grab' : 'default';
-            if (this.hoveredNode) {
-                this.hoveredNode.setHovered(false);
-                this.hoveredNode = null;
+            if (this.hoveredEdge) {
+                this.hoveredEdge.setHovered(false);
+                this.hoveredEdge = null;
                 this.scheduleRender();
             }
         }
@@ -432,6 +468,16 @@ export class Graph {
     private handleMouseLeave(): void {
         if (this.state.isDragging) {
             this.handleMouseUp();
+        }
+        // 清除所有悬停状态
+        if (this.hoveredNode) {
+            this.hoveredNode.setHovered(false);
+            this.hoveredNode = null;
+        }
+        if (this.hoveredEdge) {
+            this.hoveredEdge.setHovered(false);
+            this.hoveredEdge = null;
+            this.scheduleRender();
         }
     }
 

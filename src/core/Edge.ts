@@ -61,6 +61,8 @@ export interface EdgeOptions extends CellOptions {
     target: string | EdgeAnchor;
     type?: EdgeType;
     style?: Partial<EdgeStyle>;
+    /** 断开连接时的回调 */
+    onDisconnect?: (edge: Edge) => void;
 }
 
 /**
@@ -70,6 +72,8 @@ export interface EdgeData extends CellData {
     source: EdgeAnchor;
     target: EdgeAnchor;
     type: EdgeType;
+    /** 是否处于连接状态 */
+    connected?: boolean;
 }
 
 /**
@@ -94,6 +98,14 @@ export class Edge extends Cell {
     private target: EdgeAnchor;
     private type: EdgeType;
     private style: EdgeStyle;
+    private onDisconnect?: (edge: Edge) => void;
+    private connected: boolean = true;
+
+    // 用于碰撞检测的点
+    private lastSourcePoint: Point = { x: 0, y: 0 };
+    private lastTargetPoint: Point = { x: 0, y: 0 };
+    // 用于折线的中间点
+    private lastMidPoint: Point | null = null;
 
     // 默认样式
     private static readonly DEFAULT_STYLE: EdgeStyle = {
@@ -157,6 +169,7 @@ export class Edge extends Cell {
         super(options);
         this.type = options.type || EdgeType.Straight;
         this.style = { ...Edge.DEFAULT_STYLE, ...options.style };
+        this.onDisconnect = options.onDisconnect;
 
         // 解析 source 和 target
         this.source = this.parseAnchor(options.source);
@@ -261,6 +274,15 @@ export class Edge extends Cell {
      * @param targetPoint - 终点坐标
      */
     draw(ctx: CanvasRenderingContext2D, sourcePoint: Point, targetPoint: Point): void {
+        // 如果边已断开，不绘制
+        if (!this.connected) {
+            return;
+        }
+
+        // 保存点用于碰撞检测
+        this.lastSourcePoint = sourcePoint;
+        this.lastTargetPoint = targetPoint;
+
         ctx.save();
 
         // 设置线条样式
@@ -324,6 +346,9 @@ export class Edge extends Cell {
         const midX = (source.x + target.x) / 2;
         const r = this.style.cornerRadius;
 
+        // 保存中间点用于碰撞检测
+        this.lastMidPoint = { x: midX, y: target.y };
+
         ctx.moveTo(source.x, source.y);
 
         if (Math.abs(target.x - source.x) > 2 * r) {
@@ -354,6 +379,9 @@ export class Edge extends Cell {
     private drawVertical(ctx: CanvasRenderingContext2D, source: Point, target: Point): void {
         const midY = (source.y + target.y) / 2;
         const r = this.style.cornerRadius;
+
+        // 保存中间点用于碰撞检测
+        this.lastMidPoint = { x: target.x, y: midY };
 
         ctx.moveTo(source.x, source.y);
 
@@ -557,6 +585,7 @@ export class Edge extends Cell {
             target: { ...this.target },
             type: this.type,
             data: { ...this.data },
+            connected: this.connected,
         };
     }
 
@@ -564,7 +593,7 @@ export class Edge extends Cell {
      * 从 JSON 创建边
      */
     static fromJSON(data: EdgeData): Edge {
-        return new Edge({
+        const edge = new Edge({
             id: data.id,
             source: data.source,
             target: data.target,
@@ -572,6 +601,10 @@ export class Edge extends Cell {
             label: data.label,
             data: data.data,
         });
+        if (data.connected === false) {
+            edge.disconnect();
+        }
+        return edge;
     }
 
     /**
@@ -587,6 +620,133 @@ export class Edge extends Cell {
             style: { ...this.style },
             data: { ...this.data },
         });
+    }
+
+    /**
+     * 断开连接（消除连接线）
+     * @returns 是否成功断开
+     */
+    disconnect(): boolean {
+        if (!this.connected) {
+            return false;
+        }
+        this.connected = false;
+        this.onDisconnect?.(this);
+        return true;
+    }
+
+    /**
+     * 检查边是否处于连接状态
+     * @returns 是否已连接
+     */
+    isConnected(): boolean {
+        return this.connected;
+    }
+
+    /**
+     * 重新连接（恢复连接线）
+     * @returns 是否成功重连
+     */
+    reconnect(): boolean {
+        if (this.connected) {
+            return false;
+        }
+        this.connected = true;
+        return true;
+    }
+
+    /**
+     * 检测点是否在线上
+     * @param point - 待检测的点
+     * @param tolerance - 容差（默认 5 像素）
+     * @returns 是否在线上
+     */
+    containsPoint(point: Point, tolerance: number = 5): boolean {
+        if (!this.connected) {
+            return false;
+        }
+
+        const source = this.lastSourcePoint;
+        const target = this.lastTargetPoint;
+
+        switch (this.type) {
+            case EdgeType.Straight:
+                return this.isPointOnLineSegment(point, source, target, tolerance);
+            case EdgeType.Horizontal:
+            case EdgeType.Vertical:
+                if (this.lastMidPoint) {
+                    // 折线有两段：source -> mid -> target
+                    return this.isPointOnLineSegment(point, source, this.lastMidPoint, tolerance) ||
+                           this.isPointOnLineSegment(point, this.lastMidPoint, target, tolerance);
+                }
+                return this.isPointOnLineSegment(point, source, target, tolerance);
+            case EdgeType.Bezier:
+            case EdgeType.Arc:
+                // 对于贝塞尔曲线和弧线，使用近似检测（点到起止点的距离）
+                return this.isPointNearCurve(point, source, target, tolerance);
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * 检测点是否在线段上
+     */
+    private isPointOnLineSegment(
+        point: Point,
+        start: Point,
+        end: Point,
+        tolerance: number
+    ): boolean {
+        const dx = end.x - start.x;
+        const dy = end.y - start.y;
+        const lenSquared = dx * dx + dy * dy;
+
+        if (lenSquared === 0) {
+            // 起点和终点重合
+            const dist = Math.sqrt(
+                (point.x - start.x) ** 2 + (point.y - start.y) ** 2
+            );
+            return dist <= tolerance;
+        }
+
+        // 计算投影参数 t
+        let t = ((point.x - start.x) * dx + (point.y - start.y) * dy) / lenSquared;
+        t = Math.max(0, Math.min(1, t));
+
+        // 计算最近点
+        const closestX = start.x + t * dx;
+        const closestY = start.y + t * dy;
+
+        // 计算距离
+        const dist = Math.sqrt(
+            (point.x - closestX) ** 2 + (point.y - closestY) ** 2
+        );
+
+        return dist <= tolerance;
+    }
+
+    /**
+     * 检测点是否靠近曲线（近似检测）
+     */
+    private isPointNearCurve(
+        point: Point,
+        source: Point,
+        target: Point,
+        tolerance: number
+    ): boolean {
+        // 简化检测：检查点是否在曲线的包围盒内
+        const minX = Math.min(source.x, target.x) - tolerance;
+        const maxX = Math.max(source.x, target.x) + tolerance;
+        const minY = Math.min(source.y, target.y) - tolerance;
+        const maxY = Math.max(source.y, target.y) + tolerance;
+
+        if (point.x < minX || point.x > maxX || point.y < minY || point.y > maxY) {
+            return false;
+        }
+
+        // 进一步检测：点到线段的距离
+        return this.isPointOnLineSegment(point, source, target, tolerance * 2);
     }
 }
 
