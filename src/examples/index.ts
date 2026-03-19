@@ -23,3 +23,7 @@ export { default as PortExampleComponent } from './PortExample';
 
 export { ShapeExample } from './ShapeExample';
 export { default as ShapeExampleComponent } from './ShapeExample';
+
+// Dnd 拖拽示例
+export { default as DndExample } from './DndExample';
+export { default as DndExampleComponent } from './DndExample';

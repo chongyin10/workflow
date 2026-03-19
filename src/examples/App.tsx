@@ -6,6 +6,7 @@ import {
     NodeExample,
     PortExample,
     ShapeExample,
+    DndExample,
 } from './index';
 
 /**
@@ -13,7 +14,7 @@ import {
  * 
  * 提供所有核心组件示例的导航和展示
  */
-type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'portmanager' | 'shape';
+type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'dnd';
 
 interface ExampleItem {
     key: ExampleKey;
@@ -58,6 +59,12 @@ const examples: ExampleItem[] = [
         title: '🎨 Shape 形状示例',
         description: '内置形状类型和自定义多边形展示',
         component: ShapeExample,
+    },
+    {
+        key: 'dnd',
+        title: '🎯 Dnd 拖拽示例',
+        description: '从外部拖拽节点到画布的交互展示',
+        component: DndExample,
     },
 ];
 

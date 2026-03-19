@@ -1,6 +1,7 @@
-import { Node, NodeOptions } from './Node';
-import { Edge, EdgeOptions } from './Edge';
-import { Port } from './Port';
+import { Node, NodeOptions, type NodeEvent } from './Node';
+import { Edge, EdgeOptions, type EdgeEvent } from './Edge';
+import { Port, type PortEvent } from './Port';
+import { EventManager, EVENT_NAMES, type BaseEvent, type MouseEvent, type WheelEvent, type EventHandler } from './EventManager';
 
 export interface Point {
     x: number;
@@ -79,13 +80,22 @@ export class Graph {
     private dragNodeStartPosition: Point = { x: 0, y: 0 };
     private rafId: number | null = null;
     private boundHandlers: {
-        onMouseDown: (e: MouseEvent) => void;
-        onMouseMove: (e: MouseEvent) => void;
-        onMouseUp: (e: MouseEvent) => void;
-        onMouseLeave: (e: MouseEvent) => void;
-        onWheel: (e: WheelEvent) => void;
+        onMouseDown: (e: globalThis.MouseEvent) => void;
+        onMouseMove: (e: globalThis.MouseEvent) => void;
+        onMouseUp: (e: globalThis.MouseEvent) => void;
+        onMouseLeave: (e: globalThis.MouseEvent) => void;
+        onWheel: (e: globalThis.WheelEvent) => void;
         onResize: () => void;
     };
+    
+    // 事件管理器
+    private eventManager: EventManager;
+    
+    // 记录当前鼠标下的元素（用于 mouseenter/mouseleave）
+    private lastMouseOverNode: Node | null = null;
+    private lastMouseOverEdge: Edge | null = null;
+    private lastMouseOverPort: Port | null = null;
+    private isMouseOverCanvas: boolean = false;
 
     // 默认配置
     private static readonly DEFAULT_OPTIONS: Omit<
@@ -132,6 +142,9 @@ export class Graph {
             isDragging: false,
             lastMousePosition: null,
         };
+
+        // 初始化事件管理器
+        this.eventManager = new EventManager();
 
         // 创建画布元素
         this.canvas = this.createCanvas();
@@ -338,10 +351,13 @@ export class Graph {
     /**
      * 鼠标按下处理
      */
-    private handleMouseDown(e: MouseEvent): void {
+    private handleMouseDown(e: globalThis.MouseEvent): void {
         if (!this.options.draggable) return;
 
         e.preventDefault();
+
+        // 分发 mousedown 事件
+        this.dispatchMouseEvent('mousedown', e);
 
         // 将鼠标位置转换为世界坐标
         const rect = this.canvas.getBoundingClientRect();
@@ -354,7 +370,17 @@ export class Graph {
         // 检查是否点击到了节点（从后往前查找，确保点击最上层的节点）
         const nodes = this.getAllNodes();
         let clickedNode: Node | null = null;
+        let clickedPort: Port | null = null;
+        
         for (let i = nodes.length - 1; i >= 0; i--) {
+            // 先检查连接桩
+            const port = nodes[i].getPortAtPoint(worldPoint);
+            if (port) {
+                clickedPort = port;
+                clickedNode = nodes[i];
+                break;
+            }
+            
             if (nodes[i].containsPoint(worldPoint)) {
                 clickedNode = nodes[i];
                 break;
@@ -387,7 +413,7 @@ export class Graph {
     /**
      * 鼠标移动处理
      */
-    private handleMouseMove(e: MouseEvent): void {
+    private handleMouseMove(e: globalThis.MouseEvent): void {
         // 处理节点拖拽
         if (this.isDraggingNode && this.draggedNode) {
             const rect = this.canvas.getBoundingClientRect();
@@ -487,7 +513,7 @@ export class Graph {
     private handleWheel(e: WheelEvent): void {
         if (!this.options.scalable) return;
 
-        e.preventDefault();
+        (e as globalThis.WheelEvent).preventDefault();
 
         const rect = this.canvas.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
@@ -1076,6 +1102,26 @@ export class Graph {
     }
 
     /**
+     * 将图导出为 JSON 格式
+     * @returns 包含 cells 数组的对象，cells 按渲染顺序排列（先边后节点）
+     */
+    toJSON(): { cells: Array<ReturnType<Node['toJSON']> | ReturnType<Edge['toJSON']>> } {
+        const cells: Array<ReturnType<Node['toJSON']> | ReturnType<Edge['toJSON']>> = [];
+
+        // 先添加所有边（边在节点下方渲染）
+        this.edges.forEach((edge) => {
+            cells.push(edge.toJSON());
+        });
+
+        // 再添加所有节点（节点在边上方渲染）
+        this.nodes.forEach((node) => {
+            cells.push(node.toJSON());
+        });
+
+        return { cells };
+    }
+
+    /**
      * 销毁组件
      */
     destroy(): void {
@@ -1097,6 +1143,312 @@ export class Graph {
         (this as any).container = null;
         (this as any).canvas = null;
         (this as any).ctx = null;
+        
+        // 清理事件管理器
+        this.eventManager.clear();
+    }
+
+    // ==================== 事件系统 ====================
+
+    /**
+     * 注册事件处理器
+     * @param eventName - 事件名称
+     * @param handler - 事件处理器
+     * @returns 注销函数
+     */
+    on(eventName: string, handler: EventHandler): () => void {
+        return this.eventManager.on(eventName, handler);
+    }
+
+    /**
+     * 注册一次性事件处理器
+     * @param eventName - 事件名称
+     * @param handler - 事件处理器
+     * @returns 注销函数
+     */
+    once(eventName: string, handler: EventHandler): () => void {
+        return this.eventManager.once(eventName, handler);
+    }
+
+    /**
+     * 注销事件处理器
+     * @param eventName - 事件名称
+     * @param handler - 要注销的处理器（不传则注销该事件的所有处理器）
+     */
+    off(eventName: string, handler?: EventHandler): void {
+        this.eventManager.off(eventName, handler);
+    }
+
+    /**
+     * 触发 Graph 级别事件
+     */
+    private emit(eventName: string, eventData: any): boolean {
+        return this.eventManager.emit(eventName, eventData);
+    }
+
+    /**
+     * 创建基础鼠标事件对象
+     */
+    private createMouseEvent(
+        originalEvent: globalThis.MouseEvent | globalThis.WheelEvent,
+        target: any,
+        extraData: Partial<BaseEvent> = {}
+    ): MouseEvent {
+        const rect = this.canvas.getBoundingClientRect();
+        const screenX = originalEvent.clientX - rect.left;
+        const screenY = originalEvent.clientY - rect.top;
+        const worldPoint = this.screenToWorld({ x: screenX, y: screenY });
+
+        return {
+            type: 'mouse',
+            target,
+            originalEvent,
+            x: worldPoint.x,
+            y: worldPoint.y,
+            clientX: originalEvent.clientX,
+            clientY: originalEvent.clientY,
+            ctrlKey: originalEvent.ctrlKey,
+            shiftKey: originalEvent.shiftKey,
+            altKey: originalEvent.altKey,
+            metaKey: originalEvent.metaKey,
+            button: originalEvent.button,
+            stopPropagation: () => originalEvent.stopPropagation(),
+            preventDefault: () => originalEvent.preventDefault(),
+            ...extraData,
+        };
+    }
+
+    /**
+     * 创建滚轮事件对象
+     */
+    private createWheelEvent(
+        originalEvent: globalThis.WheelEvent,
+        target: any
+    ): WheelEvent {
+        const mouseEvent = this.createMouseEvent(originalEvent, target);
+        return {
+            ...mouseEvent,
+            deltaX: originalEvent.deltaX,
+            deltaY: originalEvent.deltaY,
+            deltaZ: originalEvent.deltaZ,
+            deltaMode: originalEvent.deltaMode,
+        };
+    }
+
+    /**
+     * 分发鼠标事件到对应的元素
+     */
+    private dispatchMouseEvent(
+        eventType: string,
+        originalEvent: globalThis.MouseEvent
+    ): void {
+        const rect = this.canvas.getBoundingClientRect();
+        const screenPoint: Point = {
+            x: originalEvent.clientX - rect.left,
+            y: originalEvent.clientY - rect.top,
+        };
+        const worldPoint = this.screenToWorld(screenPoint);
+
+        // 创建基础事件数据
+        const baseEventData = this.createMouseEvent(originalEvent, null);
+
+        // 1. 检查连接桩（优先级最高）
+        const nodes = this.getAllNodes();
+        for (let i = nodes.length - 1; i >= 0; i--) {
+            const node = nodes[i];
+            const port = node.getPortAtPoint(worldPoint);
+            if (port) {
+                // 触发 port 事件
+                const portEventData = {
+                    ...baseEventData,
+                    target: port,
+                    port,
+                    portId: port.getId(),
+                    nodeId: node.getId(),
+                };
+                
+                // 触发 cell:xxx 和 node:port:xxx 事件
+                port.triggerPortEvent(eventType, originalEvent);
+                
+                // 同时触发 Graph 级别的事件
+                this.emit(EVENT_NAMES[`PORT_${eventType.toUpperCase()}` as keyof typeof EVENT_NAMES], portEventData);
+                return;
+            }
+        }
+
+        // 2. 检查节点
+        for (let i = nodes.length - 1; i >= 0; i--) {
+            const node = nodes[i];
+            if (node.containsPoint(worldPoint)) {
+                const nodeEventData = {
+                    ...baseEventData,
+                    target: node,
+                    node,
+                };
+                
+                // 触发 node 事件（会同时触发 cell:xxx）
+                node.triggerNodeEvent(eventType, originalEvent, { x: worldPoint.x, y: worldPoint.y });
+                
+                // 同时触发 Graph 级别的事件
+                this.emit(EVENT_NAMES[`NODE_${eventType.toUpperCase()}` as keyof typeof EVENT_NAMES], nodeEventData);
+                return;
+            }
+        }
+
+        // 3. 检查边
+        const edges = this.getAllEdges();
+        for (let i = edges.length - 1; i >= 0; i--) {
+            const edge = edges[i];
+            if (edge.containsPoint(worldPoint)) {
+                const edgeEventData = {
+                    ...baseEventData,
+                    target: edge,
+                    edge,
+                    sourceId: edge.getSourceId(),
+                    targetId: edge.getTargetId(),
+                };
+                
+                // 触发 edge 事件（会同时触发 cell:xxx）
+                edge.triggerEdgeEvent(eventType, originalEvent, { x: worldPoint.x, y: worldPoint.y });
+                
+                // 同时触发 Graph 级别的事件
+                this.emit(EVENT_NAMES[`EDGE_${eventType.toUpperCase()}` as keyof typeof EVENT_NAMES], edgeEventData);
+                return;
+            }
+        }
+
+        // 4. 空白区域（blank 事件）
+        const blankEventData = {
+            ...baseEventData,
+            target: 'blank',
+        };
+        
+        const blankEventName = `blank:${eventType}` as keyof typeof EVENT_NAMES;
+        if (blankEventName in EVENT_NAMES) {
+            this.emit(EVENT_NAMES[blankEventName], blankEventData);
+        }
+    }
+
+    /**
+     * 处理鼠标进入/离开事件
+     */
+    private handleMouseEnterLeave(
+        originalEvent: globalThis.MouseEvent,
+        isEnter: boolean
+    ): void {
+        const rect = this.canvas.getBoundingClientRect();
+        const screenPoint: Point = {
+            x: originalEvent.clientX - rect.left,
+            y: originalEvent.clientY - rect.top,
+        };
+        const worldPoint = this.screenToWorld(screenPoint);
+        const baseEventData = this.createMouseEvent(originalEvent, null);
+
+        // 检查当前鼠标下的元素
+        let currentNode: Node | null = null;
+        let currentEdge: Edge | null = null;
+        let currentPort: Port | null = null;
+
+        const nodes = this.getAllNodes();
+        for (let i = nodes.length - 1; i >= 0; i--) {
+            const node = nodes[i];
+            
+            // 检查连接桩
+            const port = node.getPortAtPoint(worldPoint);
+            if (port) {
+                currentPort = port;
+                currentNode = node;
+                break;
+            }
+            
+            // 检查节点
+            if (node.containsPoint(worldPoint)) {
+                currentNode = node;
+                break;
+            }
+        }
+
+        // 如果没有在节点上，检查边
+        if (!currentNode) {
+            const edges = this.getAllEdges();
+            for (let i = edges.length - 1; i >= 0; i--) {
+                if (edges[i].containsPoint(worldPoint)) {
+                    currentEdge = edges[i];
+                    break;
+                }
+            }
+        }
+
+        // 处理 Port 的 mouseenter/mouseleave
+        if (currentPort !== this.lastMouseOverPort) {
+            if (this.lastMouseOverPort && !isEnter) {
+                // mouseleave port
+                const eventData = {
+                    ...baseEventData,
+                    target: this.lastMouseOverPort,
+                    port: this.lastMouseOverPort,
+                };
+                this.lastMouseOverPort.emit(EVENT_NAMES.PORT_MOUSELEAVE, eventData);
+                this.emit(EVENT_NAMES.PORT_MOUSELEAVE, eventData);
+            }
+            if (currentPort && isEnter) {
+                // mouseenter port
+                const eventData = {
+                    ...baseEventData,
+                    target: currentPort,
+                    port: currentPort,
+                };
+                currentPort.emit(EVENT_NAMES.PORT_MOUSEENTER, eventData);
+                this.emit(EVENT_NAMES.PORT_MOUSEENTER, eventData);
+            }
+            this.lastMouseOverPort = currentPort;
+        }
+
+        // 处理 Node 的 mouseenter/mouseleave
+        if (currentNode !== this.lastMouseOverNode) {
+            if (this.lastMouseOverNode && !isEnter) {
+                const eventData = { ...baseEventData, target: this.lastMouseOverNode, node: this.lastMouseOverNode };
+                this.lastMouseOverNode.emit(EVENT_NAMES.NODE_MOUSELEAVE, eventData);
+                this.emit(EVENT_NAMES.NODE_MOUSELEAVE, eventData);
+            }
+            if (currentNode && isEnter) {
+                const eventData = { ...baseEventData, target: currentNode, node: currentNode };
+                currentNode.emit(EVENT_NAMES.NODE_MOUSEENTER, eventData);
+                this.emit(EVENT_NAMES.NODE_MOUSEENTER, eventData);
+            }
+            this.lastMouseOverNode = currentNode;
+        }
+
+        // 处理 Edge 的 mouseenter/mouseleave
+        if (currentEdge !== this.lastMouseOverEdge) {
+            if (this.lastMouseOverEdge && !isEnter) {
+                const eventData = { ...baseEventData, target: this.lastMouseOverEdge, edge: this.lastMouseOverEdge };
+                this.lastMouseOverEdge.emit(EVENT_NAMES.EDGE_MOUSELEAVE, eventData);
+                this.emit(EVENT_NAMES.EDGE_MOUSELEAVE, eventData);
+            }
+            if (currentEdge && isEnter) {
+                const eventData = { ...baseEventData, target: currentEdge, edge: currentEdge };
+                currentEdge.emit(EVENT_NAMES.EDGE_MOUSEENTER, eventData);
+                this.emit(EVENT_NAMES.EDGE_MOUSEENTER, eventData);
+            }
+            this.lastMouseOverEdge = currentEdge;
+        }
+    }
+
+    /**
+     * 检查事件名称映射
+     */
+    private getBlankEventName(eventType: string): string | null {
+        const map: Record<string, string> = {
+            click: EVENT_NAMES.BLANK_CLICK,
+            dblclick: EVENT_NAMES.BLANK_DBLCLICK,
+            contextmenu: EVENT_NAMES.BLANK_CONTEXTMENU,
+            mousedown: EVENT_NAMES.BLANK_MOUSEDOWN,
+            mousemove: EVENT_NAMES.BLANK_MOUSEMOVE,
+            mouseup: EVENT_NAMES.BLANK_MOUSEUP,
+            mousewheel: EVENT_NAMES.BLANK_MOUSEWHEEL,
+        };
+        return map[eventType] || null;
     }
 }
 

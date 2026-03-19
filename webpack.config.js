@@ -17,6 +17,10 @@ module.exports = {
     filename: 'bundle.js',
     clean: true
   },
+  // 禁用性能警告
+  performance: {
+    hints: false
+  },
   module: {
     rules: [
       {

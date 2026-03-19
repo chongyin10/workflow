@@ -1,6 +1,15 @@
-import { Cell, CellOptions, CellData } from './Cell';
+import { Cell, CellOptions, CellData, type CellEvent } from './Cell';
 import { Shape, ShapeConfig, ShapeRenderer } from './Shape';
 import { Port, PortOptions, PortPosition, PortManager, PortGroupOptions, PortLayoutConfig } from './Port';
+import { EVENT_NAMES, type MouseEvent, type WheelEvent } from './EventManager';
+
+/**
+ * Node 事件对象接口
+ */
+export interface NodeEvent extends CellEvent {
+    /** Node 实例 */
+    node: Node;
+}
 
 // 重新导出类型，方便用户使用
 export type { PortGroupOptions, PortLayoutConfig } from './Port';
@@ -689,6 +698,116 @@ export class Node extends Cell {
             style: { ...this.style },
             data: { ...this.data },
         });
+    }
+
+    // ==================== 事件处理 ====================
+
+    /**
+     * 触发 Node 相关事件
+     * @param eventType - 事件类型（click, dblclick, contextmenu, mousedown, mousemove, mouseup, mousewheel, mouseenter, mouseleave）
+     * @param originalEvent - 原始 DOM 事件
+     * @param extraData - 额外的事件数据
+     * @returns 是否未阻止默认行为
+     */
+    triggerNodeEvent(
+        eventType: string,
+        originalEvent: Event,
+        extraData: Partial<NodeEvent> = {}
+    ): boolean {
+        const nodeEventName = `node:${eventType}`;
+
+        // 创建事件对象
+        const eventData = this.createNodeEvent(originalEvent, extraData);
+
+        // 同时触发 cell:xxx 和 node:xxx 事件
+        const cellResult = this.triggerCellEvent(eventType, originalEvent, extraData);
+        const nodeResult = this.emit(nodeEventName, eventData);
+
+        return cellResult && nodeResult;
+    }
+
+    /**
+     * 创建 Node 事件对象
+     */
+    protected createNodeEvent(
+        originalEvent: Event,
+        extraData: Partial<NodeEvent> = {}
+    ): NodeEvent {
+        const baseEvent = this.createCellEvent(originalEvent, extraData);
+
+        return {
+            ...baseEvent,
+            type: 'node',
+            target: this,
+            node: this,
+            ...extraData,
+        } as NodeEvent;
+    }
+
+    /**
+     * 触发连接桩事件（从 Port 转发）
+     * @param eventType - 事件类型
+     * @param port - 触发事件的 Port 实例
+     * @param originalEvent - 原始 DOM 事件
+     */
+    triggerPortEvent(
+        eventType: string,
+        port: Port,
+        originalEvent: Event
+    ): boolean {
+        // 在 Node 层转发 port 事件
+        const portEventName = `node:port:${eventType}`;
+        const nodeEvent = this.createNodeEvent(originalEvent);
+
+        const portEventData = {
+            ...nodeEvent,
+            type: 'port',
+            port,
+            portId: port.getId(),
+        };
+
+        return this.emit(portEventName, portEventData);
+    }
+
+    /**
+     * 获取事件名称映射
+     */
+    protected override getEventNameMap(): Record<string, string> {
+        return {
+            click: EVENT_NAMES.NODE_CLICK,
+            dblclick: EVENT_NAMES.NODE_DBLCLICK,
+            contextmenu: EVENT_NAMES.NODE_CONTEXTMENU,
+            mousedown: EVENT_NAMES.NODE_MOUSEDOWN,
+            mousemove: EVENT_NAMES.NODE_MOUSEMOVE,
+            mouseup: EVENT_NAMES.NODE_MOUSEUP,
+            mousewheel: EVENT_NAMES.NODE_MOUSEWHEEL,
+            mouseenter: EVENT_NAMES.NODE_MOUSEENTER,
+            mouseleave: EVENT_NAMES.NODE_MOUSELEAVE,
+        };
+    }
+
+    /**
+     * 检查点是否在节点上（包含连接桩检测）
+     * @param point - 检查的点
+     * @returns 检测结果
+     */
+    hitTest(point: { x: number; y: number }): {
+        hit: boolean;
+        target: 'node' | 'port' | null;
+        port?: Port;
+    } {
+        // 首先检查是否在连接桩上
+        const port = this.getPortAtPoint(point);
+        if (port) {
+            return { hit: true, target: 'port', port };
+        }
+
+        // 然后检查是否在节点主体上
+        if (this.containsPoint(point)) {
+            return { hit: true, target: 'node' };
+        }
+
+        return { hit: false, target: null };
     }
 }
 

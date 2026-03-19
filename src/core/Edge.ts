@@ -1,4 +1,17 @@
-import { Cell, CellOptions, CellData } from './Cell';
+import { Cell, CellOptions, CellData, type CellEvent } from './Cell';
+import { EVENT_NAMES, type MouseEvent, type WheelEvent } from './EventManager';
+
+/**
+ * Edge 事件对象接口
+ */
+export interface EdgeEvent extends CellEvent {
+    /** Edge 实例 */
+    edge: Edge;
+    /** 源节点 ID */
+    sourceId: string;
+    /** 目标节点 ID */
+    targetId: string;
+}
 
 /**
  * 边样式接口
@@ -747,6 +760,69 @@ export class Edge extends Cell {
 
         // 进一步检测：点到线段的距离
         return this.isPointOnLineSegment(point, source, target, tolerance * 2);
+    }
+
+    // ==================== 事件处理 ====================
+
+    /**
+     * 触发 Edge 相关事件
+     * @param eventType - 事件类型（click, dblclick, contextmenu, mousedown, mousemove, mouseup, mousewheel, mouseenter, mouseleave）
+     * @param originalEvent - 原始 DOM 事件
+     * @param extraData - 额外的事件数据
+     * @returns 是否未阻止默认行为
+     */
+    triggerEdgeEvent(
+        eventType: string,
+        originalEvent: Event,
+        extraData: Partial<EdgeEvent> = {}
+    ): boolean {
+        const edgeEventName = `edge:${eventType}`;
+
+        // 创建事件对象
+        const eventData = this.createEdgeEvent(originalEvent, extraData);
+
+        // 同时触发 cell:xxx 和 edge:xxx 事件
+        const cellResult = this.triggerCellEvent(eventType, originalEvent, extraData);
+        const edgeResult = this.emit(edgeEventName, eventData);
+
+        return cellResult && edgeResult;
+    }
+
+    /**
+     * 创建 Edge 事件对象
+     */
+    protected createEdgeEvent(
+        originalEvent: Event,
+        extraData: Partial<EdgeEvent> = {}
+    ): EdgeEvent {
+        const baseEvent = this.createCellEvent(originalEvent, extraData);
+
+        return {
+            ...baseEvent,
+            type: 'edge',
+            target: this,
+            edge: this,
+            sourceId: this.source.nodeId,
+            targetId: this.target.nodeId,
+            ...extraData,
+        } as EdgeEvent;
+    }
+
+    /**
+     * 获取事件名称映射
+     */
+    protected override getEventNameMap(): Record<string, string> {
+        return {
+            click: EVENT_NAMES.EDGE_CLICK,
+            dblclick: EVENT_NAMES.EDGE_DBLCLICK,
+            contextmenu: EVENT_NAMES.EDGE_CONTEXTMENU,
+            mousedown: EVENT_NAMES.EDGE_MOUSEDOWN,
+            mousemove: EVENT_NAMES.EDGE_MOUSEMOVE,
+            mouseup: EVENT_NAMES.EDGE_MOUSEUP,
+            mousewheel: EVENT_NAMES.EDGE_MOUSEWHEEL,
+            mouseenter: EVENT_NAMES.EDGE_MOUSEENTER,
+            mouseleave: EVENT_NAMES.EDGE_MOUSELEAVE,
+        };
     }
 }
 

@@ -1,5 +1,18 @@
-import { Cell, CellOptions, CellData } from './Cell';
+import { Cell, CellOptions, CellData, type CellEvent } from './Cell';
 import { Shape, ShapeConfig } from './Shape';
+import { EVENT_NAMES, type MouseEvent } from './EventManager';
+
+/**
+ * Port 事件对象接口
+ */
+export interface PortEvent extends CellEvent {
+    /** Port 实例 */
+    port: Port;
+    /** 所属节点 ID */
+    nodeId: string;
+    /** Port ID */
+    portId: string;
+}
 
 /**
  * 连接桩位置类型
@@ -467,6 +480,66 @@ export class Port extends Cell {
             label: this.label,
             data: { ...this.data },
         });
+    }
+
+    // ==================== 事件处理 ====================
+
+    /**
+     * 触发 Port 相关事件
+     * @param eventType - 事件类型（click, dblclick, contextmenu, mousedown, mousemove, mouseup, mouseenter, mouseleave）
+     * @param originalEvent - 原始 DOM 事件
+     * @param extraData - 额外的事件数据
+     * @returns 是否未阻止默认行为
+     */
+    triggerPortEvent(
+        eventType: string,
+        originalEvent: Event,
+        extraData: Partial<PortEvent> = {}
+    ): boolean {
+        const portEventName = `node:port:${eventType}`;
+
+        // 创建事件对象
+        const eventData = this.createPortEvent(originalEvent, extraData);
+
+        // 触发连接桩事件
+        return this.emit(portEventName, eventData);
+    }
+
+    /**
+     * 创建 Port 事件对象
+     */
+    protected createPortEvent(
+        originalEvent: Event,
+        extraData: Partial<PortEvent> = {}
+    ): PortEvent {
+        const baseEvent = this.createCellEvent(originalEvent, extraData);
+
+        return {
+            ...baseEvent,
+            type: 'port',
+            target: this,
+            port: this,
+            portId: this.id,
+            nodeId: this.nodeId,
+            ...extraData,
+        } as PortEvent;
+    }
+
+    /**
+     * 获取事件名称映射
+     * 注意：Port 使用 node:port:xxx 前缀
+     */
+    protected override getEventNameMap(): Record<string, string> {
+        return {
+            click: EVENT_NAMES.PORT_CLICK,
+            dblclick: EVENT_NAMES.PORT_DBLCLICK,
+            contextmenu: EVENT_NAMES.PORT_CONTEXTMENU,
+            mousedown: EVENT_NAMES.PORT_MOUSEDOWN,
+            mousemove: EVENT_NAMES.PORT_MOUSEMOVE,
+            mouseup: EVENT_NAMES.PORT_MOUSEUP,
+            mouseenter: EVENT_NAMES.PORT_MOUSEENTER,
+            mouseleave: EVENT_NAMES.PORT_MOUSELEAVE,
+        };
     }
 }
 
