@@ -1,5 +1,6 @@
 import { Node, NodeOptions } from './Node';
 import { Edge, EdgeOptions } from './Edge';
+import { Port } from './Port';
 
 export interface Point {
     x: number;
@@ -774,8 +775,45 @@ export class Graph {
                 const sourceAnchor = edge.getSourceAnchor();
                 const targetAnchor = edge.getTargetAnchor();
 
-                const sourcePoint = sourceNode.getAnchorPoint(sourceAnchor.position);
-                const targetPoint = targetNode.getAnchorPoint(targetAnchor.position);
+                // 获取源连接点
+                let sourcePoint: { x: number; y: number };
+                if (sourceAnchor.portId) {
+                    const port = sourceNode.getPort(sourceAnchor.portId);
+                    if (port) {
+                        sourcePoint = port.getConnectionPoint(
+                            sourceNode.getPosition().x,
+                            sourceNode.getPosition().y,
+                            sourceNode.getStyle().width,
+                            sourceNode.getStyle().height
+                        );
+                    } else {
+                        // 连接桩不存在，使用位置
+                        sourcePoint = sourceNode.getAnchorPoint(sourceAnchor.position || 'center');
+                    }
+                } else {
+                    // 没有指定连接桩，使用位置
+                    sourcePoint = sourceNode.getAnchorPoint(sourceAnchor.position || 'center');
+                }
+
+                // 获取目标连接点
+                let targetPoint: { x: number; y: number };
+                if (targetAnchor.portId) {
+                    const port = targetNode.getPort(targetAnchor.portId);
+                    if (port) {
+                        targetPoint = port.getConnectionPoint(
+                            targetNode.getPosition().x,
+                            targetNode.getPosition().y,
+                            targetNode.getStyle().width,
+                            targetNode.getStyle().height
+                        );
+                    } else {
+                        // 连接桩不存在，使用位置
+                        targetPoint = targetNode.getAnchorPoint(targetAnchor.position || 'center');
+                    }
+                } else {
+                    // 没有指定连接桩，使用位置
+                    targetPoint = targetNode.getAnchorPoint(targetAnchor.position || 'center');
+                }
 
                 edge.draw(this.ctx, sourcePoint, targetPoint);
             }

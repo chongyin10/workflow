@@ -47,7 +47,10 @@ export enum EdgeType {
  */
 export interface EdgeAnchor {
     nodeId: string;
-    position: 'top' | 'right' | 'bottom' | 'left';
+    /** 连接桩 ID（优先使用）或位置 */
+    portId?: string;
+    /** 位置（当 portId 未指定时使用） */
+    position?: 'top' | 'right' | 'bottom' | 'left';
 }
 
 /**
@@ -434,7 +437,7 @@ export class Edge extends Cell {
     /**
      * 获取方向 X 分量
      */
-    private getDirectionX(position: string): number {
+    private getDirectionX(position: string | undefined): number {
         switch (position) {
             case 'left':
                 return -1;
@@ -448,7 +451,7 @@ export class Edge extends Cell {
     /**
      * 获取方向 Y 分量
      */
-    private getDirectionY(position: string): number {
+    private getDirectionY(position: string | undefined): number {
         switch (position) {
             case 'top':
                 return -1;

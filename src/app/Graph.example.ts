@@ -35,7 +35,7 @@ function basicExample() {
     return graph;
 }
 
-// 示例 2: 使用 Node 和 Edge 类绘制
+// 示例 2: 使用 Node、Edge 和 Port（连接桩）绘制
 class CustomGraph extends Graph {
     constructor(options: any) {
         super(options);
@@ -45,15 +45,16 @@ class CustomGraph extends Graph {
             id: 'node-1',
             x: 0,
             y: 0,
-            shape: Shape.Circle,
-            label: '节点 1',
+            shape: Shape.Rect,
+            label: 'hello',
             style: {
-                width: 60,
-                height: 60,
-                backgroundColor: '#3b82f6',
-                borderColor: '#1d4ed8',
-                borderWidth: 2,
-                textColor: '#ffffff',
+                width: 100,
+                height: 40,
+                backgroundColor: '#ffffff',
+                borderColor: '#94a3b8',
+                borderWidth: 1,
+                borderRadius: 8,
+                textColor: '#334155',
                 fontSize: 14,
             },
         });
@@ -61,61 +62,121 @@ class CustomGraph extends Graph {
         const node2 = this.addNode({
             id: 'node-2',
             x: 200,
-            y: 100,
-            shape: Shape.Circle,
-            label: '节点 2',
+            y: 150,
+            shape: Shape.Rect,
+            label: 'world',
             style: {
-                width: 60,
-                height: 60,
-                backgroundColor: '#10b981',
-                borderColor: '#059669',
-                borderWidth: 2,
-                textColor: '#ffffff',
+                width: 100,
+                height: 40,
+                backgroundColor: '#ffffff',
+                borderColor: '#94a3b8',
+                borderWidth: 1,
+                borderRadius: 8,
+                textColor: '#334155',
                 fontSize: 14,
             },
         });
         
-        const node3 = this.addNode({
-            id: 'node-3',
-            x: -100,
-            y: 200,
-            shape: Shape.Circle,
-            label: '节点 3',
+        // 为 node1 添加连接桩
+        node1.addPort({
+            id: 'node1-right',
+            position: 'right',
+            visible: true,
             style: {
-                width: 60,
-                height: 60,
-                backgroundColor: '#f59e0b',
-                borderColor: '#d97706',
-                borderWidth: 2,
-                textColor: '#ffffff',
-                fontSize: 14,
+                width: 10,
+                height: 10,
+                fillColor: '#ffffff',
+                strokeColor: '#64748b',
+                strokeWidth: 2,
+                hoverFillColor: '#e2e8f0',
+                hoverStrokeColor: '#3b82f6',
+                selectedFillColor: '#dbeafe',
+                selectedStrokeColor: '#3b82f6',
+                backgroundColor: 'transparent',
             },
         });
         
-        // 使用 addEdge 添加边
+        node1.addPort({
+            id: 'node1-left',
+            position: 'left',
+            visible: true,
+        });
+        
+        // 为 node2 添加连接桩
+        node2.addPort({
+            id: 'node2-top',
+            position: 'top',
+            visible: true,
+            style: {
+                width: 10,
+                height: 10,
+                fillColor: '#ffffff',
+                strokeColor: '#64748b',
+                strokeWidth: 2,
+                hoverFillColor: '#e2e8f0',
+                hoverStrokeColor: '#3b82f6',
+                selectedFillColor: '#dbeafe',
+                selectedStrokeColor: '#3b82f6',
+                backgroundColor: 'transparent',
+            },
+        });
+        
+        node2.addPort({
+            id: 'node2-right',
+            position: 'right',
+            visible: true,
+        });
+        
+        // 使用 addEdge 添加边，连接到连接桩
         this.addEdge({
             id: 'edge-1-2',
-            source: { nodeId: 'node-1', position: 'right' },
-            target: { nodeId: 'node-2', position: 'left' },
-            type: EdgeType.Bezier,
+            source: { nodeId: 'node-1', portId: 'node1-right' },
+            target: { nodeId: 'node-2', portId: 'node2-top' },
+            type: EdgeType.Straight,
             style: {
-                stroke: '#94a3b8',
-                strokeWidth: 2,
+                stroke: '#64748b',
+                strokeWidth: 1.5,
                 dashed: false,
                 arrowSize: 8,
             },
+        });
+        
+        // 添加更多节点和连接桩示例
+        const node3 = this.addNode({
+            id: 'node-3',
+            x: 350,
+            y: 80,
+            shape: Shape.Rect,
+            label: 'hidden port',
+            style: {
+                width: 100,
+                height: 40,
+                backgroundColor: '#f8fafc',
+                borderColor: '#cbd5e1',
+                borderWidth: 1,
+                borderRadius: 8,
+                textColor: '#64748b',
+                fontSize: 12,
+            },
+        });
+        
+        // 隐藏连接桩示例（直接连接到节点边缘）
+        node3.addPort({
+            id: 'node3-left',
+            position: 'left',
+            visible: false, // 隐藏连接桩
         });
         
         this.addEdge({
             id: 'edge-2-3',
-            source: { nodeId: 'node-2', position: 'bottom' },
-            target: { nodeId: 'node-3', position: 'right' },
+            source: { nodeId: 'node-2', portId: 'node2-right' },
+            target: { nodeId: 'node-3', portId: 'node3-left' },
             type: EdgeType.Bezier,
             style: {
                 stroke: '#94a3b8',
-                strokeWidth: 2,
+                strokeWidth: 1.5,
                 dashed: false,
-                arrowSize: 8,
+                arrowSize: 6,
             },
         });
     }

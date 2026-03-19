@@ -18,5 +18,9 @@ export type { EdgeOptions, EdgeStyle, EdgeData, EdgeAnchor } from '../core/Edge'
 export { Shape, ShapeRenderer } from '../core/Shape';
 export type { ShapeConfig } from '../core/Shape';
 
+// Port
+export { Port } from '../core/Port';
+export type { PortOptions, PortStyle, PortData, PortPosition } from '../core/Port';
+
 // Styles
 import './styles/index.css';

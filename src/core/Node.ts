@@ -1,5 +1,6 @@
 import { Cell, CellOptions, CellData } from './Cell';
 import { Shape, ShapeConfig, ShapeRenderer } from './Shape';
+import { Port, PortOptions, PortPosition } from './Port';
 
 /**
  * 节点样式接口
@@ -79,6 +80,7 @@ export class Node extends Cell {
     private position: NodePosition;
     private style: NodeStyle;
     private shapeConfig: ShapeConfig;
+    private ports: Map<string, Port> = new Map();
 
     // 默认样式
     private static readonly DEFAULT_STYLE: NodeStyle = {
@@ -297,6 +299,9 @@ export class Node extends Cell {
         ctx.fillText(displayLabel, this.position.x, this.position.y);
 
         ctx.restore();
+
+        // 绘制所有连接桩
+        this.drawAllPorts(ctx);
     }
 
     /**
@@ -342,7 +347,10 @@ export class Node extends Cell {
      * 获取连接点坐标
      * @param position - 连接点位置
      */
-    getAnchorPoint(position: 'top' | 'right' | 'bottom' | 'left'): { x: number; y: number } {
+    getAnchorPoint(position: 'top' | 'right' | 'bottom' | 'left' | 'center'): { x: number; y: number } {
+        if (position === 'center') {
+            return { x: this.position.x, y: this.position.y };
+        }
         return ShapeRenderer.getAnchorPoint(
             this.shapeConfig,
             position,
@@ -380,6 +388,111 @@ export class Node extends Cell {
         this.drawAnchor(ctx, 'right');
         this.drawAnchor(ctx, 'bottom');
         this.drawAnchor(ctx, 'left');
+    }
+
+    // ==================== 连接桩 (Port) 管理方法 ====================
+
+    /**
+     * 添加连接桩
+     * @param options - 连接桩配置
+     * @returns 创建的连接桩实例
+     */
+    addPort(options: Omit<PortOptions, 'nodeId'>): Port {
+        const port = new Port({
+            ...options,
+            nodeId: this.id,
+        });
+        this.ports.set(port.getId(), port);
+        return port;
+    }
+
+    /**
+     * 移除连接桩
+     * @param portId - 连接桩 ID
+     * @returns 是否成功移除
+     */
+    removePort(portId: string): boolean {
+        return this.ports.delete(portId);
+    }
+
+    /**
+     * 获取连接桩
+     * @param portId - 连接桩 ID
+     * @returns 连接桩实例或 undefined
+     */
+    getPort(portId: string): Port | undefined {
+        return this.ports.get(portId);
+    }
+
+    /**
+     * 获取所有连接桩
+     * @returns 连接桩数组
+     */
+    getAllPorts(): Port[] {
+        return Array.from(this.ports.values());
+    }
+
+    /**
+     * 根据位置获取连接桩
+     * @param position - 连接桩位置
+     * @returns 连接桩实例或 undefined
+     */
+    getPortByPosition(position: PortPosition): Port | undefined {
+        for (const port of this.ports.values()) {
+            const portPos = port.getPosition();
+            if (typeof position === 'object' && typeof portPos === 'object') {
+                if (position.x === portPos.x && position.y === portPos.y) {
+                    return port;
+                }
+            } else if (position === portPos) {
+                return port;
+            }
+        }
+        return undefined;
+    }
+
+    /**
+     * 清除所有连接桩
+     */
+    clearPorts(): void {
+        this.ports.clear();
+    }
+
+    /**
+     * 绘制所有连接桩
+     * @param ctx - Canvas 2D 上下文
+     */
+    drawAllPorts(ctx: CanvasRenderingContext2D): void {
+        this.ports.forEach((port) => {
+            port.draw(ctx, this.position.x, this.position.y, this.style.width, this.style.height);
+        });
+    }
+
+    /**
+     * 获取连接桩的连接点坐标
+     * @param portId - 连接桩 ID
+     * @returns 连接点坐标或 null
+     */
+    getPortConnectionPoint(portId: string): { x: number; y: number } | null {
+        const port = this.ports.get(portId);
+        if (port) {
+            return port.getConnectionPoint(this.position.x, this.position.y, this.style.width, this.style.height);
+        }
+        return null;
+    }
+
+    /**
+     * 检查点是否在连接桩上
+     * @param point - 要检查的点
+     * @returns 连接桩实例或 null
+     */
+    getPortAtPoint(point: { x: number; y: number }): Port | null {
+        for (const port of this.ports.values()) {
+            if (port.containsPoint(point, this.position.x, this.position.y, this.style.width, this.style.height)) {
+                return port;
+            }
+        }
+        return null;
     }
 
     /**
