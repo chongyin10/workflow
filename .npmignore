@@ -1,0 +1,26 @@
+# Source files
+src/
+tests/
+examples/
+
+# Build files
+build/
+.next/
+out/
+
+# Config files
+webpack.config.js
+next.config.js
+babel.config.js
+tsconfig.json
+.gitignore
+
+# Development
+docs/
+coverage/
+.github/
+
+# Misc
+node_modules/
+*.log
+.env*.local
