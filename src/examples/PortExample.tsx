@@ -3,7 +3,7 @@ import { Graph } from '../core/Graph';
 import { Node } from '../core/Node';
 import { Shape } from '../core/Shape';
 import { Edge, EdgeType } from '../core/Edge';
-import { PortPosition } from '../core/Port';
+import { PortPosition, PortGroupOptions } from '../core/Port';
 
 /**
  * PortExample - Port 连接桩组件使用示例
@@ -104,14 +104,32 @@ export const PortExample: React.FC = () => {
             },
         });
 
-        // 顶部多个端口
-        multiPortNode.addPort({ id: 'port-multi-t1', position: { x: 0.2, y: 0 }, visible: true });
-        multiPortNode.addPort({ id: 'port-multi-t2', position: { x: 0.5, y: 0 }, visible: true });
-        multiPortNode.addPort({ id: 'port-multi-t3', position: { x: 0.8, y: 0 }, visible: true });
-        // 底部多个端口
-        multiPortNode.addPort({ id: 'port-multi-b1', position: { x: 0.2, y: 1 }, visible: true });
-        multiPortNode.addPort({ id: 'port-multi-b2', position: { x: 0.5, y: 1 }, visible: true });
-        multiPortNode.addPort({ id: 'port-multi-b3', position: { x: 0.8, y: 1 }, visible: true });
+        // 使用 PortManager 批量添加多个端口，自动均匀分布
+        multiPortNode.addPortGroup({
+            id: 'top-ports',
+            position: 'top',
+            count: 3,
+            portConfig: (index: number) => ({
+                id: `port-multi-t${index + 1}`,
+                label: `输入 ${index + 1}`,
+                visible: true,
+                style: { fillColor: '#22c55e', strokeColor: '#16a34a', width: 12, height: 12, strokeWidth: 2 } as any,
+            }),
+        });
+
+        // 底部端口组
+        multiPortNode.addPortGroup({
+            id: 'bottom-ports',
+            position: 'bottom',
+            count: 3,
+            portConfig: (index: number) => ({
+                id: `port-multi-b${index + 1}`,
+                label: `输出 ${index + 1}`,
+                visible: true,
+                style: { fillColor: '#ef4444', strokeColor: '#dc2626', width: 12, height: 12, strokeWidth: 2 } as any,
+            }),
+        });
+
         // 左右端口
         multiPortNode.addPort({ id: 'port-multi-l', position: 'left', visible: true });
         multiPortNode.addPort({ id: 'port-multi-r', position: 'right', visible: true });
@@ -335,6 +353,50 @@ export const PortExample: React.FC = () => {
         (graphRef.current as any)['scheduleRender']?.();
     };
 
+    // 批量添加端口组（演示 PortManager 功能）
+    const addPortGroup = (position: 'top' | 'right' | 'bottom' | 'left', count: number) => {
+        if (!graphRef.current || !selectedNodeId) return;
+
+        const node = (graphRef.current as any).nodes.get(selectedNodeId);
+        if (!node) return;
+
+        const groupId = `group-${position}-${Date.now()}`;
+        const colors = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6'];
+
+        node.addPortGroup({
+            id: groupId,
+            position,
+            count,
+            portConfig: (index: number) => ({
+                id: `${groupId}-port-${index}`,
+                label: `${position} ${index + 1}`,
+                visible: true,
+                style: {
+                    fillColor: colors[index % colors.length],
+                    strokeColor: colors[index % colors.length],
+                    width: 12,
+                    height: 12,
+                    strokeWidth: 2,
+                } as any,
+            }),
+        });
+
+        (graphRef.current as any)['scheduleRender']?.();
+        console.log(`添加 ${count} 个${position}端口，自动均匀分布`);
+    };
+
+    // 清除选中节点的所有端口
+    const clearAllPorts = () => {
+        if (!graphRef.current || !selectedNodeId) return;
+
+        const node = (graphRef.current as any).nodes.get(selectedNodeId);
+        if (!node) return;
+
+        node.clearPorts();
+        (graphRef.current as any)['scheduleRender']?.();
+        console.log('清除所有端口');
+    };
+
     return (
         <div style={{ padding: '20px', fontFamily: 'system-ui, sans-serif' }}>
             <h2>🔌 Port 连接桩组件示例</h2>
@@ -372,6 +434,28 @@ export const PortExample: React.FC = () => {
                 </button>
                 <button onClick={() => addCustomPort(0.75, 1)} disabled={!selectedNodeId} style={buttonStyle(Boolean(selectedNodeId), '#22c55e')}>
                     + 右下
+                </button>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <span style={{ fontWeight: 'bold' }}>批量添加(自适应分布):</span>
+                <button onClick={() => addPortGroup('top', 3)} disabled={!selectedNodeId} style={buttonStyle(Boolean(selectedNodeId), '#ec4899')}>
+                    + 顶部x3
+                </button>
+                <button onClick={() => addPortGroup('bottom', 4)} disabled={!selectedNodeId} style={buttonStyle(Boolean(selectedNodeId), '#ec4899')}>
+                    + 底部x4
+                </button>
+                <button onClick={() => addPortGroup('left', 3)} disabled={!selectedNodeId} style={buttonStyle(Boolean(selectedNodeId), '#ec4899')}>
+                    + 左侧x3
+                </button>
+                <button onClick={() => addPortGroup('right', 5)} disabled={!selectedNodeId} style={buttonStyle(Boolean(selectedNodeId), '#ec4899')}>
+                    + 右侧x5
+                </button>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <button onClick={clearAllPorts} disabled={!selectedNodeId} style={buttonStyle(Boolean(selectedNodeId), '#64748b')}>
+                    🗑️ 清除所有端口
                 </button>
             </div>
 
@@ -413,11 +497,19 @@ export const PortExample: React.FC = () => {
                 <h3>🔧 常用方法</h3>
                 <ul style={{ lineHeight: '1.8' }}>
                     <li><strong>node.addPort(options):</strong> 添加新端口到节点</li>
+                    <li><strong>node.addPortGroup(options):</strong> 批量添加同一侧的多个端口（自动均匀分布）</li>
                     <li><strong>node.removePort(portId):</strong> 从节点删除指定端口</li>
                     <li><strong>node.getPort(portId):</strong> 获取指定 ID 的端口</li>
                     <li><strong>node.getAllPorts():</strong> 获取所有端口</li>
                     <li><strong>port.setVisible(boolean):</strong> 设置端口可见性</li>
                     <li><strong>port.getConnectionPoint():</strong> 获取端口的连接点坐标</li>
+                </ul>
+                <h3>🎯 PortGroup 批量添加端口</h3>
+                <ul style={{ lineHeight: '1.8' }}>
+                    <li><strong>自动布局:</strong> 同一侧的多个端口自动均匀分布</li>
+                    <li><strong>自适应间距:</strong> 根据节点大小自动计算最佳间距</li>
+                    <li><strong>自定义配置:</strong> 支持为每个端口单独配置样式</li>
+                    <li><strong>动态更新:</strong> 支持增删端口时自动重新布局</li>
                 </ul>
             </div>
         </div>

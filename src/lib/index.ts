@@ -22,5 +22,9 @@ export type { ShapeConfig } from '../core/Shape';
 export { Port } from '../core/Port';
 export type { PortOptions, PortStyle, PortData, PortPosition } from '../core/Port';
 
+// PortManager
+export { PortManager } from '../core/Port';
+export type { PortGroupOptions, PortLayoutConfig } from '../core/Port';
+
 // Styles
 import './styles/index.css';

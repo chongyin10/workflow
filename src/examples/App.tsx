@@ -13,7 +13,7 @@ import {
  * 
  * 提供所有核心组件示例的导航和展示
  */
-type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape';
+type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'portmanager' | 'shape';
 
 interface ExampleItem {
     key: ExampleKey;

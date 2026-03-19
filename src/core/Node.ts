@@ -1,6 +1,9 @@
 import { Cell, CellOptions, CellData } from './Cell';
 import { Shape, ShapeConfig, ShapeRenderer } from './Shape';
-import { Port, PortOptions, PortPosition } from './Port';
+import { Port, PortOptions, PortPosition, PortManager, PortGroupOptions, PortLayoutConfig } from './Port';
+
+// 重新导出类型，方便用户使用
+export type { PortGroupOptions, PortLayoutConfig } from './Port';
 
 /**
  * 节点样式接口
@@ -81,6 +84,7 @@ export class Node extends Cell {
     private style: NodeStyle;
     private shapeConfig: ShapeConfig;
     private ports: Map<string, Port> = new Map();
+    private portManager: PortManager;
 
     // 默认样式
     private static readonly DEFAULT_STYLE: NodeStyle = {
@@ -164,6 +168,13 @@ export class Node extends Cell {
         } else {
             this.shapeConfig = { type: Shape.Rect, borderRadius: this.style.borderRadius };
         }
+
+        // 初始化连接桩管理器
+        this.portManager = new PortManager(
+            this.id,
+            this.style.width,
+            this.style.height
+        );
     }
 
     /**
@@ -201,6 +212,8 @@ export class Node extends Cell {
      */
     updateStyle(style: Partial<NodeStyle>): void {
         this.style = { ...this.style, ...style };
+        // 更新连接桩管理器的尺寸
+        this.portManager.updateNodeSize(this.style.width, this.style.height);
     }
 
     /**
@@ -393,11 +406,111 @@ export class Node extends Cell {
     // ==================== 连接桩 (Port) 管理方法 ====================
 
     /**
-     * 添加连接桩
+     * 获取连接桩管理器
+     * @returns PortManager 实例
+     */
+    getPortManager(): PortManager {
+        return this.portManager;
+    }
+
+    /**
+     * 批量添加连接桩组（支持自适应布局）
+     * @param options - 连接桩组配置
+     * @returns 创建的连接桩数组
+     * @example
+     * ```typescript
+     * // 添加3个顶部连接桩，自动均匀分布
+     * node.addPortGroup({
+     *     id: 'top-inputs',
+     *     position: 'top',
+     *     count: 3
+     * });
+     *
+     * // 自定义每个连接桩
+     * node.addPortGroup({
+     *     id: 'right-outputs',
+     *     position: 'right',
+     *     count: 4,
+     *     portConfig: (index) => ({
+     *         id: `output-${index}`,
+     *         label: `输出 ${index + 1}`,
+     *         style: { fillColor: '#3b82f6' }
+     *     })
+     * });
+     * ```
+     */
+    addPortGroup(options: PortGroupOptions): Port[] {
+        return this.portManager.addPortGroup(options);
+    }
+
+    /**
+     * 移除连接桩组
+     * @param groupId - 组ID
+     * @returns 是否成功移除
+     */
+    removePortGroup(groupId: string): boolean {
+        return this.portManager.removePortGroup(groupId);
+    }
+
+    /**
+     * 更新连接桩组
+     * @param groupId - 组ID
+     * @param newCount - 新的连接桩数量
+     * @returns 是否更新成功
+     */
+    updatePortGroup(groupId: string, newCount: number): boolean {
+        return this.portManager.updatePortGroup(groupId, newCount);
+    }
+
+    /**
+     * 获取某侧的所有连接桩
+     * @param position - 边侧位置
+     * @returns 连接桩数组
+     */
+    getPortsBySide(position: 'top' | 'right' | 'bottom' | 'left'): Port[] {
+        return this.portManager.getPortsBySide(position);
+    }
+
+    /**
+     * 设置某侧的布局配置
+     * @param position - 边侧位置
+     * @param config - 布局配置
+     */
+    setSideLayoutConfig(
+        position: 'top' | 'right' | 'bottom' | 'left',
+        config: Partial<PortLayoutConfig>
+    ): void {
+        this.portManager.setSideLayoutConfig(position, config);
+    }
+
+    /**
+     * 获取某侧连接桩的数量
+     * @param position - 边侧位置
+     * @returns 连接桩数量
+     */
+    getPortCountBySide(position: 'top' | 'right' | 'bottom' | 'left'): number {
+        return this.portManager.getPortCountBySide(position);
+    }
+
+    // ==================== 向后兼容的 Port 管理方法 ====================
+
+    /**
+     * 添加连接桩（支持自适应布局）
      * @param options - 连接桩配置
+     * @param layoutConfig - 可选的布局配置（当位置为边侧时生效）
      * @returns 创建的连接桩实例
      */
-    addPort(options: Omit<PortOptions, 'nodeId'>): Port {
+    addPort(
+        options: Omit<PortOptions, 'nodeId'>,
+        layoutConfig?: Partial<PortLayoutConfig>
+    ): Port {
+        // 如果位置是边侧，使用 PortManager 进行自适应布局
+        if (typeof options.position === 'string' &&
+            ['top', 'right', 'bottom', 'left'].includes(options.position)) {
+            return this.portManager.addPort(options, layoutConfig);
+        }
+        
+        // 否则使用传统方式添加
         const port = new Port({
             ...options,
             nodeId: this.id,
@@ -412,6 +525,11 @@ export class Node extends Cell {
      * @returns 是否成功移除
      */
     removePort(portId: string): boolean {
+        // 先尝试从 PortManager 移除
+        if (this.portManager.hasPort(portId)) {
+            return this.portManager.removePort(portId);
+        }
+        // 否则从传统 Map 移除
         return this.ports.delete(portId);
     }
 
@@ -421,15 +539,21 @@ export class Node extends Cell {
      * @returns 连接桩实例或 undefined
      */
     getPort(portId: string): Port | undefined {
+        // 先尝试从 PortManager 获取
+        const portFromManager = this.portManager.getPort(portId);
+        if (portFromManager) return portFromManager;
+        // 否则从传统 Map 获取
         return this.ports.get(portId);
     }
 
     /**
-     * 获取所有连接桩
+     * 获取所有连接桩（包括 PortManager 和传统方式添加的）
      * @returns 连接桩数组
      */
     getAllPorts(): Port[] {
-        return Array.from(this.ports.values());
+        const managerPorts = this.portManager.getAllPorts();
+        const legacyPorts = Array.from(this.ports.values());
+        return [...managerPorts, ...legacyPorts];
     }
 
     /**
@@ -438,6 +562,17 @@ export class Node extends Cell {
      * @returns 连接桩实例或 undefined
      */
     getPortByPosition(position: PortPosition): Port | undefined {
+        // 先检查 PortManager 中的连接桩
+        const managerPort = this.portManager.getAllPorts().find(port => {
+            const portPos = port.getPosition();
+            if (typeof position === 'object' && typeof portPos === 'object') {
+                return position.x === portPos.x && position.y === portPos.y;
+            }
+            return position === portPos;
+        });
+        if (managerPort) return managerPort;
+
+        // 再检查传统方式添加的连接桩
         for (const port of this.ports.values()) {
             const portPos = port.getPosition();
             if (typeof position === 'object' && typeof portPos === 'object') {
@@ -455,6 +590,7 @@ export class Node extends Cell {
      * 清除所有连接桩
      */
     clearPorts(): void {
+        this.portManager.clearPorts();
         this.ports.clear();
     }
 
@@ -463,6 +599,12 @@ export class Node extends Cell {
      * @param ctx - Canvas 2D 上下文
      */
     drawAllPorts(ctx: CanvasRenderingContext2D): void {
+        // 绘制 PortManager 管理的连接桩
+        this.portManager.getAllPorts().forEach((port) => {
+            port.draw(ctx, this.position.x, this.position.y, this.style.width, this.style.height);
+        });
+        
+        // 绘制传统方式添加的连接桩
         this.ports.forEach((port) => {
             port.draw(ctx, this.position.x, this.position.y, this.style.width, this.style.height);
         });
@@ -474,9 +616,16 @@ export class Node extends Cell {
      * @returns 连接点坐标或 null
      */
     getPortConnectionPoint(portId: string): { x: number; y: number } | null {
-        const port = this.ports.get(portId);
+        // 先尝试从 PortManager 获取
+        const port = this.portManager.getPort(portId);
         if (port) {
             return port.getConnectionPoint(this.position.x, this.position.y, this.style.width, this.style.height);
+        }
+        
+        // 否则从传统 Map 获取
+        const legacyPort = this.ports.get(portId);
+        if (legacyPort) {
+            return legacyPort.getConnectionPoint(this.position.x, this.position.y, this.style.width, this.style.height);
         }
         return null;
     }
@@ -487,6 +636,14 @@ export class Node extends Cell {
      * @returns 连接桩实例或 null
      */
     getPortAtPoint(point: { x: number; y: number }): Port | null {
+        // 先检查 PortManager 管理的连接桩
+        for (const port of this.portManager.getAllPorts()) {
+            if (port.containsPoint(point, this.position.x, this.position.y, this.style.width, this.style.height)) {
+                return port;
+            }
+        }
+        
+        // 再检查传统方式添加的连接桩
         for (const port of this.ports.values()) {
             if (port.containsPoint(point, this.position.x, this.position.y, this.style.width, this.style.height)) {
                 return port;

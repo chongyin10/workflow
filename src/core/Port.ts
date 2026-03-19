@@ -57,6 +57,56 @@ export interface PortOptions extends CellOptions {
 }
 
 /**
+ * 连接桩布局配置
+ */
+export interface PortLayoutConfig {
+    /** 最小间距 */
+    minSpacing: number;
+    /** 最大间距 */
+    maxSpacing: number;
+    /** 距离边缘的偏移量 */
+    edgeOffset: number;
+    /** 是否均匀分布 */
+    distributeEvenly: boolean;
+}
+
+/**
+ * 连接桩组配置 - 用于批量添加同一侧的连接桩
+ */
+export interface PortGroupOptions {
+    /** 组ID */
+    id: string;
+    /** 位置 */
+    position: 'top' | 'right' | 'bottom' | 'left';
+    /** 连接桩数量 */
+    count: number;
+    /** 自定义每个连接桩的配置 */
+    portConfig?: Partial<PortOptions> | ((index: number) => Partial<PortOptions>);
+    /** 布局配置 */
+    layout?: Partial<PortLayoutConfig>;
+}
+
+/**
+ * 端口布局信息
+ */
+interface PortLayoutInfo {
+    port: Port;
+    position: 'top' | 'right' | 'bottom' | 'left';
+    index: number;
+    total: number;
+}
+
+/**
+ * 默认布局配置
+ */
+const DEFAULT_LAYOUT_CONFIG: PortLayoutConfig = {
+    minSpacing: 24,
+    maxSpacing: 60,
+    edgeOffset: 8,
+    distributeEvenly: true,
+};
+
+/**
  * Port - 连接桩类
  *
  * 连接桩是节点边缘的连接点，用于边与节点的连接：
@@ -417,6 +467,556 @@ export class Port extends Cell {
             label: this.label,
             data: { ...this.data },
         });
+    }
+}
+
+/**
+ * PortManager - 连接桩管理器
+ *
+ * 负责管理节点上多个连接桩的自适应布局：
+ * - 支持同一侧（top/right/bottom/left）多个连接桩
+ * - 自动计算连接桩之间的间距
+ * - 支持均匀分布或紧凑布局
+ * - 支持批量添加连接桩组
+ * - 当节点大小变化时自动重新布局
+ *
+ * @example
+ * ```typescript
+ * // 批量添加顶部连接桩
+ * node.addPortGroup({
+ *     id: 'top-ports',
+ *     position: 'top',
+ *     count: 3
+ * });
+ *
+ * // 自定义每个连接桩
+ * node.addPortGroup({
+ *     id: 'right-ports',
+ *     position: 'right',
+ *     count: 4,
+ *     portConfig: (index) => ({
+ *         id: `port-${index}`,
+ *         label: `输出 ${index + 1}`,
+ *         style: { fillColor: index === 0 ? '#3b82f6' : '#ffffff' }
+ *     })
+ * });
+ * ```
+ */
+export class PortManager {
+    private nodeId: string;
+    private nodeWidth: number;
+    private nodeHeight: number;
+    private ports: Map<string, Port> = new Map();
+    private portGroups: Map<string, PortGroupOptions> = new Map();
+    private portLayouts: Map<string, PortLayoutInfo> = new Map();
+    private layoutConfigs: Map<string, PortLayoutConfig> = new Map();
+
+    constructor(nodeId: string, nodeWidth: number, nodeHeight: number) {
+        this.nodeId = nodeId;
+        this.nodeWidth = nodeWidth;
+        this.nodeHeight = nodeHeight;
+    }
+
+    /**
+     * 更新节点尺寸（当节点大小变化时调用）
+     */
+    updateNodeSize(width: number, height: number): void {
+        this.nodeWidth = width;
+        this.nodeHeight = height;
+        this.recalculateAllLayouts();
+    }
+
+    /**
+     * 获取所有连接桩
+     */
+    getAllPorts(): Port[] {
+        return Array.from(this.ports.values());
+    }
+
+    /**
+     * 获取连接桩
+     */
+    getPort(portId: string): Port | undefined {
+        return this.ports.get(portId);
+    }
+
+    /**
+     * 检查是否存在连接桩
+     */
+    hasPort(portId: string): boolean {
+        return this.ports.has(portId);
+    }
+
+    /**
+     * 移除连接桩
+     */
+    removePort(portId: string): boolean {
+        const port = this.ports.get(portId);
+        if (!port) return false;
+
+        this.ports.delete(portId);
+        this.portLayouts.delete(portId);
+
+        // 重新计算受影响的分组布局
+        this.recalculateAllLayouts();
+        return true;
+    }
+
+    /**
+     * 清除所有连接桩
+     */
+    clearPorts(): void {
+        this.ports.clear();
+        this.portGroups.clear();
+        this.portLayouts.clear();
+        this.layoutConfigs.clear();
+    }
+
+    /**
+     * 获取某侧的所有连接桩
+     */
+    getPortsBySide(position: 'top' | 'right' | 'bottom' | 'left'): Port[] {
+        const result: Port[] = [];
+        this.portLayouts.forEach((layout, portId) => {
+            if (layout.position === position) {
+                const port = this.ports.get(portId);
+                if (port) result.push(port);
+            }
+        });
+        return result.sort((a, b) => {
+            const layoutA = this.portLayouts.get(a.getId())!;
+            const layoutB = this.portLayouts.get(b.getId())!;
+            return layoutA.index - layoutB.index;
+        });
+    }
+
+    /**
+     * 添加单个连接桩（使用自适应布局）
+     * @param options - 连接桩配置
+     * @param layoutConfig - 可选的布局配置
+     * @returns 创建的连接桩
+     */
+    addPort(
+        options: Omit<PortOptions, 'nodeId'>,
+        layoutConfig?: Partial<PortLayoutConfig>
+    ): Port {
+        const port = new Port({
+            ...options,
+            nodeId: this.nodeId,
+        });
+
+        this.ports.set(port.getId(), port);
+
+        // 如果位置是预设的边侧位置，则进行自适应布局
+        if (typeof options.position === 'string' &&
+            ['top', 'right', 'bottom', 'left'].includes(options.position)) {
+            this.addPortToSide(port, options.position as 'top' | 'right' | 'bottom' | 'left', layoutConfig);
+        }
+
+        return port;
+    }
+
+    /**
+     * 批量添加连接桩组
+     * @param groupOptions - 连接桩组配置
+     * @returns 创建的连接桩数组
+     */
+    addPortGroup(groupOptions: PortGroupOptions): Port[] {
+        const { id, position, count, portConfig, layout } = groupOptions;
+
+        if (count <= 0) return [];
+
+        // 保存组配置
+        this.portGroups.set(id, groupOptions);
+
+        // 合并布局配置
+        const layoutConfig: PortLayoutConfig = {
+            ...DEFAULT_LAYOUT_CONFIG,
+            ...layout,
+        };
+        this.layoutConfigs.set(id, layoutConfig);
+
+        const ports: Port[] = [];
+
+        for (let i = 0; i < count; i++) {
+            // 生成连接桩配置
+            let individualConfig: Partial<PortOptions> = {};
+            if (typeof portConfig === 'function') {
+                individualConfig = portConfig(i);
+            } else if (portConfig) {
+                individualConfig = { ...portConfig };
+            }
+
+            // 创建连接桩（暂不设置位置，稍后统一计算）
+            const portId = individualConfig.id || `${id}-${i}`;
+            const port = new Port({
+                ...individualConfig,
+                id: portId,
+                nodeId: this.nodeId,
+                position: position, // 临时位置，会被重新计算
+            });
+
+            this.ports.set(portId, port);
+            ports.push(port);
+        }
+
+        // 计算该组连接桩的布局
+        this.calculateGroupLayout(id, position, ports, layoutConfig);
+
+        return ports;
+    }
+
+    /**
+     * 更新连接桩组
+     * @param groupId - 组ID
+     * @param newCount - 新的连接桩数量
+     * @returns 是否更新成功
+     */
+    updatePortGroup(groupId: string, newCount: number): boolean {
+        const group = this.portGroups.get(groupId);
+        if (!group) return false;
+
+        const currentPorts = this.getPortsBySide(group.position)
+            .filter(port => port.getId().startsWith(groupId));
+
+        const currentCount = currentPorts.length;
+
+        if (newCount > currentCount) {
+            // 需要添加连接桩
+            const layoutConfig = this.layoutConfigs.get(groupId) || DEFAULT_LAYOUT_CONFIG;
+            for (let i = currentCount; i < newCount; i++) {
+                let individualConfig: Partial<PortOptions> = {};
+                if (typeof group.portConfig === 'function') {
+                    individualConfig = group.portConfig(i);
+                } else if (group.portConfig) {
+                    individualConfig = { ...group.portConfig };
+                }
+
+                const portId = individualConfig.id || `${groupId}-${i}`;
+                const port = new Port({
+                    ...individualConfig,
+                    id: portId,
+                    nodeId: this.nodeId,
+                    position: group.position,
+                });
+
+                this.ports.set(portId, port);
+            }
+        } else if (newCount < currentCount) {
+            // 需要移除连接桩
+            for (let i = newCount; i < currentCount; i++) {
+                const portId = `${groupId}-${i}`;
+                this.ports.delete(portId);
+                this.portLayouts.delete(portId);
+            }
+        }
+
+        // 更新组配置
+        group.count = newCount;
+        this.portGroups.set(groupId, group);
+
+        // 重新计算布局
+        this.recalculateAllLayouts();
+        return true;
+    }
+
+    /**
+     * 移除连接桩组
+     * @param groupId - 组ID
+     * @returns 是否成功移除
+     */
+    removePortGroup(groupId: string): boolean {
+        const group = this.portGroups.get(groupId);
+        if (!group) return false;
+
+        // 移除该组的所有连接桩
+        for (let i = 0; i < group.count; i++) {
+            const portId = `${groupId}-${i}`;
+            this.ports.delete(portId);
+            this.portLayouts.delete(portId);
+        }
+
+        this.portGroups.delete(groupId);
+        this.layoutConfigs.delete(groupId);
+
+        // 重新计算剩余连接桩的布局
+        this.recalculateAllLayouts();
+        return true;
+    }
+
+    /**
+     * 将连接桩添加到指定边侧
+     */
+    private addPortToSide(
+        port: Port,
+        position: 'top' | 'right' | 'bottom' | 'left',
+        layoutConfig?: Partial<PortLayoutConfig>
+    ): void {
+        const config: PortLayoutConfig = {
+            ...DEFAULT_LAYOUT_CONFIG,
+            ...layoutConfig,
+        };
+
+        // 获取该侧当前所有连接桩
+        const sidePorts = this.getPortsBySide(position);
+        const total = sidePorts.length + 1;
+        const newIndex = sidePorts.length;
+
+        // 记录布局信息
+        this.portLayouts.set(port.getId(), {
+            port,
+            position,
+            index: newIndex,
+            total,
+        });
+
+        // 重新计算该侧所有连接桩的位置
+        this.recalculateSideLayout(position, config);
+    }
+
+    /**
+     * 计算连接桩组的布局
+     */
+    private calculateGroupLayout(
+        groupId: string,
+        position: 'top' | 'right' | 'bottom' | 'left',
+        ports: Port[],
+        config: PortLayoutConfig
+    ): void {
+        const total = ports.length;
+
+        // 记录每个连接桩的布局信息
+        ports.forEach((port, index) => {
+            this.portLayouts.set(port.getId(), {
+                port,
+                position,
+                index,
+                total,
+            });
+        });
+
+        // 计算位置
+        this.recalculateSideLayout(position, config);
+    }
+
+    /**
+     * 重新计算所有布局
+     */
+    private recalculateAllLayouts(): void {
+        const sides: ('top' | 'right' | 'bottom' | 'left')[] = ['top', 'right', 'bottom', 'left'];
+
+        sides.forEach(side => {
+            const ports = this.getPortsBySide(side);
+            if (ports.length > 0) {
+                // 使用第一个连接桩所属分组的布局配置，或默认配置
+                const firstPortId = ports[0].getId();
+                let config = DEFAULT_LAYOUT_CONFIG;
+
+                // 查找该连接桩属于哪个组
+                for (const [groupId, group] of this.portGroups) {
+                    if (firstPortId.startsWith(groupId)) {
+                        config = this.layoutConfigs.get(groupId) || DEFAULT_LAYOUT_CONFIG;
+                        break;
+                    }
+                }
+
+                this.recalculateSideLayout(side, config);
+            }
+        });
+    }
+
+    /**
+     * 重新计算指定边侧的布局
+     */
+    private recalculateSideLayout(
+        position: 'top' | 'right' | 'bottom' | 'left',
+        config: PortLayoutConfig
+    ): void {
+        const ports = this.getPortsBySide(position);
+        if (ports.length === 0) return;
+
+        if (ports.length === 1) {
+            // 只有一个连接桩，居中放置
+            this.setPortPosition(ports[0], position, 0.5);
+            return;
+        }
+
+        // 获取可用空间
+        const availableSpace = this.getAvailableSpace(position, config.edgeOffset);
+
+        if (config.distributeEvenly) {
+            // 均匀分布
+            this.distributeEvenly(ports, position, availableSpace, config);
+        } else {
+            // 紧凑布局
+            this.distributeCompact(ports, position, availableSpace, config);
+        }
+    }
+
+    /**
+     * 获取可用空间大小
+     */
+    private getAvailableSpace(
+        position: 'top' | 'right' | 'bottom' | 'left',
+        edgeOffset: number
+    ): number {
+        switch (position) {
+            case 'top':
+            case 'bottom':
+                return this.nodeWidth - edgeOffset * 2;
+            case 'right':
+            case 'left':
+                return this.nodeHeight - edgeOffset * 2;
+        }
+    }
+
+    /**
+     * 均匀分布连接桩
+     */
+    private distributeEvenly(
+        ports: Port[],
+        position: 'top' | 'right' | 'bottom' | 'left',
+        availableSpace: number,
+        config: PortLayoutConfig
+    ): void {
+        const count = ports.length;
+
+        ports.forEach((port, index) => {
+            const ratio = (index + 1) / (count + 1);
+            this.setPortPosition(port, position, ratio);
+        });
+    }
+
+    /**
+     * 紧凑分布连接桩
+     */
+    private distributeCompact(
+        ports: Port[],
+        position: 'top' | 'right' | 'bottom' | 'left',
+        availableSpace: number,
+        config: PortLayoutConfig
+    ): void {
+        const count = ports.length;
+
+        // 计算需要的总空间
+        const totalMinSpace = (count - 1) * config.minSpacing;
+
+        if (totalMinSpace <= availableSpace) {
+            // 空间充足，可以按最小间距分布
+            const extraSpace = availableSpace - totalMinSpace;
+            const startOffset = extraSpace / 2;
+
+            ports.forEach((port, index) => {
+                const offset = startOffset + index * config.minSpacing;
+                const ratio = this.offsetToRatio(position, offset, availableSpace);
+                this.setPortPosition(port, position, ratio);
+            });
+        } else {
+            // 空间不足，使用最大间距或压缩
+            const spacing = Math.max(
+                availableSpace / (count - 1),
+                availableSpace / count
+            );
+
+            ports.forEach((port, index) => {
+                if (count === 1) {
+                    this.setPortPosition(port, position, 0.5);
+                } else {
+                    const offset = index * spacing;
+                    const ratio = this.offsetToRatio(position, offset, availableSpace);
+                    this.setPortPosition(port, position, ratio);
+                }
+            });
+        }
+    }
+
+    /**
+     * 将偏移量转换为比例
+     */
+    private offsetToRatio(
+        position: 'top' | 'right' | 'bottom' | 'left',
+        offset: number,
+        availableSpace: number
+    ): number {
+        const edgeOffset = (position === 'top' || position === 'bottom')
+            ? (this.nodeWidth - availableSpace) / 2
+            : (this.nodeHeight - availableSpace) / 2;
+        return (offset + edgeOffset) / (availableSpace + edgeOffset * 2);
+    }
+
+    /**
+     * 设置连接桩位置
+     * @param port - 连接桩
+     * @param position - 边侧位置
+     * @param ratio - 在边侧上的比例位置 (0-1)
+     */
+    private setPortPosition(
+        port: Port,
+        position: 'top' | 'right' | 'bottom' | 'left',
+        ratio: number
+    ): void {
+        let x: number, y: number;
+        const halfWidth = this.nodeWidth / 2;
+        const halfHeight = this.nodeHeight / 2;
+
+        switch (position) {
+            case 'top':
+                // 从左到右: -halfWidth 到 +halfWidth
+                x = -halfWidth + ratio * this.nodeWidth;
+                y = -halfHeight;
+                break;
+            case 'bottom':
+                // 从左到右: -halfWidth 到 +halfWidth
+                x = -halfWidth + ratio * this.nodeWidth;
+                y = halfHeight;
+                break;
+            case 'left':
+                // 从上到下: -halfHeight 到 +halfHeight
+                x = -halfWidth;
+                y = -halfHeight + ratio * this.nodeHeight;
+                break;
+            case 'right':
+                // 从上到下: -halfHeight 到 +halfHeight
+                x = halfWidth;
+                y = -halfHeight + ratio * this.nodeHeight;
+                break;
+        }
+
+        // 更新连接桩位置为相对于节点中心的偏移
+        port.setPosition({ x, y });
+    }
+
+    /**
+     * 获取某侧连接桩的数量
+     */
+    getPortCountBySide(position: 'top' | 'right' | 'bottom' | 'left'): number {
+        return this.getPortsBySide(position).length;
+    }
+
+    /**
+     * 获取所有连接桩组ID
+     */
+    getPortGroupIds(): string[] {
+        return Array.from(this.portGroups.keys());
+    }
+
+    /**
+     * 获取连接桩组信息
+     */
+    getPortGroup(groupId: string): PortGroupOptions | undefined {
+        return this.portGroups.get(groupId);
+    }
+
+    /**
+     * 设置某侧的布局配置
+     */
+    setSideLayoutConfig(
+        position: 'top' | 'right' | 'bottom' | 'left',
+        config: Partial<PortLayoutConfig>
+    ): void {
+        const sideKey = `__side_${position}`;
+        this.layoutConfigs.set(sideKey, { ...DEFAULT_LAYOUT_CONFIG, ...config });
+        this.recalculateSideLayout(position, this.layoutConfigs.get(sideKey)!);
     }
 }
 
