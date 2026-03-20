@@ -45,6 +45,16 @@ const dndMethodsData = [
   { key: '5', name: 'setDragPreview(element)', params: 'element: HTMLElement | null', return: 'void', description: '设置拖拽预览元素' },
 ];
 
+// 节点模板配置
+const NODE_TEMPLATES = [
+  { id: 'rect-node', label: '矩形节点', color: '#3b82f6', shape: 'Rect', icon: '▭' },
+  { id: 'circle-node', label: '圆形节点', color: '#22c55e', shape: 'Circle', icon: '○' },
+  { id: 'diamond-node', label: '菱形节点', color: '#f59e0b', shape: 'Diamond', icon: '◇' },
+  { id: 'process-node', label: '处理节点', color: '#8b5cf6', shape: 'Rect', icon: '⚙' },
+  { id: 'decision-node', label: '判断节点', color: '#ec4899', shape: 'Diamond', icon: '?' },
+  { id: 'start-node', label: '开始节点', color: '#10b981', shape: 'Circle', icon: '▶' },
+];
+
 // 示例 1: 基础拖拽
 const EXAMPLE_1_CODE = `// 创建 Graph 画布
 const graph = new Graph({
@@ -55,7 +65,6 @@ const graph = new Graph({
   grid: { enabled: true, size: 20, color: '#e2e8f0' },
 });
 
-// 示例 1: 基础拖拽功能
 // 创建 Dnd 插件
 const dnd = new Dnd({
   enabled: true,
@@ -80,25 +89,8 @@ const dnd = new Dnd({
 // 注册插件到 Graph
 graph.use(dnd);
 
-// 添加一些初始节点作为参考
-graph.addNode({
-  id: 'ref-1',
-  label: '参考节点 1',
-  x: 150,
-  y: 100,
-  style: { backgroundColor: '#e2e8f0', borderColor: '#cbd5e1', textColor: '#64748b' },
-});
-
-graph.addNode({
-  id: 'ref-2',
-  label: '参考节点 2',
-  x: 350,
-  y: 200,
-  style: { backgroundColor: '#e2e8f0', borderColor: '#cbd5e1', textColor: '#64748b' },
-});
-
-console.log('🎨 基础拖拽示例已初始化');
-console.log('提示：需要在页面其他位置设置拖拽源元素并调用 dnd.registerSource()');`;
+// 从左侧拖拽节点到画布中
+// 拖拽源已在页面加载时注册到左侧工具栏节点上`;
 
 // 示例 2: 拖拽源注册
 const EXAMPLE_2_CODE = `// 创建 Graph 画布
@@ -110,7 +102,6 @@ const graph = new Graph({
   grid: { enabled: true, size: 20, color: '#e2e8f0' },
 });
 
-// 示例 2: 拖拽源注册（代码演示）
 // 创建 Dnd 插件
 const dnd = new Dnd({
   enabled: true,
@@ -122,9 +113,10 @@ const dnd = new Dnd({
 
 graph.use(dnd);
 
+// 注册拖拽源的两种方式：
+
 // 方式 1: 静态节点配置
-// 假设 pageElement 是页面上的 DOM 元素
-// dnd.registerSource(pageElement, {
+// dnd.registerSource(domElement, {
 //   id: 'static-node',
 //   label: '静态节点',
 //   x: 0,
@@ -136,7 +128,7 @@ graph.use(dnd);
 // });
 
 // 方式 2: 动态节点配置（函数形式）
-// dnd.registerSource(pageElement, (e) => ({
+// dnd.registerSource(domElement, (e) => ({
 //   id: \`node-\${Date.now()}\`,
 //   label: '动态节点',
 //   x: 0,
@@ -147,47 +139,7 @@ graph.use(dnd);
 //   },
 // }));
 
-// 方式 3: 使用节点模板创建不同类型的节点
-const nodeTemplates = [
-  { label: '处理节点', color: '#3b82f6' },
-  { label: '判断节点', color: '#f59e0b' },
-  { label: '数据节点', color: '#8b5cf6' },
-  { label: '输出节点', color: '#ec4899' },
-];
-
-// 为每种节点类型注册拖拽源
-// nodeTemplates.forEach(template => {
-//   const element = document.getElementById(\`toolbar-\${template.label}\`);
-//   if (element) {
-//     dnd.registerSource(element, {
-//       id: \`node-\${Date.now()}\`,
-//       label: template.label,
-//       x: 0,
-//       y: 0,
-//       style: {
-//         backgroundColor: template.color,
-//         borderColor: template.color,
-//       },
-//     });
-//   }
-// });
-
-// 显示节点模板信息
-nodeTemplates.forEach((t, i) => {
-  graph.addNode({
-    id: \`template-\${i}\`,
-    label: t.label,
-    x: 100 + i * 120,
-    y: 150,
-    style: {
-      backgroundColor: t.color,
-      borderColor: t.color,
-      textColor: '#ffffff',
-    },
-  });
-});
-
-console.log('拖拽源注册示例：查看代码了解如何使用 dnd.registerSource()');`;
+console.log('左侧工具栏的拖拽源已使用动态配置注册');`;
 
 // 示例 3: 拖拽事件
 const EXAMPLE_3_CODE = `// 创建 Graph 画布
@@ -199,7 +151,6 @@ const graph = new Graph({
   grid: { enabled: true, size: 20, color: '#e2e8f0' },
 });
 
-// 示例 3: 完整拖拽事件处理
 // 创建带完整事件处理的 Dnd
 const dnd = new Dnd({
   enabled: true,
@@ -208,13 +159,11 @@ const dnd = new Dnd({
   onDragStart: (e) => {
     console.log('🟢 onDragStart');
     console.log('  - 拖拽节点:', e.nodeOptions?.label);
-    console.log('  - 起始位置:', e.startPosition);
   },
   
   // 拖拽进行中（高频触发）
   onDrag: (e) => {
     // 可以在这里实时更新拖拽预览位置
-    // 注意：此事件触发频繁，避免在这里执行复杂操作
   },
   
   // 进入画布区域
@@ -243,32 +192,8 @@ const dnd = new Dnd({
 
 graph.use(dnd);
 
-// 添加视觉反馈节点
-graph.addNode({
-  id: 'event-demo-1',
-  label: '事件监听示例',
-  x: 200,
-  y: 100,
-  style: {
-    backgroundColor: '#3b82f6',
-    borderColor: '#2563eb',
-    textColor: '#ffffff',
-  },
-});
-
-graph.addNode({
-  id: 'event-demo-2',
-  label: '查看控制台输出',
-  x: 200,
-  y: 200,
-  style: {
-    backgroundColor: '#22c55e',
-    borderColor: '#16a34a',
-    textColor: '#ffffff',
-  },
-});
-
-console.log('打开浏览器控制台查看完整事件日志');`;
+console.log('打开浏览器控制台查看完整事件日志');
+console.log('从左侧拖拽节点到画布触发事件');`;
 
 // 示例 4: 验证放置
 const EXAMPLE_4_CODE = `// 创建 Graph 画布
@@ -280,16 +205,16 @@ const graph = new Graph({
   grid: { enabled: true, size: 20, color: '#e2e8f0' },
 });
 
-// 示例 4: 放置位置验证
+// 创建带放置验证的 Dnd
 const dnd = new Dnd({
   enabled: true,
   
   // 验证放置位置
   validateDrop: (position) => {
-    // 只允许放置在 x > 100 的区域（右侧区域）
-    const isValid = position.x > 100;
+    // 只允许放置在 x > 150 的区域（右侧区域）
+    const isValid = position.x > 150;
     if (!isValid) {
-      console.log('❌ 放置被拒绝：位置 x 必须大于 100');
+      console.log('❌ 放置被拒绝：位置 x 必须大于 150');
     }
     return isValid;
   },
@@ -302,12 +227,11 @@ const dnd = new Dnd({
 
 graph.use(dnd);
 
-// 添加区域标记
-// 禁止放置区域
+// 添加区域标记 - 禁止放置区域
 graph.addNode({
   id: 'forbidden-zone',
-  label: '🚫 禁止放置区 (x < 100)',
-  x: 50,
+  label: '🚫 禁止放置区 (x < 150)',
+  x: 75,
   y: 150,
   shape: Shape.Rect,
   style: {
@@ -324,12 +248,12 @@ graph.addNode({
 // 允许放置区域
 graph.addNode({
   id: 'allowed-zone',
-  label: '✅ 允许放置区 (x > 100)',
-  x: 330,
+  label: '✅ 允许放置区 (x > 150)',
+  x: 375,
   y: 150,
   shape: Shape.Rect,
   style: {
-    width: 340,
+    width: 300,
     height: 200,
     backgroundColor: 'rgba(34, 197, 94, 0.1)',
     borderColor: '#22c55e',
@@ -339,7 +263,8 @@ graph.addNode({
   },
 });
 
-console.log('此示例展示了如何使用 validateDrop 验证放置位置');`;
+console.log('此示例展示了如何使用 validateDrop 验证放置位置');
+console.log('尝试拖拽左侧节点到不同区域查看效果');`;
 
 // 示例 5: 完整工作流
 const EXAMPLE_5_CODE = `// 创建 Graph 画布
@@ -351,7 +276,7 @@ const graph = new Graph({
   grid: { enabled: true, size: 20, color: '#e2e8f0' },
 });
 
-// 示例 5: 完整工作流画布
+// 创建 Dnd 插件
 const dnd = new Dnd({
   enabled: true,
   onDrop: (e) => {
@@ -413,7 +338,7 @@ graph.addEdge({
 });
 
 console.log('工作流画布已创建');
-console.log('使用 Dnd 插件可以从外部拖拽添加更多节点');`;
+console.log('从左侧拖拽工具栏添加更多节点到画布');`;
 
 // 所有示例
 const EXAMPLES = [
@@ -425,31 +350,170 @@ const EXAMPLES = [
 ];
 
 /**
+ * 拖拽节点模板组件
+ */
+interface DragNodeTemplateProps {
+  template: typeof NODE_TEMPLATES[0];
+  onRef: (id: string, el: HTMLDivElement | null) => void;
+}
+
+function DragNodeTemplate({ template, onRef }: DragNodeTemplateProps) {
+  const elementRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    onRef(template.id, elementRef.current);
+    return () => {
+      onRef(template.id, null);
+    };
+  }, [template.id, onRef]);
+
+  return (
+    <div
+      ref={elementRef}
+      draggable
+      data-node-type={template.id}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        padding: '10px 12px',
+        marginBottom: '8px',
+        background: '#ffffff',
+        border: `2px solid ${template.color}`,
+        borderRadius: '6px',
+        cursor: 'grab',
+        userSelect: 'none',
+        transition: 'all 0.2s ease',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = '#f8fafc';
+        e.currentTarget.style.transform = 'translateX(4px)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = '#ffffff';
+        e.currentTarget.style.transform = 'translateX(0)';
+      }}
+      onDragStart={(e) => {
+        e.currentTarget.style.cursor = 'grabbing';
+        e.currentTarget.style.opacity = '0.7';
+      }}
+      onDragEnd={(e) => {
+        e.currentTarget.style.cursor = 'grab';
+        e.currentTarget.style.opacity = '1';
+      }}
+    >
+      <span
+        style={{
+          width: '24px',
+          height: '24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: template.color,
+          color: '#ffffff',
+          borderRadius: '4px',
+          fontSize: '12px',
+          fontWeight: 'bold',
+        }}
+      >
+        {template.icon}
+      </span>
+      <span
+        style={{
+          fontSize: '13px',
+          fontWeight: 500,
+          color: '#1e293b',
+        }}
+      >
+        {template.label}
+      </span>
+    </div>
+  );
+}
+
+/**
  * DndExample - Dnd 拖拽插件使用示例
  */
 export default function DndExample() {
   const graphContainerRef = useRef<HTMLDivElement>(null);
   const mainContainerRef = useRef<HTMLDivElement>(null);
+  const dndRef = useRef<any>(null);
+  const graphRef = useRef<any>(null);
   const codeRef = useRef(EXAMPLE_1_CODE);
   const [editorKey, setEditorKey] = useState(0);
   const [currentExample, setCurrentExample] = useState(0);
+  const dragSourceRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  // 注册拖拽源
+  const registerDragSources = useCallback((dnd: any) => {
+    if (!dnd) return;
+
+    NODE_TEMPLATES.forEach((template) => {
+      const element = dragSourceRefs.current.get(template.id);
+      if (element) {
+        dnd.registerSource(element, (e: DragEvent) => ({
+          id: `${template.id}-${Date.now()}`,
+          label: template.label,
+          x: 0,
+          y: 0,
+          shape: (globalThis as any).Shape?.[template.shape] || 'Rect',
+          style: {
+            width: 100,
+            height: 60,
+            backgroundColor: template.color,
+            borderColor: template.color,
+            textColor: '#ffffff',
+            borderRadius: template.shape === 'Circle' ? 50 : 6,
+          },
+        }));
+      }
+    });
+  }, []);
 
   // 执行用户代码并渲染 Graph
   const executeCode = useCallback(async (codeToExecute: string) => {
     if (!graphContainerRef.current) return;
 
     graphContainerRef.current.innerHTML = '';
+    dndRef.current = null;
+    graphRef.current = null;
 
     try {
       const { Graph, Shape, EdgeType, Dnd } = await import('../core');
 
+      // 将 Shape 暴露到全局，供动态配置使用
+      (globalThis as any).Shape = Shape;
+
+      // 用于捕获代码中创建的 Graph 和 Dnd 实例
+      let capturedGraph: any = null;
+      let capturedDnd: any = null;
+
+      // 包装 Dnd 构造函数以捕获实例
+      const DndWrapper = class extends Dnd {
+        constructor(options: any) {
+          super(options);
+          capturedDnd = this;
+          dndRef.current = this;
+        }
+      };
+
+      // 包装 Graph 构造函数以捕获实例
+      const GraphWrapper = class extends Graph {
+        constructor(options: any) {
+          super(options);
+          capturedGraph = this;
+          graphRef.current = this;
+        }
+      };
+
       const sandbox = {
         container: graphContainerRef.current,
         console: window.console,
-        Graph,
+        Graph: GraphWrapper,
         Shape,
         EdgeType,
-        Dnd,
+        Dnd: DndWrapper,
       };
 
       const executableCode = `'use strict';
@@ -459,10 +523,38 @@ export default function DndExample() {
 
       const fn = new Function('sandbox', executableCode);
       fn(sandbox);
+
+      // 代码执行后注册拖拽源
+      if (capturedDnd) {
+        registerDragSources(capturedDnd);
+      } else if (capturedGraph) {
+        // 如果没有直接捕获到 Dnd，尝试从 Graph 获取
+        const dnd = capturedGraph.getPlugin('dnd');
+        if (dnd) {
+          dndRef.current = dnd;
+          registerDragSources(dnd);
+        }
+      }
     } catch (error) {
       console.error('代码执行错误:', error);
     }
+  }, [registerDragSources]);
+
+  // 处理拖拽源元素引用
+  const handleDragSourceRef = useCallback((id: string, el: HTMLDivElement | null) => {
+    if (el) {
+      dragSourceRefs.current.set(id, el);
+    } else {
+      dragSourceRefs.current.delete(id);
+    }
   }, []);
+
+  // 重新注册拖拽源
+  const reRegisterDragSources = useCallback(() => {
+    if (dndRef.current) {
+      registerDragSources(dndRef.current);
+    }
+  }, [registerDragSources]);
 
   const handleCodeChange = useCallback((newCode: string) => {
     codeRef.current = newCode;
@@ -494,18 +586,64 @@ export default function DndExample() {
     executeCode(EXAMPLE_1_CODE);
   }, [executeCode]);
 
-  // 左侧面板 - 图例展示
+  // 左侧面板 - 拖拽节点工具栏 + 画布
   const LeftPanel = (
     <Panel>
-      <PanelHeader icon="📊" title="图例预览" hint="编辑代码后点击运行" />
-      <div
-        ref={graphContainerRef}
-        style={{
-          flex: 1,
-          overflow: 'hidden',
-          background: '#f8fafc',
-        }}
-      />
+      <PanelHeader icon="📊" title="拖拽画布" hint="从左侧拖拽节点到画布" />
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        {/* 拖拽节点工具栏 */}
+        <div
+          style={{
+            width: '140px',
+            padding: '12px',
+            background: '#f1f5f9',
+            borderRight: '1px solid #e2e8f0',
+            overflowY: 'auto',
+          }}
+        >
+          <div
+            style={{
+              fontSize: '12px',
+              fontWeight: 600,
+              color: '#64748b',
+              marginBottom: '12px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+            }}
+          >
+            拖拽节点
+          </div>
+          {NODE_TEMPLATES.map((template) => (
+            <DragNodeTemplate
+              key={template.id}
+              template={template}
+              onRef={handleDragSourceRef}
+            />
+          ))}
+          <div
+            style={{
+              marginTop: '16px',
+              padding: '10px',
+              background: '#e0f2fe',
+              borderRadius: '6px',
+              fontSize: '11px',
+              color: '#0369a1',
+              lineHeight: 1.5,
+            }}
+          >
+            💡 提示：拖拽上方节点到右侧画布中
+          </div>
+        </div>
+        {/* 画布区域 */}
+        <div
+          ref={graphContainerRef}
+          style={{
+            flex: 1,
+            overflow: 'hidden',
+            background: '#f8fafc',
+          }}
+        />
+      </div>
     </Panel>
   );
 
