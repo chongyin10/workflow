@@ -17,6 +17,8 @@ export interface CellOptions {
     id: string;
     label?: string;
     data?: Record<string, any>;
+    visible?: boolean;
+    locked?: boolean;
 }
 
 /**
@@ -62,12 +64,16 @@ export abstract class Cell extends Eventful {
     protected data: Record<string, any>;
     protected isSelected: boolean = false;
     protected isHovered: boolean = false;
+    protected isVisible: boolean = true;
+    protected isLocked: boolean = false;
 
     constructor(options: CellOptions) {
         super();
         this.id = options.id;
         this.label = options.label || '';
         this.data = options.data || {};
+        this.isVisible = options.visible !== undefined ? options.visible : true;
+        this.isLocked = options.locked !== undefined ? options.locked : false;
     }
 
     /**
@@ -134,6 +140,34 @@ export abstract class Cell extends Eventful {
     }
 
     /**
+     * 设置可见性
+     */
+    setVisible(visible: boolean): void {
+        this.isVisible = visible;
+    }
+
+    /**
+     * 是否可见
+     */
+    getVisible(): boolean {
+        return this.isVisible;
+    }
+
+    /**
+     * 设置锁定状态
+     */
+    setLocked(locked: boolean): void {
+        this.isLocked = locked;
+    }
+
+    /**
+     * 是否锁定
+     */
+    getLocked(): boolean {
+        return this.isLocked;
+    }
+
+    /**
      * 切换选中状态
      */
     toggleSelected(): void {
@@ -165,6 +199,8 @@ export abstract class Cell extends Eventful {
         const classes = ['cell'];
         if (this.isSelected) classes.push('selected');
         if (this.isHovered) classes.push('hovered');
+        if (!this.isVisible) classes.push('hidden');
+        if (this.isLocked) classes.push('locked');
         return classes.join(' ');
     }
 
@@ -182,6 +218,14 @@ export abstract class Cell extends Eventful {
 
         .cell.hovered {
             filter: brightness(1.05);
+        }
+
+        .cell.hidden {
+            display: none;
+        }
+
+        .cell.locked {
+            cursor: not-allowed;
         }
     `;
 

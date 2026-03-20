@@ -1,530 +1,749 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Graph } from '../core/Graph';
-import { Node } from '../core/Node';
-import { Shape } from '../core/Shape';
-import { Edge, EdgeType } from '../core/Edge';
-import { PortPosition, PortGroupOptions } from '../core/Port';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Splitter, Table, Anchor, Button } from '@zjpcy/simple-design';
+import {
+  CodeEditor,
+  Panel,
+  PanelHeader,
+  PanelContent,
+  PanelToolbar,
+} from './components/CodeEditor';
+import './styles/panel.css';
+
+// PortOptions 表格数据
+const portOptionsColumns = [
+  { title: '属性名', dataIndex: 'name', width: 180 },
+  { title: '类型', dataIndex: 'type', width: 220 },
+  { title: '必填', dataIndex: 'required', width: 80 },
+  { title: '默认值', dataIndex: 'default', width: 150 },
+  { title: '说明', dataIndex: 'description' },
+];
+
+const portOptionsData = [
+  { name: 'id', type: 'string', required: '是', default: '-', description: '端口唯一标识符' },
+  { name: 'position', type: 'PortPosition | Point', required: '是', default: '-', description: '端口位置（方位字符串或相对坐标）' },
+  { name: 'label', type: 'string', required: '否', default: "''", description: '端口显示文本' },
+  { name: 'visible', type: 'boolean', required: '否', default: 'true', description: '是否可见' },
+  { name: 'style', type: 'PortStyle', required: '否', default: '{}', description: '端口样式配置' },
+  { name: 'data', type: 'Record<string, any>', required: '否', default: '{}', description: '自定义业务数据' },
+];
+
+// Port 类方法表格数据
+const portMethodsColumns = [
+  { title: '方法名', dataIndex: 'name', width: 220 },
+  { title: '参数', dataIndex: 'params', width: 280 },
+  { title: '返回值', dataIndex: 'return', width: 180 },
+  { title: '说明', dataIndex: 'description' },
+];
+
+const portMethodsData = [
+  { key: '1', name: 'getId()', params: '-', return: 'string', description: '获取端口唯一 ID' },
+  { key: '2', name: 'getPosition() / setPosition(position)', params: 'position: PortPosition | Point', return: 'PortPosition / void', description: '获取/设置端口位置' },
+  { key: '3', name: 'getLabel() / setLabel(label)', params: 'label: string', return: 'string / void', description: '获取/设置端口标签' },
+  { key: '4', name: 'getStyle() / setStyle(style)', params: 'style: Partial<PortStyle>', return: 'PortStyle / void', description: '获取/设置端口样式' },
+  { key: '5', name: 'getVisible() / setVisible(visible)', params: 'visible: boolean', return: 'boolean / void', description: '获取/设置可见性' },
+  { key: '6', name: 'getConnectionPoint()', params: '-', return: 'Point', description: '获取端口的实际连接点坐标' },
+  { key: '7', name: 'getNode()', params: '-', return: 'Node | null', description: '获取端口所属的节点' },
+  { key: '8', name: 'isConnected()', params: '-', return: 'boolean', description: '检查端口是否已连接边' },
+  { key: '9', name: 'getEdges()', params: '-', return: 'Edge[]', description: '获取连接到此端口的所有边' },
+  { key: '10', name: 'toJSON()', params: '-', return: 'object', description: '序列化为 JSON' },
+];
+
+// PortPosition 类型
+const portPositionColumns = [
+  { title: '位置值', dataIndex: 'value', width: 180 },
+  { title: '说明', dataIndex: 'description' },
+];
+
+const portPositionData = [
+  { value: "'top'", description: '节点顶部中央' },
+  { value: "'right'", description: '节点右侧中央' },
+  { value: "'bottom'", description: '节点底部中央' },
+  { value: "'left'", description: '节点左侧中央' },
+  { value: "'center'", description: '节点中心' },
+  { value: '{ x: number, y: number }', description: '相对坐标 (0-1)，自定义位置' },
+];
+
+// 示例 1: 基础方位端口
+const EXAMPLE_1_CODE = `// 示例 1: 基础方位端口
+const graph = new Graph({
+  container: container,
+  width: 600,
+  height: 300,
+  backgroundColor: '#f8fafc',
+  grid: { enabled: true, size: 20, color: '#e2e8f0' },
+});
+
+// 创建节点
+const node = graph.addNode({
+  id: 'node-basic',
+  label: '基础端口节点',
+  x: 300,
+  y: 150,
+  shape: Shape.Rect,
+  style: {
+    width: 160,
+    height: 100,
+    backgroundColor: '#3b82f6',
+    borderColor: '#2563eb',
+    textColor: '#ffffff',
+  },
+});
+
+// 添加四个基本方位的端口
+node.addPort({
+  id: 'port-top',
+  position: 'top',
+  visible: true,
+  style: { fillColor: '#22c55e', strokeColor: '#16a34a', width: 12, height: 12, strokeWidth: 2 },
+});
+
+node.addPort({
+  id: 'port-right',
+  position: 'right',
+  visible: true,
+  style: { fillColor: '#f59e0b', strokeColor: '#d97706', width: 12, height: 12, strokeWidth: 2 },
+});
+
+node.addPort({
+  id: 'port-bottom',
+  position: 'bottom',
+  visible: true,
+  style: { fillColor: '#ef4444', strokeColor: '#dc2626', width: 12, height: 12, strokeWidth: 2 },
+});
+
+node.addPort({
+  id: 'port-left',
+  position: 'left',
+  visible: true,
+  style: { fillColor: '#8b5cf6', strokeColor: '#7c3aed', width: 12, height: 12, strokeWidth: 2 },
+});
+
+// 创建目标节点
+const targetNode = graph.addNode({
+  id: 'node-target',
+  label: '目标',
+  x: 480,
+  y: 150,
+  shape: Shape.Circle,
+  style: {
+    width: 80,
+    height: 80,
+    backgroundColor: '#22c55e',
+    borderColor: '#16a34a',
+    textColor: '#ffffff',
+  },
+});
+targetNode.addPort({ id: 'port-in', position: 'left', visible: true });
+
+// 连接端口
+graph.addEdge({
+  id: 'edge-demo',
+  source: { nodeId: 'node-basic', portId: 'port-right' },
+  target: { nodeId: 'node-target', portId: 'port-in' },
+  type: EdgeType.Straight,
+  style: { stroke: '#64748b', strokeWidth: 2 },
+});
+
+console.log('端口位置: top, right, bottom, left');
+console.log('每个端口都有不同的颜色');`;
+
+// 示例 2: 多端口布局
+const EXAMPLE_2_CODE = `// 示例 2: 多端口布局（批量添加）
+const graph = new Graph({
+  container: container,
+  width: 600,
+  height: 350,
+  backgroundColor: '#f8fafc',
+  grid: { enabled: true, size: 20, color: '#e2e8f0' },
+});
+
+// 创建多端口节点
+const multiPortNode = graph.addNode({
+  id: 'node-multi',
+  label: '多端口布局',
+  x: 150,
+  y: 175,
+  shape: Shape.Rect,
+  style: {
+    width: 140,
+    height: 120,
+    backgroundColor: '#14b8a6',
+    borderColor: '#0d9488',
+    textColor: '#ffffff',
+  },
+});
+
+// 使用 addPortGroup 批量添加顶部端口（自动均匀分布）
+multiPortNode.addPortGroup({
+  id: 'top-ports',
+  position: 'top',
+  count: 3,
+  portConfig: (index) => ({
+    id: \`port-top-\${index}\`,
+    label: \`T\${index + 1}\`,
+    visible: true,
+    style: { fillColor: '#22c55e', strokeColor: '#16a34a', width: 12, height: 12, strokeWidth: 2 },
+  }),
+});
+
+// 批量添加底部端口
+multiPortNode.addPortGroup({
+  id: 'bottom-ports',
+  position: 'bottom',
+  count: 3,
+  portConfig: (index) => ({
+    id: \`port-bottom-\${index}\`,
+    label: \`B\${index + 1}\`,
+    visible: true,
+    style: { fillColor: '#ef4444', strokeColor: '#dc2626', width: 12, height: 12, strokeWidth: 2 },
+  }),
+});
+
+// 左侧和右侧各添加一个
+multiPortNode.addPort({ id: 'port-left', position: 'left', visible: true });
+multiPortNode.addPort({ id: 'port-right', position: 'right', visible: true });
+
+// 创建目标节点
+const targetNode = graph.addNode({
+  id: 'node-output',
+  label: '输出节点',
+  x: 450,
+  y: 175,
+  shape: Shape.Rect,
+  style: {
+    width: 120,
+    height: 80,
+    backgroundColor: '#8b5cf6',
+    borderColor: '#7c3aed',
+    textColor: '#ffffff',
+  },
+});
+
+// 为目标节点添加端口组
+targetNode.addPortGroup({
+  id: 'input-ports',
+  position: 'left',
+  count: 3,
+  portConfig: (index) => ({
+    id: \`port-in-\${index}\`,
+    label: \`In\${index + 1}\`,
+    visible: true,
+    style: { fillColor: '#ffffff', strokeColor: '#7c3aed', width: 10, height: 10, strokeWidth: 2 },
+  }),
+});
+
+// 创建连接
+for (let i = 0; i < 3; i++) {
+  graph.addEdge({
+    id: \`edge-\${i}\`,
+    source: { nodeId: 'node-multi', portId: \`port-bottom-\${i}\` },
+    target: { nodeId: 'node-output', portId: \`port-in-\${i}\` },
+    type: EdgeType.Horizontal,
+    style: { stroke: '#64748b', strokeWidth: 1.5 },
+  });
+}
+
+console.log('addPortGroup 自动均匀分布端口位置');`;
+
+// 示例 3: 自定义位置端口
+const EXAMPLE_3_CODE = `// 示例 3: 自定义位置端口
+const graph = new Graph({
+  container: container,
+  width: 600,
+  height: 300,
+  backgroundColor: '#f8fafc',
+  grid: { enabled: true, size: 20, color: '#e2e8f0' },
+});
+
+// 创建自定义端口节点
+const customNode = graph.addNode({
+  id: 'node-custom',
+  label: '自定义位置',
+  x: 300,
+  y: 150,
+  shape: Shape.Rect,
+  style: {
+    width: 160,
+    height: 100,
+    backgroundColor: '#ec4899',
+    borderColor: '#db2777',
+    textColor: '#ffffff',
+  },
+});
+
+// 使用相对坐标添加端口（x, y 范围 0-1）
+// 左上角
+customNode.addPort({
+  id: 'port-tl',
+  position: { x: 0.25, y: 0 },
+  visible: true,
+  style: { fillColor: '#f59e0b', strokeColor: '#d97706', width: 12, height: 12, strokeWidth: 2 },
+});
+
+// 右上角
+customNode.addPort({
+  id: 'port-tr',
+  position: { x: 0.75, y: 0 },
+  visible: true,
+  style: { fillColor: '#f59e0b', strokeColor: '#d97706', width: 12, height: 12, strokeWidth: 2 },
+});
+
+// 左下角
+customNode.addPort({
+  id: 'port-bl',
+  position: { x: 0.25, y: 1 },
+  visible: true,
+  style: { fillColor: '#3b82f6', strokeColor: '#2563eb', width: 12, height: 12, strokeWidth: 2 },
+});
+
+// 右下角
+customNode.addPort({
+  id: 'port-br',
+  position: { x: 0.75, y: 1 },
+  visible: true,
+  style: { fillColor: '#3b82f6', strokeColor: '#2563eb', width: 12, height: 12, strokeWidth: 2 },
+});
+
+// 中心端口（用于菱形节点）
+const diamondNode = graph.addNode({
+  id: 'node-diamond',
+  label: '菱形节点',
+  x: 500,
+  y: 150,
+  shape: {
+    type: Shape.Polygon,
+    points: [
+      { x: 0, y: -40 },
+      { x: 50, y: 0 },
+      { x: 0, y: 40 },
+      { x: -50, y: 0 },
+    ],
+  },
+  style: {
+    width: 100,
+    height: 80,
+    backgroundColor: '#f59e0b',
+    borderColor: '#d97706',
+    textColor: '#ffffff',
+  },
+});
+
+// 在菱形中心添加端口
+diamondNode.addPort({
+  id: 'port-center',
+  position: 'center',
+  visible: true,
+  style: { fillColor: '#ffffff', strokeColor: '#d97706', width: 16, height: 16, strokeWidth: 2 },
+});
+
+// 连接
+diamondNode.addPort({ id: 'port-left', position: 'left', visible: true });
+graph.addEdge({
+  id: 'edge-custom',
+  source: { nodeId: 'node-custom', portId: 'port-tr' },
+  target: { nodeId: 'node-diamond', portId: 'port-left' },
+  type: EdgeType.Bezier,
+  style: { stroke: '#64748b', strokeWidth: 2 },
+});
+
+console.log('使用 { x, y } 相对坐标自定义端口位置');
+console.log('x: 0-1 (从左到右), y: 0-1 (从上到下)');`;
+
+// 示例 4: 端口样式
+const EXAMPLE_4_CODE = `// 示例 4: 端口样式配置
+const graph = new Graph({
+  container: container,
+  width: 600,
+  height: 300,
+  backgroundColor: '#f8fafc',
+  grid: { enabled: true, size: 20, color: '#e2e8f0' },
+});
+
+// 小端口
+const smallNode = graph.addNode({
+  id: 'node-small',
+  label: '小端口',
+  x: 100,
+  y: 100,
+  shape: Shape.Rect,
+  style: {
+    width: 100,
+    height: 60,
+    backgroundColor: '#f59e0b',
+    borderColor: '#d97706',
+    textColor: '#ffffff',
+  },
+});
+smallNode.addPort({
+  id: 'port-small',
+  position: 'right',
+  visible: true,
+  style: { width: 8, height: 8, fillColor: '#ffffff', strokeColor: '#d97706', strokeWidth: 2 },
+});
+
+// 中等端口
+const mediumNode = graph.addNode({
+  id: 'node-medium',
+  label: '中端口',
+  x: 250,
+  y: 100,
+  shape: Shape.Rect,
+  style: {
+    width: 100,
+    height: 60,
+    backgroundColor: '#22c55e',
+    borderColor: '#16a34a',
+    textColor: '#ffffff',
+  },
+});
+mediumNode.addPort({
+  id: 'port-medium',
+  position: 'right',
+  visible: true,
+  style: { width: 12, height: 12, fillColor: '#ffffff', strokeColor: '#16a34a', strokeWidth: 2 },
+});
+
+// 大端口
+const largeNode = graph.addNode({
+  id: 'node-large',
+  label: '大端口',
+  x: 400,
+  y: 100,
+  shape: Shape.Rect,
+  style: {
+    width: 100,
+    height: 60,
+    backgroundColor: '#3b82f6',
+    borderColor: '#2563eb',
+    textColor: '#ffffff',
+  },
+});
+largeNode.addPort({
+  id: 'port-large',
+  position: 'right',
+  visible: true,
+  style: { width: 20, height: 20, fillColor: '#ffffff', strokeColor: '#2563eb', strokeWidth: 2 },
+});
+
+// 带标签的端口
+const labeledNode = graph.addNode({
+  id: 'node-labeled',
+  label: '带标签端口',
+  x: 200,
+  y: 200,
+  shape: Shape.Rect,
+  style: {
+    width: 140,
+    height: 80,
+    backgroundColor: '#8b5cf6',
+    borderColor: '#7c3aed',
+    textColor: '#ffffff',
+  },
+});
+labeledNode.addPort({
+  id: 'port-in',
+  position: 'left',
+  label: '输入',
+  visible: true,
+  style: { width: 14, height: 14, fillColor: '#22c55e', strokeColor: '#16a34a', strokeWidth: 2 },
+});
+labeledNode.addPort({
+  id: 'port-out',
+  position: 'right',
+  label: '输出',
+  visible: true,
+  style: { width: 14, height: 14, fillColor: '#ef4444', strokeColor: '#dc2626', strokeWidth: 2 },
+});
+
+console.log('端口样式属性:');
+console.log('- width, height: 端口大小');
+console.log('- fillColor: 填充颜色');
+console.log('- strokeColor: 边框颜色');
+console.log('- strokeWidth: 边框宽度');`;
+
+// 示例 5: 端口可见性
+const EXAMPLE_5_CODE = `// 示例 5: 端口可见性控制
+const graph = new Graph({
+  container: container,
+  width: 600,
+  height: 300,
+  backgroundColor: '#f8fafc',
+  grid: { enabled: true, size: 20, color: '#e2e8f0' },
+});
+
+// 创建可切换端口可见性的节点
+const toggleNode = graph.addNode({
+  id: 'node-toggle',
+  label: '可切换端口',
+  x: 300,
+  y: 150,
+  shape: Shape.Rect,
+  style: {
+    width: 160,
+    height: 100,
+    backgroundColor: '#8b5cf6',
+    borderColor: '#7c3aed',
+    textColor: '#ffffff',
+  },
+});
+
+// 添加端口（部分初始隐藏）
+const ports = [
+  { id: 'port-top', pos: 'top', visible: true, color: '#22c55e' },
+  { id: 'port-right', pos: 'right', visible: false, color: '#f59e0b' },
+  { id: 'port-bottom', pos: 'bottom', visible: true, color: '#ef4444' },
+  { id: 'port-left', pos: 'left', visible: false, color: '#3b82f6' },
+];
+
+ports.forEach((p) => {
+  toggleNode.addPort({
+    id: p.id,
+    position: p.pos,
+    visible: p.visible,
+    style: { fillColor: p.color, strokeColor: p.color, width: 12, height: 12, strokeWidth: 2 },
+  });
+});
+
+// 创建控制节点
+const controlNode = graph.addNode({
+  id: 'node-control',
+  label: '控制器',
+  x: 100,
+  y: 150,
+  shape: Shape.Circle,
+  style: {
+    width: 80,
+    height: 80,
+    backgroundColor: '#14b8a6',
+    borderColor: '#0d9488',
+    textColor: '#ffffff',
+  },
+});
+
+// 连接可见端口
+controlNode.addPort({ id: 'port-out', position: 'right', visible: true });
+toggleNode.addPort({ id: 'port-in', position: 'left', visible: true });
+
+graph.addEdge({
+  id: 'edge-control',
+  source: { nodeId: 'node-control', portId: 'port-out' },
+  target: { nodeId: 'node-toggle', portId: 'port-in' },
+  type: EdgeType.Straight,
+  style: { stroke: '#64748b', strokeWidth: 2 },
+});
+
+// 演示切换可见性
+console.log('当前端口状态:');
+ports.forEach((p) => {
+  const port = toggleNode.getPort(p.id);
+  console.log(\`  \${p.id}: \${port?.getVisible() ? '可见' : '隐藏'}\`);
+});
+
+console.log('\\n可以使用 port.setVisible(true/false) 切换可见性');`;
+
+// 所有示例
+const EXAMPLES = [
+  { id: 'example-1', title: '基础方位端口', code: EXAMPLE_1_CODE },
+  { id: 'example-2', title: '多端口布局', code: EXAMPLE_2_CODE },
+  { id: 'example-3', title: '自定义位置', code: EXAMPLE_3_CODE },
+  { id: 'example-4', title: '端口样式', code: EXAMPLE_4_CODE },
+  { id: 'example-5', title: '可见性控制', code: EXAMPLE_5_CODE },
+];
 
 /**
  * PortExample - Port 连接桩组件使用示例
- * 
- * 展示功能：
- * - 连接桩的位置配置（top/right/bottom/left/center/自定义坐标）
- * - 连接桩的样式（大小、颜色、形状）
-        - 连接桩的显示/隐藏控制
- * - 多连接桩布局
- * - 连接桩与边的交互
  */
 export const PortExample: React.FC = () => {
-    const containerRef = useRef<HTMLDivElement>(null);
-    const graphRef = useRef<Graph | null>(null);
-    const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const graphContainerRef = useRef<HTMLDivElement>(null);
+  const mainContainerRef = useRef<HTMLDivElement>(null);
+  const codeRef = useRef(EXAMPLE_1_CODE);
+  const [editorKey, setEditorKey] = useState(0);
+  const [currentExample, setCurrentExample] = useState(0);
 
-    useEffect(() => {
-        if (!containerRef.current) return;
+  // 执行用户代码并渲染 Graph
+  const executeCode = useCallback(async (codeToExecute: string) => {
+    if (!graphContainerRef.current) return;
 
-        const graph = new Graph({
-            container: containerRef.current,
-            width: 900,
-            height: 600,
-            draggable: true,
-            scalable: true,
-            backgroundColor: '#f8fafc',
-            grid: { enabled: true, size: 20, color: '#e2e8f0' },
-            onNodeSelect: (node) => {
-                setSelectedNodeId(node?.getId() || null);
-            },
-        });
+    graphContainerRef.current.innerHTML = '';
 
-        graphRef.current = graph;
-        createExampleData(graph);
+    try {
+      const { Graph, Shape, EdgeType } = await import('../core');
 
-        return () => {
-            graph.destroy();
-        };
-    }, []);
+      const sandbox = {
+        container: graphContainerRef.current,
+        console: window.console,
+        Graph,
+        Shape,
+        EdgeType,
+      };
 
-    // 创建示例数据
-    const createExampleData = (graph: Graph) => {
-        // ========== 示例 1：基础方位端口 ==========
-        const basicNode = graph.addNode({
-            id: 'node-basic',
-            label: '基础端口',
-            x: 150,
-            y: 150,
-            shape: Shape.Rect,
-            style: {
-                width: 140,
-                height: 100,
-                backgroundColor: '#3b82f6',
-                borderColor: '#2563eb',
-                textColor: '#ffffff',
-            },
-        });
+      const executableCode = `'use strict';
+        const { container, console, Graph, Shape, EdgeType } = sandbox;
+        ${codeToExecute}
+      `;
 
-        // 添加四个基本方位的端口
-        basicNode.addPort({
-            id: 'port-top',
-            position: 'top',
-            visible: true,
-            style: { fillColor: '#22c55e', strokeColor: '#16a34a', width: 12, height: 12, strokeWidth: 2 } as any,
-        });
-        basicNode.addPort({
-            id: 'port-right',
-            position: 'right',
-            visible: true,
-            style: { fillColor: '#f59e0b', strokeColor: '#d97706', width: 12, height: 12, strokeWidth: 2 } as any,
-        });
-        basicNode.addPort({
-            id: 'port-bottom',
-            position: 'bottom',
-            visible: true,
-            style: { fillColor: '#ef4444', strokeColor: '#dc2626', width: 12, height: 12, strokeWidth: 2 } as any,
-        });
-        basicNode.addPort({
-            id: 'port-left',
-            position: 'left',
-            visible: true,
-            style: { fillColor: '#8b5cf6', strokeColor: '#7c3aed', width: 12, height: 12, strokeWidth: 2 } as any,
-        });
+      const fn = new Function('sandbox', executableCode);
+      fn(sandbox);
+    } catch (error) {
+      console.error('代码执行错误:', error);
+    }
+  }, []);
 
-        // ========== 示例 2：多端口节点 ==========
-        const multiPortNode = graph.addNode({
-            id: 'node-multi',
-            label: '多端口布局',
-            x: 450,
-            y: 150,
-            shape: Shape.Rect,
-            style: {
-                width: 180,
-                height: 120,
-                backgroundColor: '#14b8a6',
-                borderColor: '#0d9488',
-                textColor: '#ffffff',
-            },
-        });
+  const handleCodeChange = useCallback((newCode: string) => {
+    codeRef.current = newCode;
+  }, []);
 
-        // 使用 PortManager 批量添加多个端口，自动均匀分布
-        multiPortNode.addPortGroup({
-            id: 'top-ports',
-            position: 'top',
-            count: 3,
-            portConfig: (index: number) => ({
-                id: `port-multi-t${index + 1}`,
-                label: `输入 ${index + 1}`,
-                visible: true,
-                style: { fillColor: '#22c55e', strokeColor: '#16a34a', width: 12, height: 12, strokeWidth: 2 } as any,
-            }),
-        });
+  const handleRunCode = useCallback(() => {
+    executeCode(codeRef.current);
+  }, [executeCode]);
 
-        // 底部端口组
-        multiPortNode.addPortGroup({
-            id: 'bottom-ports',
-            position: 'bottom',
-            count: 3,
-            portConfig: (index: number) => ({
-                id: `port-multi-b${index + 1}`,
-                label: `输出 ${index + 1}`,
-                visible: true,
-                style: { fillColor: '#ef4444', strokeColor: '#dc2626', width: 12, height: 12, strokeWidth: 2 } as any,
-            }),
-        });
+  const handleResetCode = useCallback(() => {
+    const code = EXAMPLES[currentExample].code;
+    codeRef.current = code;
+    setEditorKey((prev) => prev + 1);
+    executeCode(code);
+  }, [currentExample, executeCode]);
 
-        // 左右端口
-        multiPortNode.addPort({ id: 'port-multi-l', position: 'left', visible: true });
-        multiPortNode.addPort({ id: 'port-multi-r', position: 'right', visible: true });
+  const switchExample = useCallback(
+    (index: number) => {
+      setCurrentExample(index);
+      const code = EXAMPLES[index].code;
+      codeRef.current = code;
+      setEditorKey((prev) => prev + 1);
+      executeCode(code);
+    },
+    [executeCode]
+  );
 
-        // ========== 示例 3：中心端口（圆形节点） ==========
-        const centerPortNode = graph.addNode({
-            id: 'node-center',
-            label: '中心端口',
-            x: 750,
-            y: 150,
-            shape: Shape.Circle,
-            style: {
-                width: 100,
-                height: 100,
-                backgroundColor: '#ec4899',
-                borderColor: '#db2777',
-                textColor: '#ffffff',
-            },
-        });
+  useEffect(() => {
+    executeCode(EXAMPLE_1_CODE);
+  }, [executeCode]);
 
-        centerPortNode.addPort({
-            id: 'port-center',
-            position: 'center',
-            visible: true,
-            style: { fillColor: '#ffffff', strokeColor: '#db2777', width: 16, height: 16, strokeWidth: 2 } as any,
-        });
+  // 左侧面板 - 图例展示
+  const LeftPanel = (
+    <Panel>
+      <PanelHeader icon="📊" title="图例预览" hint="编辑代码后点击运行" />
+      <div
+        ref={graphContainerRef}
+        style={{
+          flex: 1,
+          overflow: 'hidden',
+          background: '#f8fafc',
+        }}
+      />
+    </Panel>
+  );
 
-        // ========== 示例 4：端口大小样式对比 ==========
-        const styleNode1 = graph.addNode({
-            id: 'node-style1',
-            label: '小端口',
-            x: 100,
-            y: 350,
-            shape: Shape.Rect,
-            style: {
-                width: 100,
-                height: 60,
-                backgroundColor: '#f59e0b',
-                borderColor: '#d97706',
-                textColor: '#ffffff',
-            },
-        });
-        styleNode1.addPort({
-            id: 'port-small',
-            position: 'right',
-            visible: true,
-            style: { width: 8, height: 8, fillColor: '#ffffff', strokeColor: '#d97706', strokeWidth: 2 } as any,
-        });
+  // 右侧面板 - 代码编辑
+  const RightPanel = (
+    <Panel>
+      <PanelHeader icon="💻" title="代码编辑" />
+      <PanelContent>
+        <CodeEditor
+          key={editorKey}
+          value={EXAMPLES[currentExample].code}
+          onUpdate={handleCodeChange}
+          language="tsx"
+        />
+      </PanelContent>
+      <PanelToolbar>
+        <Button onClick={handleResetCode}>重置</Button>
+        <Button type="primary" onClick={handleRunCode}>
+          ▶ 运行代码
+        </Button>
+      </PanelToolbar>
+    </Panel>
+  );
 
-        const styleNode2 = graph.addNode({
-            id: 'node-style2',
-            label: '中端口',
-            x: 250,
-            y: 350,
-            shape: Shape.Rect,
-            style: {
-                width: 100,
-                height: 60,
-                backgroundColor: '#22c55e',
-                borderColor: '#16a34a',
-                textColor: '#ffffff',
-            },
-        });
-        styleNode2.addPort({
-            id: 'port-medium',
-            position: 'right',
-            visible: true,
-            style: { width: 12, height: 12, fillColor: '#ffffff', strokeColor: '#16a34a', strokeWidth: 2 } as any,
-        });
-
-        const styleNode3 = graph.addNode({
-            id: 'node-style3',
-            label: '大端口',
-            x: 400,
-            y: 350,
-            shape: Shape.Rect,
-            style: {
-                width: 100,
-                height: 60,
-                backgroundColor: '#3b82f6',
-                borderColor: '#2563eb',
-                textColor: '#ffffff',
-            },
-        });
-        styleNode3.addPort({
-            id: 'port-large',
-            position: 'right',
-            visible: true,
-            style: { width: 20, height: 20, fillColor: '#ffffff', strokeColor: '#2563eb', strokeWidth: 2 } as any,
-        });
-
-        // ========== 示例 5：可切换显示端口的节点 ==========
-        const toggleNode = graph.addNode({
-            id: 'node-toggle',
-            label: '可切换端口',
-            x: 600,
-            y: 350,
-            shape: Shape.Rect,
-            style: {
-                width: 140,
-                height: 80,
-                backgroundColor: '#8b5cf6',
-                borderColor: '#7c3aed',
-                textColor: '#ffffff',
-            },
-        });
-        toggleNode.addPort({ id: 'port-toggle-1', position: 'top', visible: true });
-        toggleNode.addPort({ id: 'port-toggle-2', position: 'right', visible: false }); // 初始隐藏
-        toggleNode.addPort({ id: 'port-toggle-3', position: 'bottom', visible: true });
-        toggleNode.addPort({ id: 'port-toggle-4', position: 'left', visible: false }); // 初始隐藏
-
-        // ========== 示例 6：连接演示 ==========
-        const sourceNode = graph.addNode({
-            id: 'node-source',
-            label: '源节点',
-            x: 200,
-            y: 500,
-            shape: Shape.Circle,
-            style: {
-                width: 80,
-                height: 80,
-                backgroundColor: '#ef4444',
-                borderColor: '#dc2626',
-                textColor: '#ffffff',
-            },
-        });
-        sourceNode.addPort({ id: 'port-source-out', position: 'right', visible: true });
-
-        const targetNode = graph.addNode({
-            id: 'node-target',
-            label: '目标节点',
-            x: 500,
-            y: 500,
-            shape: Shape.Circle,
-            style: {
-                width: 80,
-                height: 80,
-                backgroundColor: '#22c55e',
-                borderColor: '#16a34a',
-                textColor: '#ffffff',
-            },
-        });
-        targetNode.addPort({ id: 'port-target-in', position: 'left', visible: true });
-
-        // 创建连接
-        graph.addEdge({
-            id: 'edge-demo',
-            source: { nodeId: 'node-source', portId: 'port-source-out' },
-            target: { nodeId: 'node-target', portId: 'port-target-in' },
-            label: '端口连接',
-            type: EdgeType.Bezier,
-            style: { stroke: '#64748b', strokeWidth: 2 },
-        });
-    };
-
-    // 切换端口可见性
-    const togglePortVisibility = (portId: string) => {
-        if (!graphRef.current || !selectedNodeId) return;
-
-        const node = (graphRef.current as any).nodes.get(selectedNodeId);
-        if (!node) return;
-
-        const port = (node as any).ports.get(portId);
-        if (port) {
-            const newVisible = !port.isVisible();
-            port.setVisible(newVisible);
-            (graphRef.current as any)['scheduleRender']?.();
-            console.log('端口可见性切换:', portId, newVisible);
-        }
-    };
-
-    // 添加自定义位置端口
-    const addCustomPort = (x: number, y: number) => {
-        if (!graphRef.current || !selectedNodeId) return;
-
-        const node = (graphRef.current as any).nodes.get(selectedNodeId);
-        if (!node) return;
-
-        const portCount = (node as any).ports.size;
-        const portId = `port-custom-${portCount + 1}`;
-
-        node.addPort({
-            id: portId,
-            position: { x, y },
-            visible: true,
-        });
-
-        (graphRef.current as any)['scheduleRender']?.();
-        console.log('添加自定义端口:', portId, `位置(${x}, ${y})`);
-    };
-
-    // 删除指定端口
-    const removePort = (portId: string) => {
-        if (!graphRef.current || !selectedNodeId) return;
-
-        const node = (graphRef.current as any).nodes.get(selectedNodeId);
-        if (!node) return;
-
-        node.removePort(portId);
-        (graphRef.current as any)['scheduleRender']?.();
-        console.log('删除端口:', portId);
-    };
-
-    // 添加标准方位端口
-    const addStandardPort = (position: PortPosition) => {
-        if (!graphRef.current || !selectedNodeId) return;
-
-        const node = (graphRef.current as any).nodes.get(selectedNodeId);
-        if (!node) return;
-
-        const portCount = (node as any).ports.size;
-        const positionStr = typeof position === 'string' ? position : 'custom';
-        const portId = `port-${positionStr}-${portCount + 1}`;
-
-        node.addPort({
-            id: portId,
-            position,
-            visible: true,
-        });
-
-        (graphRef.current as any)['scheduleRender']?.();
-    };
-
-    // 批量添加端口组（演示 PortManager 功能）
-    const addPortGroup = (position: 'top' | 'right' | 'bottom' | 'left', count: number) => {
-        if (!graphRef.current || !selectedNodeId) return;
-
-        const node = (graphRef.current as any).nodes.get(selectedNodeId);
-        if (!node) return;
-
-        const groupId = `group-${position}-${Date.now()}`;
-        const colors = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6'];
-
-        node.addPortGroup({
-            id: groupId,
-            position,
-            count,
-            portConfig: (index: number) => ({
-                id: `${groupId}-port-${index}`,
-                label: `${position} ${index + 1}`,
-                visible: true,
-                style: {
-                    fillColor: colors[index % colors.length],
-                    strokeColor: colors[index % colors.length],
-                    width: 12,
-                    height: 12,
-                    strokeWidth: 2,
-                } as any,
-            }),
-        });
-
-        (graphRef.current as any)['scheduleRender']?.();
-        console.log(`添加 ${count} 个${position}端口，自动均匀分布`);
-    };
-
-    // 清除选中节点的所有端口
-    const clearAllPorts = () => {
-        if (!graphRef.current || !selectedNodeId) return;
-
-        const node = (graphRef.current as any).nodes.get(selectedNodeId);
-        if (!node) return;
-
-        node.clearPorts();
-        (graphRef.current as any)['scheduleRender']?.();
-        console.log('清除所有端口');
-    };
-
-    return (
-        <div style={{ padding: '20px', fontFamily: 'system-ui, sans-serif' }}>
-            <h2>🔌 Port 连接桩组件示例</h2>
-            <p>展示连接桩的位置、样式、显示/隐藏控制</p>
-
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <span style={{ fontWeight: 'bold' }}>添加端口:</span>
-                <button onClick={() => addStandardPort('top')} disabled={!selectedNodeId} style={buttonStyle(Boolean(selectedNodeId), '#3b82f6')}>
-                    + 顶部
-                </button>
-                <button onClick={() => addStandardPort('bottom')} disabled={!selectedNodeId} style={buttonStyle(Boolean(selectedNodeId), '#3b82f6')}>
-                    + 底部
-                </button>
-                <button onClick={() => addStandardPort('left')} disabled={!selectedNodeId} style={buttonStyle(Boolean(selectedNodeId), '#3b82f6')}>
-                    + 左侧
-                </button>
-                <button onClick={() => addStandardPort('right')} disabled={!selectedNodeId} style={buttonStyle(Boolean(selectedNodeId), '#3b82f6')}>
-                    + 右侧
-                </button>
-                <button onClick={() => addStandardPort('center')} disabled={!selectedNodeId} style={buttonStyle(Boolean(selectedNodeId), '#8b5cf6')}>
-                    + 中心
-                </button>
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <span style={{ fontWeight: 'bold' }}>自定义位置:</span>
-                <button onClick={() => addCustomPort(0.25, 0)} disabled={!selectedNodeId} style={buttonStyle(Boolean(selectedNodeId), '#22c55e')}>
-                    + 左上
-                </button>
-                <button onClick={() => addCustomPort(0.75, 0)} disabled={!selectedNodeId} style={buttonStyle(Boolean(selectedNodeId), '#22c55e')}>
-                    + 右上
-                </button>
-                <button onClick={() => addCustomPort(0.25, 1)} disabled={!selectedNodeId} style={buttonStyle(Boolean(selectedNodeId), '#22c55e')}>
-                    + 左下
-                </button>
-                <button onClick={() => addCustomPort(0.75, 1)} disabled={!selectedNodeId} style={buttonStyle(Boolean(selectedNodeId), '#22c55e')}>
-                    + 右下
-                </button>
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <span style={{ fontWeight: 'bold' }}>批量添加(自适应分布):</span>
-                <button onClick={() => addPortGroup('top', 3)} disabled={!selectedNodeId} style={buttonStyle(Boolean(selectedNodeId), '#ec4899')}>
-                    + 顶部x3
-                </button>
-                <button onClick={() => addPortGroup('bottom', 4)} disabled={!selectedNodeId} style={buttonStyle(Boolean(selectedNodeId), '#ec4899')}>
-                    + 底部x4
-                </button>
-                <button onClick={() => addPortGroup('left', 3)} disabled={!selectedNodeId} style={buttonStyle(Boolean(selectedNodeId), '#ec4899')}>
-                    + 左侧x3
-                </button>
-                <button onClick={() => addPortGroup('right', 5)} disabled={!selectedNodeId} style={buttonStyle(Boolean(selectedNodeId), '#ec4899')}>
-                    + 右侧x5
-                </button>
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <button onClick={clearAllPorts} disabled={!selectedNodeId} style={buttonStyle(Boolean(selectedNodeId), '#64748b')}>
-                    🗑️ 清除所有端口
-                </button>
-            </div>
-
-            {selectedNodeId && (
-                <div style={{
-                    padding: '10px',
-                    background: '#e0f2fe',
-                    borderRadius: '4px',
-                    marginBottom: '15px',
-                }}>
-                    <strong>选中节点:</strong> {selectedNodeId}
-                </div>
-            )}
-
-            <div
-                ref={containerRef}
-                style={{
-                    border: '2px solid #e2e8f0',
-                    borderRadius: '8px',
-                    overflow: 'hidden',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                }}
-            />
-
-            <div style={{ marginTop: '20px', padding: '15px', background: '#f1f5f9', borderRadius: '8px' }}>
-                <h3>📚 Port 位置类型</h3>
-                <ul style={{ lineHeight: '1.8' }}>
-                    <li><strong>方位字符串:</strong> 'top' | 'right' | 'bottom' | 'left' | 'center'</li>
-                    <li><strong>相对坐标:</strong> {'{ x: number, y: number }'}，范围 0-1 表示在节点上的相对位置</li>
-                    <li><strong>自动计算:</strong> 根据位置类型自动计算端口在节点边缘或中心的坐标</li>
-                </ul>
-                <h3>🎨 端口样式</h3>
-                <ul style={{ lineHeight: '1.8' }}>
-                    <li><strong>大小:</strong> radius 控制端口圆点的半径</li>
-                    <li><strong>颜色:</strong> fill (填充色), stroke (边框色)</li>
-                    <li><strong>状态颜色:</strong> hoverFill, selectedFill, hoverStroke, selectedStroke</li>
-                    <li><strong>可见性:</strong> visible 控制端口是否显示</li>
-                </ul>
-                <h3>🔧 常用方法</h3>
-                <ul style={{ lineHeight: '1.8' }}>
-                    <li><strong>node.addPort(options):</strong> 添加新端口到节点</li>
-                    <li><strong>node.addPortGroup(options):</strong> 批量添加同一侧的多个端口（自动均匀分布）</li>
-                    <li><strong>node.removePort(portId):</strong> 从节点删除指定端口</li>
-                    <li><strong>node.getPort(portId):</strong> 获取指定 ID 的端口</li>
-                    <li><strong>node.getAllPorts():</strong> 获取所有端口</li>
-                    <li><strong>port.setVisible(boolean):</strong> 设置端口可见性</li>
-                    <li><strong>port.getConnectionPoint():</strong> 获取端口的连接点坐标</li>
-                </ul>
-                <h3>🎯 PortGroup 批量添加端口</h3>
-                <ul style={{ lineHeight: '1.8' }}>
-                    <li><strong>自动布局:</strong> 同一侧的多个端口自动均匀分布</li>
-                    <li><strong>自适应间距:</strong> 根据节点大小自动计算最佳间距</li>
-                    <li><strong>自定义配置:</strong> 支持为每个端口单独配置样式</li>
-                    <li><strong>动态更新:</strong> 支持增删端口时自动重新布局</li>
-                </ul>
-            </div>
+  // 底部面板 - API 文档
+  const BottomPanel = (
+    <Panel>
+      <PanelHeader icon="📋" title="API 文档" />
+      <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
+        <div id="port-options-section" style={{ marginBottom: '24px' }}>
+          <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#1e293b' }}>
+            PortOptions - 端口配置选项
+          </h3>
+          <Table columns={portOptionsColumns} dataSource={portOptionsData} pagination={false} />
         </div>
-    );
-};
+        <div id="port-position-section" style={{ marginBottom: '24px' }}>
+          <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#1e293b' }}>
+            PortPosition - 端口位置类型
+          </h3>
+          <Table columns={portPositionColumns} dataSource={portPositionData} pagination={false} />
+        </div>
+        <div id="port-methods-section">
+          <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#1e293b' }}>Port 类方法</h3>
+          <Table columns={portMethodsColumns} dataSource={portMethodsData} pagination={false} />
+        </div>
+      </div>
+    </Panel>
+  );
 
-// 按钮样式辅助函数
-const buttonStyle = (enabled: boolean, color: string): React.CSSProperties => ({
-    padding: '6px 12px',
-    background: enabled ? color : '#ccc',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: enabled ? 'pointer' : 'not-allowed',
-    fontSize: '13px',
-});
+  return (
+    <div ref={mainContainerRef} style={{ position: 'relative' }}>
+      <div id="port-example-title" style={{ height: '600px' }}>
+        <PanelHeader title="Port 连接桩示例" />
+        {/* 示例切换按钮 */}
+        <div
+          style={{
+            display: 'flex',
+            gap: '8px',
+            padding: '12px 16px',
+            background: '#f1f5f9',
+            borderBottom: '1px solid #e2e8f0',
+          }}
+        >
+          {EXAMPLES.map((ex, index) => (
+            <button
+              key={ex.id}
+              onClick={() => switchExample(index)}
+              style={{
+                padding: '6px 16px',
+                background: currentExample === index ? '#3b82f6' : '#ffffff',
+                color: currentExample === index ? '#ffffff' : '#64748b',
+                border: '1px solid #e2e8f0',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: 500,
+              }}
+            >
+              示例 {index + 1}: {ex.title}
+            </button>
+          ))}
+        </div>
+        <Splitter style={{ height: '100%' }}>
+          {LeftPanel}
+          {RightPanel}
+        </Splitter>
+      </div>
+      {BottomPanel}
+      {/* 浮动锚点 */}
+      <div
+        style={{
+          position: 'fixed',
+          right: '16px',
+          top: '20%',
+          transform: 'translateY(-50%)',
+          zIndex: 1000,
+          background: '#fff',
+          borderRadius: '8px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+        }}
+      >
+        <Anchor affix={false} getContainer={() => document.body}>
+          <Anchor.Link href="#port-example-title" title="Port 连接桩示例" />
+          {EXAMPLES.map((ex, index) => (
+            <Anchor.Link key={ex.id} href={`#${ex.id}`} title={`示例 ${index + 1}: ${ex.title}`} />
+          ))}
+          <Anchor.Link href="#port-options-section" title="PortOptions" />
+          <Anchor.Link href="#port-position-section" title="PortPosition" />
+          <Anchor.Link href="#port-methods-section" title="Port 类方法" />
+        </Anchor>
+      </div>
+    </div>
+  );
+};
 
 export default PortExample;

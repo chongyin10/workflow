@@ -1,4 +1,5 @@
-import React, { CSSProperties, useMemo, Suspense, lazy } from 'react';
+import React, { CSSProperties, Suspense, lazy } from 'react';
+import { Button } from '@zjpcy/simple-design';
 
 // 懒加载 CodeMirror 组件和语言包
 const CodeMirror = lazy(() => import('@uiw/react-codemirror'));
@@ -172,37 +173,6 @@ export const PanelContent: React.FC<PanelProps> = ({ children, className = '' })
  */
 export const PanelToolbar: React.FC<PanelProps> = ({ children, className = '' }) => (
   <div className={`panel-toolbar ${className}`}>{children}</div>
-);
-
-/**
- * 按钮组件属性
- */
-export interface ButtonProps {
-  /** 按钮类型 */
-  type?: 'default' | 'primary';
-  /** 点击回调 */
-  onClick?: () => void;
-  /** 子元素 */
-  children: React.ReactNode;
-  /** 自定义类名 */
-  className?: string;
-}
-
-/**
- * 按钮组件
- */
-export const Button: React.FC<ButtonProps> = ({
-  type = 'default',
-  onClick,
-  children,
-  className = '',
-}) => (
-  <button
-    className={`btn btn-${type} ${className}`}
-    onClick={onClick}
-  >
-    {children}
-  </button>
 );
 
 export default CodeEditor;

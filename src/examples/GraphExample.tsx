@@ -1,12 +1,11 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Splitter, Table, Anchor } from '@zjpcy/simple-design';
+import { Splitter, Table, Anchor, Button } from '@zjpcy/simple-design';
 import {
   CodeEditor,
   Panel,
   PanelHeader,
   PanelContent,
   PanelToolbar,
-  Button,
 } from './components/CodeEditor';
 import './styles/panel.css';
 
