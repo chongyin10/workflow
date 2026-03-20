@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Splitter, Table } from '@zjpcy/simple-design';
+import { Splitter, Table, Anchor } from '@zjpcy/simple-design';
 import {
   CodeEditor,
   Panel,
@@ -207,6 +207,7 @@ graph.addEdge({
  */
 export const GraphExample: React.FC = () => {
   const graphContainerRef = useRef<HTMLDivElement>(null);
+  const mainContainerRef = useRef<HTMLDivElement>(null);
   const codeRef = useRef(DEFAULT_EXAMPLE_CODE);
   const [editorKey, setEditorKey] = useState(0);
 
@@ -296,7 +297,7 @@ export const GraphExample: React.FC = () => {
     <Panel>
       <PanelHeader icon="📋" title="API 文档" />
       <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
-        <div style={{ marginBottom: '24px' }}>
+        <div id="graph-options-section" style={{ marginBottom: '24px' }}>
           <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#1e293b' }}>
             GraphOptions - 画布配置选项
           </h3>
@@ -306,7 +307,7 @@ export const GraphExample: React.FC = () => {
             pagination={false}
           />
         </div>
-        <div>
+        <div id="graph-methods-section">
           <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#1e293b' }}>
             Graph 类方法
           </h3>
@@ -321,14 +322,38 @@ export const GraphExample: React.FC = () => {
   );
 
   return (
-    <div>
-      <div style={{ height: '600px' }}>
+    <div ref={mainContainerRef} style={{ position: 'relative' }}>
+      <div id="graph-example-title" style={{ height: '600px' }}>
+        <PanelHeader title="图编辑器示例" />
         <Splitter style={{ height: '100%' }}>
           {LeftPanel}
           {RightPanel}
         </Splitter>
       </div>
       {BottomPanel}
+      {/* 浮动锚点 */}
+      <div
+        style={{
+          position: 'fixed',
+          right: '16px',
+          top: '20%',
+          transform: 'translateY(-50%)',
+          zIndex: 1000,
+          background: '#fff',
+          borderRadius: '8px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+        }}
+      >
+        <Anchor
+          affix={false}
+          getContainer={() => document.body}
+          onChange={(activeLink) => console.log('锚点切换:', activeLink)}
+        >
+          <Anchor.Link href="#graph-example-title" title="图编辑器示例" />
+          <Anchor.Link href="#graph-options-section" title="GraphOptions" />
+          <Anchor.Link href="#graph-methods-section" title="Graph 类方法" />
+        </Anchor>
+      </div>
     </div>
   );
 };

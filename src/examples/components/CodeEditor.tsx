@@ -1,7 +1,7 @@
-import React, { CSSProperties, useMemo } from 'react';
-import CodeMirror from '@uiw/react-codemirror';
-import { javascript } from '@codemirror/lang-javascript';
-import { json } from '@codemirror/lang-json';
+import React, { CSSProperties, useMemo, Suspense, lazy } from 'react';
+
+// 懒加载 CodeMirror 组件和语言包
+const CodeMirror = lazy(() => import('@uiw/react-codemirror'));
 
 /**
  * 代码编辑器组件属性
@@ -27,30 +27,41 @@ export interface CodeEditorProps {
   background?: string;
 }
 
+// 缓存语言扩展模块
+const languageExtensions: Record<string, Promise<any>> = {};
+
 /**
- * 获取语言扩展
+ * 动态获取语言扩展
  */
-const getLanguageExtension = (language: string) => {
-  switch (language) {
-    case 'javascript':
-    case 'js':
-      return javascript();
-    case 'typescript':
-    case 'ts':
-    case 'tsx':
-      return javascript({ jsx: true, typescript: true });
-    case 'json':
-      return json();
-    default:
-      return javascript({ jsx: true, typescript: true });
+const getLanguageExtension = async (language: string) => {
+  const cacheKey = language;
+  
+  if (!languageExtensions[cacheKey]) {
+    switch (language) {
+      case 'javascript':
+      case 'js':
+        languageExtensions[cacheKey] = import('@codemirror/lang-javascript').then(mod => mod.javascript());
+        break;
+      case 'typescript':
+      case 'ts':
+      case 'tsx':
+        languageExtensions[cacheKey] = import('@codemirror/lang-javascript').then(mod => mod.javascript({ jsx: true, typescript: true }));
+        break;
+      case 'json':
+        languageExtensions[cacheKey] = import('@codemirror/lang-json').then(mod => mod.json());
+        break;
+      default:
+        languageExtensions[cacheKey] = import('@codemirror/lang-javascript').then(mod => mod.javascript({ jsx: true, typescript: true }));
+    }
   }
+  
+  return languageExtensions[cacheKey];
 };
 
 /**
- * 代码编辑器组件
- * 基于 CodeMirror 封装，提供统一的样式和配置
+ * 编辑器内部组件
  */
-export const CodeEditor: React.FC<CodeEditorProps> = ({
+const EditorInner: React.FC<CodeEditorProps> = ({
   value,
   onUpdate,
   language = 'tsx',
@@ -61,8 +72,12 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   lineHeight = '1.6',
   background = '#fff',
 }) => {
-  const extensions = useMemo(() => {
-    return [getLanguageExtension(language)];
+  const [extensions, setExtensions] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    getLanguageExtension(language).then(ext => {
+      setExtensions([ext]);
+    });
   }, [language]);
 
   return (
@@ -77,22 +92,32 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         ['--editor-background' as string]: background,
       }}
     >
-      <CodeMirror
-        value={value}
-        height="100%"
-        theme="light"
-        extensions={extensions}
-        readOnly={readOnly}
-        onChange={(newValue) => onUpdate?.(newValue)}
-        basicSetup={{
-          lineNumbers: true,
-          highlightActiveLineGutter: true,
-          highlightActiveLine: true,
-          foldGutter: true,
-        }}
-      />
+      <Suspense fallback={<div className="editor-loading">加载编辑器...</div>}>
+        <CodeMirror
+          value={value}
+          height="100%"
+          theme="light"
+          extensions={extensions}
+          readOnly={readOnly}
+          onChange={(newValue) => onUpdate?.(newValue)}
+          basicSetup={{
+            lineNumbers: true,
+            highlightActiveLineGutter: true,
+            highlightActiveLine: true,
+            foldGutter: true,
+          }}
+        />
+      </Suspense>
     </div>
   );
+};
+
+/**
+ * 代码编辑器组件
+ * 基于 CodeMirror 封装，提供统一的样式和配置
+ */
+export const CodeEditor: React.FC<CodeEditorProps> = (props) => {
+  return <EditorInner {...props} />;
 };
 
 /**

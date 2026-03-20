@@ -206,7 +206,7 @@ const App: React.FC = () => {
                 </header>
 
                 {/* 示例内容 */}
-                <div style={{ padding: '24px' }}>
+                <div style={{ padding: '24px 120px 24px 24px' }}>
                     <ActiveComponent />
                 </div>
             </main>

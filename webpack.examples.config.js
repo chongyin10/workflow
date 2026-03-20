@@ -107,10 +107,29 @@ module.exports = (env, argv) => {
             splitChunks: {
                 chunks: 'all',
                 cacheGroups: {
+                    // CodeMirror 单独打包，利用浏览器缓存
+                    codemirror: {
+                        test: /[\\/]node_modules[\\/](@uiw\/react-codemirror|@codemirror|codemirror)[\\/]/,
+                        name: 'codemirror',
+                        priority: 20,
+                        chunks: 'all',
+                        reuseExistingChunk: true,
+                    },
+                    // React 相关库单独打包
+                    react: {
+                        test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+                        name: 'react',
+                        priority: 15,
+                        chunks: 'all',
+                        reuseExistingChunk: true,
+                    },
+                    // 其他第三方库
                     vendor: {
                         test: /[\\/]node_modules[\\/]/,
                         name: 'vendors',
+                        priority: 10,
                         chunks: 'all',
+                        reuseExistingChunk: true,
                     },
                 },
             },
