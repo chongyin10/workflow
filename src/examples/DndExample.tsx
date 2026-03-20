@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Graph, Dnd, Node } from '../lib';
+import { Graph, Dnd } from '../lib';
 
 /**
  * Dnd 拖拽示例
@@ -34,9 +34,8 @@ export default function DndExample() {
         });
         graphRef.current = graph;
 
-        // 创建 Dnd 插件
+        // 创建 Dnd 插件（不再需要传入 graph）
         const dnd = new Dnd({
-            graph,
             enabled: true,
             onDragStart: (e) => {
                 setIsDragging(true);
@@ -66,6 +65,9 @@ export default function DndExample() {
                 return position.x > -200;
             },
         });
+
+        // 通过 graph.use 注册插件
+        graph.use(dnd);
         dndRef.current = dnd;
 
         // 添加一些初始节点
@@ -88,26 +90,24 @@ export default function DndExample() {
         addLog('🎨 画布初始化完成');
 
         return () => {
-            dnd.destroy();
+            // 销毁时会自动卸载插件
             graph.destroy();
         };
     }, []);
 
-    // 处理工具栏项的拖拽开始
-    const handleDragStart = (nodeTemplate: { label: string; style?: any }) => (e: React.DragEvent) => {
-        if (!dndRef.current) return;
+    // 注册拖拽源元素（使用新的内嵌注册机制）
+    const registerDragSource = (element: HTMLElement | null, nodeTemplate: { label: string; style?: any }) => {
+        if (!element || !dndRef.current) return;
 
-        // 生成唯一ID
-        const nodeId = `node-${Date.now()}`;
-
-        // 启动拖拽
-        dndRef.current.start({
-            id: nodeId,
+        // 使用 dnd.registerSource 注册拖拽源
+        // 支持传入节点配置或生成函数
+        dndRef.current.registerSource(element, (e) => ({
+            id: `node-${Date.now()}`,
             label: nodeTemplate.label,
             x: 0, // 位置会被自动设置为放置位置
             y: 0,
             style: nodeTemplate.style,
-        }, e.nativeEvent);
+        }));
     };
 
     // 工具栏配置
@@ -154,8 +154,7 @@ export default function DndExample() {
                         {toolbarItems.map((item, index) => (
                             <div
                                 key={index}
-                                draggable
-                                onDragStart={handleDragStart(item)}
+                                ref={(el) => registerDragSource(el, item)}
                                 style={{
                                     padding: '12px 16px',
                                     backgroundColor: item.style.backgroundColor,
@@ -298,9 +297,8 @@ export default function DndExample() {
             >
                 <h4>💡 使用说明</h4>
                 <pre style={{ margin: 0, overflow: 'auto', fontSize: '13px' }}>
-                    {`// 1. 创建 Dnd 插件
+                    {`// 1. 创建 Dnd 插件（不再需要传入 graph）
 const dnd = new Dnd({
-    graph,
     enabled: true,
     onDragStart: (e) => console.log('拖拽开始'),
     onDrop: (e) => {
@@ -309,15 +307,24 @@ const dnd = new Dnd({
     },
 });
 
-// 2. 在拖拽开始时调用 dnd.start()
-element.addEventListener('dragstart', (e) => {
-    dnd.start({
-        id: 'node-1',
-        label: '新节点',
-        x: 0,
-        y: 0,
-    }, e);
-});`}
+// 2. 通过 graph.use 注册插件
+graph.use(dnd);
+
+// 3. 注册拖拽源元素（内嵌注册机制）
+dnd.registerSource(element, {
+    id: 'node-1',
+    label: '新节点',
+    x: 0,
+    y: 0,
+});
+
+// 或者使用函数动态生成节点配置
+dnd.registerSource(element, (e) => ({
+    id: \`node-\${Date.now()}\`,
+    label: '新节点',
+    x: 0,
+    y: 0,
+}));`}
                 </pre>
             </div>
         </div>

@@ -5,14 +5,12 @@ import { EventManager, type EventHandler } from './EventManager';
 /**
  * Dnd 拖拽源配置
  */
-export interface DndSourceOptions {
-    /** 源 DOM 元素 */
-    element: HTMLElement;
+export interface DndSourceConfig {
     /** 节点配置或生成函数 */
     node: NodeOptions | ((e: DragEvent) => NodeOptions);
-    /** 拖拽开始回调 */
+    /** 拖拽开始回调（DOM 原生事件） */
     onDragStart?: (e: DragEvent) => void;
-    /** 拖拽结束回调 */
+    /** 拖拽结束回调（DOM 原生事件） */
     onDragEnd?: (e: DragEvent) => void;
 }
 
@@ -38,8 +36,6 @@ export interface DndEvent {
  * Dnd 配置选项
  */
 export interface DndOptions {
-    /** 目标 Graph 实例 */
-    graph: Graph;
     /** 是否启用拖拽 */
     enabled?: boolean;
     /** 拖拽预览元素类名 */
@@ -71,6 +67,18 @@ export interface DndOptions {
 }
 
 /**
+ * 插件接口
+ */
+export interface Plugin {
+    /** 插件名称 */
+    name: string;
+    /** 安装插件 */
+    install(graph: Graph): void;
+    /** 卸载插件 */
+    uninstall(): void;
+}
+
+/**
  * Dnd - 拖拽插件
  *
  * 支持从外部拖拽节点到画布中，主要功能：
@@ -82,16 +90,30 @@ export interface DndOptions {
  * 使用示例：
  * ```typescript
  * const dnd = new Dnd({
- *     graph: myGraph,
- *     enabled: true
+ *     enabled: true,
+ *     onDragStart: (e) => console.log('拖拽开始'),
+ *     onDrop: (e) => {
+ *         console.log('放置位置:', e.position);
+ *         return true; // 允许放置
+ *     },
  * });
  *
- * // 开始拖拽（从工具栏触发）
- * dnd.start(nodeOptions, dragEvent);
+ * // 通过 graph.use 注册插件
+ * graph.use(dnd);
+ *
+ * // 注册拖拽源元素
+ * dnd.registerSource(element, {
+ *     id: 'node-1',
+ *     label: '新节点',
+ *     x: 0,
+ *     y: 0,
+ * });
  * ```
  */
-export class Dnd {
-    private graph: Graph;
+export class Dnd implements Plugin {
+    readonly name = 'dnd';
+    
+    private graph: Graph | null = null;
     private options: DndOptions;
     private eventManager: EventManager;
     private isDragging: boolean = false;
@@ -106,6 +128,12 @@ export class Dnd {
         onDragLeave: (e: DragEvent) => void;
         onDragEnd: (e: DragEvent) => void;
     };
+    
+    // 已注册的拖拽源
+    private registeredSources: Map<HTMLElement, {
+        config: DndSourceConfig;
+        cleanup: () => void;
+    }> = new Map();
 
     // 默认配置
     private static readonly DEFAULT_OPTIONS: Pick<
@@ -129,8 +157,7 @@ export class Dnd {
         },
     };
 
-    constructor(options: DndOptions) {
-        this.graph = options.graph;
+    constructor(options: DndOptions = {}) {
         this.options = {
             ...Dnd.DEFAULT_OPTIONS,
             ...options,
@@ -153,17 +180,34 @@ export class Dnd {
             onDragLeave: this.handleDragLeave.bind(this),
             onDragEnd: this.handleDragEnd.bind(this),
         };
+    }
 
-        // 如果启用，自动初始化
+    /**
+     * 安装插件（由 Graph.use 调用）
+     */
+    install(graph: Graph): void {
+        this.graph = graph;
         if (this.options.enabled) {
             this.enable();
         }
     }
 
     /**
+     * 卸载插件
+     */
+    uninstall(): void {
+        this.disable();
+        this.unregisterAllSources();
+        this.cleanup();
+        this.eventManager.clear();
+        this.graph = null;
+    }
+
+    /**
      * 启用拖拽功能
      */
     enable(): void {
+        if (!this.graph) return;
         const canvas = this.graph.getCanvas();
         canvas.addEventListener('dragover', this.boundHandlers.onDragOver);
         canvas.addEventListener('drop', this.boundHandlers.onDrop);
@@ -176,6 +220,7 @@ export class Dnd {
      * 禁用拖拽功能
      */
     disable(): void {
+        if (!this.graph) return;
         const canvas = this.graph.getCanvas();
         canvas.removeEventListener('dragover', this.boundHandlers.onDragOver);
         canvas.removeEventListener('drop', this.boundHandlers.onDrop);
@@ -184,13 +229,107 @@ export class Dnd {
         document.removeEventListener('dragend', this.boundHandlers.onDragEnd);
     }
 
+    // ==================== 拖拽源注册 ====================
+
+    /**
+     * 注册拖拽源元素
+     * @param element - DOM 元素
+     * @param config - 拖拽源配置
+     * @returns 注销函数
+     */
+    registerSource(
+        element: HTMLElement,
+        config: NodeOptions | ((e: DragEvent) => NodeOptions) | DndSourceConfig
+    ): () => void {
+        // 统一配置格式
+        const sourceConfig: DndSourceConfig = this.normalizeSourceConfig(config);
+        
+        // 设置元素可拖拽
+        element.draggable = true;
+        element.style.cursor = 'grab';
+
+        // 绑定 dragstart 事件
+        const handleDragStart = (e: DragEvent) => {
+            // 调用用户的 onDragStart 回调
+            sourceConfig.onDragStart?.(e);
+            
+            // 启动 Dnd 拖拽
+            this.start(sourceConfig.node, e);
+        };
+
+        // 绑定 dragend 事件
+        const handleDragEnd = (e: DragEvent) => {
+            // 调用用户的 onDragEnd 回调
+            sourceConfig.onDragEnd?.(e);
+        };
+
+        element.addEventListener('dragstart', handleDragStart);
+        element.addEventListener('dragend', handleDragEnd);
+
+        // 清理函数
+        const cleanup = () => {
+            element.removeEventListener('dragstart', handleDragStart);
+            element.removeEventListener('dragend', handleDragEnd);
+            element.draggable = false;
+            element.style.cursor = '';
+        };
+
+        // 保存注册信息
+        this.registeredSources.set(element, {
+            config: sourceConfig,
+            cleanup,
+        });
+
+        // 返回注销函数
+        return () => this.unregisterSource(element);
+    }
+
+    /**
+     * 注销拖拽源元素
+     * @param element - DOM 元素
+     */
+    unregisterSource(element: HTMLElement): void {
+        const source = this.registeredSources.get(element);
+        if (source) {
+            source.cleanup();
+            this.registeredSources.delete(element);
+        }
+    }
+
+    /**
+     * 注销所有拖拽源
+     */
+    unregisterAllSources(): void {
+        this.registeredSources.forEach((source) => {
+            source.cleanup();
+        });
+        this.registeredSources.clear();
+    }
+
+    /**
+     * 标准化拖拽源配置
+     */
+    private normalizeSourceConfig(
+        config: NodeOptions | ((e: DragEvent) => NodeOptions) | DndSourceConfig
+    ): DndSourceConfig {
+        if (typeof config === 'function') {
+            return { node: config };
+        }
+        if ('node' in config) {
+            return config;
+        }
+        return { node: config };
+    }
+
+    // ==================== 拖拽核心逻辑 ====================
+
     /**
      * 开始拖拽
      * @param node - 节点配置选项或生成函数
      * @param e - 原始拖拽事件
      */
     start(node: NodeOptions | ((e: DragEvent) => NodeOptions), e: DragEvent): void {
-        if (!this.options.enabled) return;
+        if (!this.options.enabled || !this.graph) return;
 
         // 清理之前的状态（如果有）
         this.cleanup();
@@ -306,6 +445,8 @@ export class Dnd {
         e.preventDefault();
         e.stopPropagation();
 
+        if (!this.graph) return;
+
         // 计算世界坐标
         const position = this.getWorldPosition(e);
         this.dropPosition = position;
@@ -332,6 +473,8 @@ export class Dnd {
         e.preventDefault();
         e.stopPropagation();
 
+        if (!this.graph) return;
+
         // 触发拖拽进入事件
         const position = this.getWorldPosition(e);
         const dndEvent = this.createDndEvent('dnd:dragenter', e, position);
@@ -345,6 +488,8 @@ export class Dnd {
     private handleDragLeave(e: DragEvent): void {
         e.preventDefault();
         e.stopPropagation();
+
+        if (!this.graph) return;
 
         // 检查是否真的离开了画布
         const canvas = this.graph.getCanvas();
@@ -366,6 +511,8 @@ export class Dnd {
     private handleDrop(e: DragEvent): void {
         e.preventDefault();
         e.stopPropagation();
+
+        if (!this.graph) return;
 
         // 计算放置位置（如果 dropPosition 为 null）
         let position = this.dropPosition;
@@ -484,6 +631,9 @@ export class Dnd {
      * 获取世界坐标
      */
     private getWorldPosition(e: DragEvent): Point {
+        if (!this.graph) {
+            return { x: 0, y: 0 };
+        }
         const canvas = this.graph.getCanvas();
         const rect = canvas.getBoundingClientRect();
         const screenPoint: Point = {
@@ -504,7 +654,7 @@ export class Dnd {
         return {
             type,
             originalEvent,
-            target: this.graph,
+            target: this.graph!,
             position: position || this.getWorldPosition(originalEvent),
             nodeOptions: this.currentNodeOptions || undefined,
             dragElement: this.dragPreviewElement || undefined,
@@ -592,59 +742,17 @@ export class Dnd {
     }
 
     /**
-     * 销毁插件
+     * 获取绑定的 Graph 实例
+     */
+    getGraph(): Graph | null {
+        return this.graph;
+    }
+
+    /**
+     * 销毁插件（等同于 uninstall）
      */
     destroy(): void {
-        this.disable();
-        this.cleanup();
-        this.eventManager.clear();
-    }
-
-    // ==================== 静态工具方法 ====================
-
-    /**
-     * 为 DOM 元素启用拖拽源
-     * @param element - 源 DOM 元素
-     * @param getNodeOptions - 获取节点配置的函数
-     * @returns 清理函数
-     */
-    static enableSource(
-        element: HTMLElement,
-        getNodeOptions: (e: DragEvent) => NodeOptions
-    ): () => void {
-        const handleDragStart = (e: DragEvent) => {
-            // 获取 Dnd 实例并启动拖拽
-            const dnd = (element as any)._dndInstance as Dnd;
-            if (dnd) {
-                dnd.start(getNodeOptions(e), e);
-            }
-        };
-
-        element.draggable = true;
-        element.addEventListener('dragstart', handleDragStart);
-
-        // 返回清理函数
-        return () => {
-            element.removeEventListener('dragstart', handleDragStart);
-            element.draggable = false;
-        };
-    }
-
-    /**
-     * 绑定元素到 Dnd 实例
-     * @param element - DOM 元素
-     * @param dnd - Dnd 实例
-     */
-    static bindElement(element: HTMLElement, dnd: Dnd): void {
-        (element as any)._dndInstance = dnd;
-    }
-
-    /**
-     * 解绑元素
-     * @param element - DOM 元素
-     */
-    static unbindElement(element: HTMLElement): void {
-        delete (element as any)._dndInstance;
+        this.uninstall();
     }
 }
 

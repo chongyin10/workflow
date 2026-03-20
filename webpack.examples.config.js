@@ -13,7 +13,7 @@ module.exports = (env, argv) => {
 
     return {
         mode: isDevelopment ? 'development' : 'production',
-        entry: './src/examples/index.tsx',
+        entry: './src/examples/main.tsx',
         output: {
             path: path.resolve(__dirname, 'webexamples'),
             filename: isDevelopment ? '[name].js' : '[name].[contenthash].js',
@@ -103,27 +103,25 @@ module.exports = (env, argv) => {
             },
         },
         devtool: isDevelopment ? 'eval-source-map' : 'source-map',
-        optimization: isDevelopment
-            ? {}
-            : {
-                  splitChunks: {
-                      chunks: 'all',
-                      cacheGroups: {
-                          vendor: {
-                              test: /[\\/]node_modules[\\/]/,
-                              name: 'vendors',
-                              chunks: 'all',
-                          },
-                      },
-                  },
-                  runtimeChunk: {
-                      name: 'runtime',
-                  },
-              },
+        optimization: {
+            splitChunks: {
+                chunks: 'all',
+                cacheGroups: {
+                    vendor: {
+                        test: /[\\/]node_modules[\\/]/,
+                        name: 'vendors',
+                        chunks: 'all',
+                    },
+                },
+            },
+            runtimeChunk: {
+                name: 'runtime',
+            },
+        },
         performance: {
             hints: isDevelopment ? false : 'warning',
-            maxEntrypointSize: 512000,
-            maxAssetSize: 512000,
+            maxEntrypointSize: 5120000, // 5MB
+            maxAssetSize: 5120000, // 5MB
         },
     };
 };

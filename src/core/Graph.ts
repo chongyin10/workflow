@@ -2,6 +2,7 @@ import { Node, NodeOptions, type NodeEvent } from './Node';
 import { Edge, EdgeOptions, type EdgeEvent } from './Edge';
 import { Port, type PortEvent } from './Port';
 import { EventManager, EVENT_NAMES, type BaseEvent, type MouseEvent, type WheelEvent, type EventHandler } from './EventManager';
+import { Plugin } from './Dnd';
 
 export interface Point {
     x: number;
@@ -87,7 +88,10 @@ export class Graph {
         onWheel: (e: globalThis.WheelEvent) => void;
         onResize: () => void;
     };
-    
+
+    // ResizeObserver 用于监听容器尺寸变化
+    private resizeObserver: ResizeObserver | null = null;
+
     // 事件管理器
     private eventManager: EventManager;
     
@@ -96,6 +100,9 @@ export class Graph {
     private lastMouseOverEdge: Edge | null = null;
     private lastMouseOverPort: Port | null = null;
     private isMouseOverCanvas: boolean = false;
+    
+    // 已注册的插件
+    private plugins: Map<string, Plugin> = new Map();
 
     // 默认配置
     private static readonly DEFAULT_OPTIONS: Omit<
@@ -247,6 +254,14 @@ export class Graph {
         this.canvas.addEventListener('mousemove', this.handleHover.bind(this));
 
         window.addEventListener('resize', this.boundHandlers.onResize);
+
+        // 使用 ResizeObserver 监听容器尺寸变化（用于 Splitter 等场景）
+        if (typeof ResizeObserver !== 'undefined') {
+            this.resizeObserver = new ResizeObserver(() => {
+                this.handleResize();
+            });
+            this.resizeObserver.observe(this.container);
+        }
     }
 
     /**
@@ -346,6 +361,12 @@ export class Graph {
         );
         this.canvas.removeEventListener('wheel', this.boundHandlers.onWheel);
         window.removeEventListener('resize', this.boundHandlers.onResize);
+
+        // 断开 ResizeObserver
+        if (this.resizeObserver) {
+            this.resizeObserver.disconnect();
+            this.resizeObserver = null;
+        }
     }
 
     /**
@@ -1131,7 +1152,7 @@ export class Graph {
             this.rafId = null;
         }
 
-        // 解绑事件
+        // 解绑事件（包含 ResizeObserver 的清理）
         this.unbindEvents();
 
         // 移除画布元素
@@ -1143,7 +1164,7 @@ export class Graph {
         (this as any).container = null;
         (this as any).canvas = null;
         (this as any).ctx = null;
-        
+
         // 清理事件管理器
         this.eventManager.clear();
     }
@@ -1449,6 +1470,56 @@ export class Graph {
             mousewheel: EVENT_NAMES.BLANK_MOUSEWHEEL,
         };
         return map[eventType] || null;
+    }
+
+    // ==================== 插件系统 ====================
+
+    /**
+     * 注册插件
+     * @param plugin - 插件实例
+     * @returns this（支持链式调用）
+     */
+    use(plugin: Plugin): this {
+        if (this.plugins.has(plugin.name)) {
+            console.warn(`Plugin "${plugin.name}" is already registered.`);
+            return this;
+        }
+        
+        this.plugins.set(plugin.name, plugin);
+        plugin.install(this);
+        
+        return this;
+    }
+
+    /**
+     * 注销插件
+     * @param pluginName - 插件名称
+     * @returns this（支持链式调用）
+     */
+    unuse(pluginName: string): this {
+        const plugin = this.plugins.get(pluginName);
+        if (plugin) {
+            plugin.uninstall();
+            this.plugins.delete(pluginName);
+        }
+        return this;
+    }
+
+    /**
+     * 获取插件实例
+     * @param pluginName - 插件名称
+     * @returns 插件实例或 undefined
+     */
+    getPlugin<T extends Plugin>(pluginName: string): T | undefined {
+        return this.plugins.get(pluginName) as T | undefined;
+    }
+
+    /**
+     * 检查插件是否已注册
+     * @param pluginName - 插件名称
+     */
+    hasPlugin(pluginName: string): boolean {
+        return this.plugins.has(pluginName);
     }
 }
 

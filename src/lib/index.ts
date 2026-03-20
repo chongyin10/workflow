@@ -28,7 +28,7 @@ export type { PortGroupOptions, PortLayoutConfig } from '../core/Port';
 
 // Dnd
 export { Dnd } from '../core/Dnd';
-export type { DndOptions, DndEvent, DndSourceOptions } from '../core/Dnd';
+export type { DndOptions, DndEvent, DndSourceConfig, Plugin } from '../core/Dnd';
 
 // Styles
 import './styles/index.css';
