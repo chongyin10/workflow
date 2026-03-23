@@ -1,4 +1,5 @@
 import { Node, NodeOptions, type NodeEvent } from './Node';
+import { DynamicHeightNode } from './DynamicNode';
 import { Edge, EdgeOptions, type EdgeEvent } from './Edge';
 import { Port, type PortEvent } from './Port';
 import { EventManager, EVENT_NAMES, type BaseEvent, type MouseEvent, type WheelEvent, type EventHandler } from './EventManager';
@@ -442,6 +443,9 @@ export class Graph {
 
         // 处理鼠标悬停状态（非拖拽状态下）
         this.handleMouseEnterLeave(e, true);
+
+        // 处理 DynamicHeightNode 的行悬停状态
+        this.handleDynamicNodeRowHover(e);
     }
 
     /**
@@ -1732,6 +1736,55 @@ export class Graph {
      */
     hasPlugin(pluginName: string): boolean {
         return this.plugins.has(pluginName);
+    }
+
+    // ==================== DynamicHeightNode 行悬停处理 ====================
+
+    private hoveredDynamicNode: DynamicHeightNode | null = null;
+    private lastHoveredRowIndex: number = -1;
+
+    /**
+     * 处理 DynamicHeightNode 的行悬停状态
+     */
+    private handleDynamicNodeRowHover(e: globalThis.MouseEvent): void {
+        const rect = this.canvas.getBoundingClientRect();
+        const screenPoint: Point = {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
+        };
+        const worldPoint = this.screenToWorld(screenPoint);
+
+        // 查找鼠标下的 DynamicHeightNode
+        let hoveredNode: DynamicHeightNode | null = null;
+        const nodes = this.getAllNodes();
+        
+        for (let i = nodes.length - 1; i >= 0; i--) {
+            const node = nodes[i];
+            if (node instanceof DynamicHeightNode && node.containsPoint(worldPoint)) {
+                hoveredNode = node;
+                break;
+            }
+        }
+
+        // 如果离开了之前的 DynamicHeightNode，清除其行悬停状态
+        if (this.hoveredDynamicNode && this.hoveredDynamicNode !== hoveredNode) {
+            this.hoveredDynamicNode.setHoveredRow(-1);
+            this.scheduleRender();
+        }
+
+        this.hoveredDynamicNode = hoveredNode;
+
+        // 如果在 DynamicHeightNode 上，计算悬停的行
+        if (hoveredNode) {
+            const rowIndex = hoveredNode.getRowIndexAtPoint(worldPoint);
+            if (rowIndex !== this.lastHoveredRowIndex) {
+                hoveredNode.setHoveredRow(rowIndex);
+                this.lastHoveredRowIndex = rowIndex;
+                this.scheduleRender();
+            }
+        } else {
+            this.lastHoveredRowIndex = -1;
+        }
     }
 }
 

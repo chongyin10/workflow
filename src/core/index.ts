@@ -26,7 +26,7 @@ export {
   type DynamicHeightNodeEvent,
   type RowConfig,
   type RowData,
-} from './DynamicHeightNode';
+} from './DynamicNode';
 
 // 边
 export {

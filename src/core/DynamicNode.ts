@@ -39,6 +39,12 @@ export interface DynamicHeightNodeStyle extends NodeStyle {
   rowLabelFontSize: number;
   /** 行标签颜色 */
   rowLabelColor: string;
+  /** 行悬停背景色 */
+  rowHoverBackgroundColor: string;
+  /** 行悬停边框颜色 */
+  rowHoverBorderColor: string;
+  /** 行边框圆角 */
+  rowBorderRadius: number;
 }
 
 /**
@@ -114,6 +120,7 @@ export class DynamicHeightNode extends Node {
   private extendedStyle: DynamicHeightNodeStyle;
   private leftPortIds: Set<string> = new Set();
   private rightPortIds: Set<string> = new Set();
+  private hoveredRowIndex: number = -1; // 当前悬停的行索引
 
   // 默认扩展样式
   private static readonly DEFAULT_EXTENDED_STYLE: DynamicHeightNodeStyle = {
@@ -126,6 +133,9 @@ export class DynamicHeightNode extends Node {
     rightPortAreaWidth: 20,
     rowLabelFontSize: 12,
     rowLabelColor: '#374151',
+    rowHoverBackgroundColor: 'rgba(59, 130, 246, 0.08)',
+    rowHoverBorderColor: 'rgba(59, 130, 246, 0.3)',
+    rowBorderRadius: 4,
   };
 
   /**
@@ -221,14 +231,14 @@ export class DynamicHeightNode extends Node {
     // 计算行的Y位置（相对于节点中心）
     const rowY = this.calculateRowY(index);
 
-    // 创建左侧连接桩
+    // 创建左侧连接桩（位于节点左边缘，与边缘对齐）
     if (config.leftPort) {
       const portId = config.leftPort.id || `${this.id}-row-${config.id}-left`;
       const port = this.addPort({
         ...config.leftPort,
         id: portId,
         position: {
-          x: -this.extendedStyle.width / 2 + this.extendedStyle.leftPortAreaWidth / 2,
+          x: -this.extendedStyle.width / 2,
           y: rowY,
         },
         visible: true,
@@ -237,14 +247,14 @@ export class DynamicHeightNode extends Node {
       this.leftPortIds.add(portId);
     }
 
-    // 创建右侧连接桩
+    // 创建右侧连接桩（位于节点右边缘，与边缘对齐）
     if (config.rightPort) {
       const portId = config.rightPort.id || `${this.id}-row-${config.id}-right`;
       const port = this.addPort({
         ...config.rightPort,
         id: portId,
         position: {
-          x: this.extendedStyle.width / 2 - this.extendedStyle.rightPortAreaWidth / 2,
+          x: this.extendedStyle.width / 2,
           y: rowY,
         },
         visible: true,
@@ -306,23 +316,23 @@ export class DynamicHeightNode extends Node {
 
       const rowY = this.calculateRowY(index);
 
-      // 更新左侧连接桩位置
+      // 更新左侧连接桩位置（位于节点左边缘）
       if (rowData.leftPortId) {
         const port = this.getPort(rowData.leftPortId);
         if (port) {
           port.setPosition({
-            x: -this.extendedStyle.width / 2 + this.extendedStyle.leftPortAreaWidth / 2,
+            x: -this.extendedStyle.width / 2,
             y: rowY,
           });
         }
       }
 
-      // 更新右侧连接桩位置
+      // 更新右侧连接桩位置（位于节点右边缘）
       if (rowData.rightPortId) {
         const port = this.getPort(rowData.rightPortId);
         if (port) {
           port.setPosition({
-            x: this.extendedStyle.width / 2 - this.extendedStyle.rightPortAreaWidth / 2,
+            x: this.extendedStyle.width / 2,
             y: rowY,
           });
         }
@@ -645,6 +655,26 @@ export class DynamicHeightNode extends Node {
       ctx.fillRect(x - width / 2 + 1, rowY, width - 2, rowHeight);
     }
 
+    // 悬停行效果（高亮背景和边框）
+    if (index === this.hoveredRowIndex) {
+      const radius = this.extendedStyle.rowBorderRadius;
+      const left = x - width / 2 + 2;
+      const top = rowY + 1;
+      const w = width - 4;
+      const h = rowHeight - 2;
+
+      // 绘制悬停背景
+      ctx.fillStyle = this.extendedStyle.rowHoverBackgroundColor;
+      ctx.beginPath();
+      ctx.roundRect(left, top, w, h, radius);
+      ctx.fill();
+
+      // 绘制悬停边框
+      ctx.strokeStyle = this.extendedStyle.rowHoverBorderColor;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
     // 绘制行标签
     if (row.label) {
       const labelX = x - width / 2 + leftPortWidth + contentWidth / 2;
@@ -709,6 +739,22 @@ export class DynamicHeightNode extends Node {
     const index = this.getRowIndexAtPoint(point);
     if (index === -1) return undefined;
     return this.rows[index]?.id;
+  }
+
+  /**
+   * 设置当前悬停的行索引
+   * @param index 行索引，-1 表示没有悬停
+   */
+  setHoveredRow(index: number): void {
+    this.hoveredRowIndex = index;
+  }
+
+  /**
+   * 获取当前悬停的行索引
+   * @returns 行索引，-1 表示没有悬停
+   */
+  getHoveredRow(): number {
+    return this.hoveredRowIndex;
   }
 
   /**
