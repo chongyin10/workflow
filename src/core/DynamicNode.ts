@@ -176,9 +176,17 @@ export class DynamicHeightNode extends Node {
       extendedStyle
     );
 
-    // 合并样式，使用计算出的高度
+    // 计算自动宽度（根据标签内容）
+    const autoWidth = DynamicHeightNode.calculateAutoWidth(
+      options.rows || [],
+      extendedStyle
+    );
+    const finalWidth = Math.max(options.style?.width || autoWidth, autoWidth);
+
+    // 合并样式，使用计算出的高度和自动宽度
     const mergedStyle: Partial<NodeStyle> = {
       ...options.style,
+      width: finalWidth,
       height: dynamicHeight,
     };
 
@@ -187,7 +195,11 @@ export class DynamicHeightNode extends Node {
       style: mergedStyle,
     });
 
-    this.extendedStyle = extendedStyle;
+    // 同步更新 extendedStyle 的宽度，确保连接桩位置计算正确
+    this.extendedStyle = {
+      ...extendedStyle,
+      width: finalWidth,
+    };
     this.rows = [...(options.rows || [])];
 
     // 初始化行和连接桩
@@ -207,6 +219,81 @@ export class DynamicHeightNode extends Node {
     const rowsTotalHeight =
       rowCount * style.rowHeight + (rowCount - 1) * style.rowGap;
     return style.headerHeight + rowsTotalHeight + style.footerPadding;
+  }
+
+  /**
+   * 计算节点自动宽度（根据行标签和连接桩标签内容）
+   * 当行存在连接桩标签时，行标签会被隐藏
+   */
+  private static calculateAutoWidth(
+    rows: RowConfig[],
+    style: DynamicHeightNodeStyle
+  ): number {
+    if (rows.length === 0) {
+      return style.width;
+    }
+
+    // 创建一个临时 canvas 来测量文字宽度
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      return style.width;
+    }
+
+    // 设置字体样式
+    ctx.font = `${style.rowLabelFontSize}px ${style.fontFamily}`;
+    
+    // 标签与连接桩之间的间距
+    const labelToPortGap = 8;
+    // 两侧标签之间的最小间距（当行标签被隐藏时使用）
+    const minGapBetweenLabels = 16;
+
+    // 对每一行计算所需宽度，然后取最大值
+    let maxRowWidth = 0;
+    rows.forEach((row) => {
+      // 检查是否有连接桩标签（只要有 lable 字段即可）
+      const hasLeftPortLabel = !!row.leftPort?.lable;
+      const hasRightPortLabel = !!row.rightPort?.lable;
+      const hasPortLabel = hasLeftPortLabel || hasRightPortLabel;
+
+      let leftLabelWidth = 0;
+      let rightLabelWidth = 0;
+
+      // 计算左侧标签宽度（无论 inside 还是 outside，都参与宽度计算）
+      if (hasLeftPortLabel && row.leftPort?.lable) {
+        leftLabelWidth = ctx.measureText(row.leftPort.lable).width;
+      }
+
+      // 计算右侧标签宽度（无论 inside 还是 outside，都参与宽度计算）
+      if (hasRightPortLabel && row.rightPort?.lable) {
+        rightLabelWidth = ctx.measureText(row.rightPort.lable).width;
+      }
+
+      let contentWidth: number;
+
+      if (hasPortLabel) {
+        // 存在连接桩标签时，行标签被隐藏
+        // 布局：连接桩区 + 内侧标签区 + 间距 + 内侧标签区 + 连接桩区
+        const leftPart = hasLeftPortLabel ? labelToPortGap + leftLabelWidth : 0;
+        const rightPart = hasRightPortLabel ? labelToPortGap + rightLabelWidth : 0;
+        contentWidth = leftPart + minGapBetweenLabels + rightPart;
+      } else {
+        // 没有连接桩标签时，只显示行标签
+        const rowLabelWidth = row.label ? ctx.measureText(row.label).width : 0;
+        contentWidth = rowLabelWidth + 32; // 两侧内边距
+      }
+
+      const rowWidth = style.leftPortAreaWidth + contentWidth + style.rightPortAreaWidth;
+      maxRowWidth = Math.max(maxRowWidth, rowWidth);
+    });
+
+    // 如果没有行需要特殊计算，使用默认宽度
+    if (maxRowWidth === 0) {
+      maxRowWidth = style.width;
+    }
+
+    // 返回计算宽度（不小于默认宽度）
+    return Math.max(style.width, maxRowWidth);
   }
 
   /**
@@ -678,10 +765,19 @@ export class DynamicHeightNode extends Node {
       ctx.stroke();
     }
 
-    // 绘制行标签
-    if (row.label) {
-      const labelX = x - width / 2 + leftPortWidth + contentWidth / 2;
+    // 检查当前行是否有连接桩标签（只要有 lable 字段，无论 inside/outside 都隐藏行标签）
+    const hasLeftPortLabel = !!row.leftPort?.lable;
+    const hasRightPortLabel = !!row.rightPort?.lable;
+    const hasPortLabel = hasLeftPortLabel || hasRightPortLabel;
+
+    // 绘制行标签（当存在连接桩标签时，隐藏行本身的 label）
+    if (row.label && !hasPortLabel) {
+      // 行标签始终居中
+      const labelX = x;
       const labelY = rowY + rowHeight / 2;
+      
+      // 计算可用宽度
+      const maxWidth = contentWidth - 16;
 
       ctx.fillStyle = this.extendedStyle.rowLabelColor;
       ctx.font = `${this.extendedStyle.rowLabelFontSize}px ${this.getStyle().fontFamily}`;
@@ -689,7 +785,6 @@ export class DynamicHeightNode extends Node {
       ctx.textBaseline = 'middle';
 
       // 截断文字
-      const maxWidth = contentWidth - 16;
       let displayLabel = row.label;
       const metrics = ctx.measureText(displayLabel);
       if (metrics.width > maxWidth) {
@@ -854,7 +949,8 @@ export class DynamicHeightNode extends Node {
       // 判断连接桩方位
       const isLeftPort = portPos.x < 0;
       const labelPosition = port.getPortLabelPosition();
-      const labelOffset = 8; // 标签到节点边框的距离
+      const labelOffset = 8; // 外侧标签到节点边框的距离
+      const innerLabelGap = 8; // 内侧标签与连接桩之间的间距（较小，靠近边框）
 
       // 计算节点边框的 X 坐标
       const halfWidth = style.width / 2;
@@ -866,13 +962,15 @@ export class DynamicHeightNode extends Node {
           // 内侧：标签在连接桩内侧（朝向节点中心方向）
           ctx.textBaseline = 'middle';
           if (isLeftPort) {
-            // 左侧连接桩：标签在右侧（内侧）
+            // 左侧连接桩：标签在连接桩右侧（内侧），靠近连接桩
             ctx.textAlign = 'left';
-            ctx.fillText(label, portWorldX + labelOffset, portWorldY);
+            const labelX = portWorldX + innerLabelGap;
+            ctx.fillText(label, labelX, portWorldY);
           } else {
-            // 右侧连接桩：标签在左侧（内侧）
+            // 右侧连接桩：标签在连接桩左侧（内侧），靠近连接桩
             ctx.textAlign = 'right';
-            ctx.fillText(label, portWorldX - labelOffset, portWorldY);
+            const labelX = portWorldX - innerLabelGap;
+            ctx.fillText(label, labelX, portWorldY);
           }
           break;
 

@@ -437,7 +437,7 @@ setTimeout(() => {
   
   const inputNode = new DynamicHeightNode({
     id: 'input-labeled',
-    x: 150,
+    x: 180,
     y: 140,
     label: '数据源',
     rows: [
@@ -445,16 +445,16 @@ setTimeout(() => {
         id: 'row-1',
         label: '数据库',
         // lablePosition: 'inside' - 标签在连接桩内侧（节点内部）
-        rightPort: { id: 'out-1', label: 'out', lable: '数据库输出', lablePosition: 'inside' },
+        rightPort: { id: 'out-1', label: 'out', lable: '数据库数据表输出', lablePosition: 'inside' },
       },
       {
         id: 'row-2',
         label: 'API接口',
-        rightPort: { id: 'out-2', label: 'out', lable: 'API响应', lablePosition: 'inside' },
+        rightPort: { id: 'out-2', label: 'out', lable: 'API接口响应', lablePosition: 'inside' },
       },
     ],
     style: {
-      width: 140,
+      // 不设置 width，让节点根据内容自动计算宽度
       backgroundColor: '#dbeafe',
       borderColor: '#3b82f6',
       textColor: '#1e40af',
@@ -463,7 +463,7 @@ setTimeout(() => {
   
   const processNode = new DynamicHeightNode({
     id: 'process-labeled',
-    x: 350,
+    x: 380,
     y: 140,
     label: '处理中心',
     rows: [
@@ -487,7 +487,7 @@ setTimeout(() => {
       },
     ],
     style: {
-      width: 160,
+      // 不设置 width，让节点根据内容自动计算宽度
       backgroundColor: '#fef3c7',
       borderColor: '#f59e0b',
       textColor: '#92400e',
@@ -518,7 +518,10 @@ setTimeout(() => {
   console.log('- "outside"（默认）：标签在连接桩外侧，距离节点边框 8px');
   console.log('- "inside"：标签在连接桩内侧（节点内部），距离节点边框 8px');
   console.log('- "top"：标签在连接桩上方');
-  console.log('- "bottom"：标签在连接桩下方');`;
+  console.log('- "bottom"：标签在连接桩下方');
+  console.log('');
+  console.log('节点宽度已自动扩容，确保内侧标签与行文本不会重叠！');
+  console.log('若不指定 width，节点会根据内容自动计算最小宽度。');`;
   
   // 所有示例
   const EXAMPLES = [
