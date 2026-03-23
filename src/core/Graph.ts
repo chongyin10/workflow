@@ -87,7 +87,6 @@ export class Graph {
         onMouseLeave: (e: globalThis.MouseEvent) => void;
         onWheel: (e: globalThis.WheelEvent) => void;
         onResize: () => void;
-        onHover: (e: globalThis.MouseEvent) => void;
         onClick: (e: globalThis.MouseEvent) => void;
         onDblClick: (e: globalThis.MouseEvent) => void;
         onContextMenu: (e: globalThis.MouseEvent) => void;
@@ -174,7 +173,6 @@ export class Graph {
             onMouseLeave: this.handleMouseLeave.bind(this),
             onWheel: this.handleWheel.bind(this),
             onResize: this.handleResize.bind(this),
-            onHover: this.handleHover.bind(this),
             onClick: this.handleClick.bind(this),
             onDblClick: this.handleDblClick.bind(this),
             onContextMenu: this.handleContextMenu.bind(this),
@@ -270,9 +268,6 @@ export class Graph {
             });
         }
 
-        // 添加鼠标移动监听用于悬停检测和空白区域事件
-        this.canvas.addEventListener('mousemove', this.boundHandlers.onHover);
-
         // 添加 click、dblclick、contextmenu 事件监听
         this.canvas.addEventListener('click', this.boundHandlers.onClick);
         this.canvas.addEventListener('dblclick', this.boundHandlers.onDblClick);
@@ -287,16 +282,6 @@ export class Graph {
             });
             this.resizeObserver.observe(this.container);
         }
-    }
-
-    /**
-     * 鼠标悬停处理（已废弃，使用 updateMouseOverState 替代）
-     * @deprecated 此方法已不再使用，请使用 updateMouseOverState 方法
-     */
-    private handleHover(e: MouseEvent): void {
-        // 此方法已废弃，不再被调用
-        // 保留此代码作为历史参考，后续可以安全移除
-        console.warn('handleHover is deprecated, use updateMouseOverState instead');
     }
 
     /**
@@ -315,9 +300,6 @@ export class Graph {
         );
         this.canvas.removeEventListener('wheel', this.boundHandlers.onWheel);
         window.removeEventListener('resize', this.boundHandlers.onResize);
-
-        // 移除悬停检测的 mousemove 监听器（修复事件泄漏）
-        this.canvas.removeEventListener('mousemove', this.boundHandlers.onHover);
 
         // 移除 click、dblclick、contextmenu 监听器
         this.canvas.removeEventListener('click', this.boundHandlers.onClick);
@@ -1616,9 +1598,13 @@ export class Graph {
                     ...baseEventData,
                     target: this.lastMouseOverPort,
                     port: this.lastMouseOverPort,
+                    portId: this.lastMouseOverPort.getId(),
+                    nodeId: this.lastMouseOverPort.getNodeId(),
                 };
                 this.lastMouseOverPort.emit(EVENT_NAMES.PORT_MOUSELEAVE, eventData);
                 this.emit(EVENT_NAMES.PORT_MOUSELEAVE, eventData);
+                // 恢复光标：如果仍在节点上则显示 grab，否则显示 default
+                this.canvas.style.cursor = currentNode ? 'grab' : 'default';
             }
             // mouseenter port
             if (currentPort) {
@@ -1626,9 +1612,13 @@ export class Graph {
                     ...baseEventData,
                     target: currentPort,
                     port: currentPort,
+                    portId: currentPort.getId(),
+                    nodeId: currentNode?.getId() || '',
                 };
                 currentPort.emit(EVENT_NAMES.PORT_MOUSEENTER, eventData);
                 this.emit(EVENT_NAMES.PORT_MOUSEENTER, eventData);
+                // 设置为十字光标
+                this.canvas.style.cursor = 'crosshair';
             }
             this.lastMouseOverPort = currentPort;
         }
@@ -1641,6 +1631,10 @@ export class Graph {
                 this.lastMouseOverNode.triggerNodeEvent('mouseleave', originalEvent, { x: worldPoint.x, y: worldPoint.y });
                 const eventData = { ...baseEventData, target: this.lastMouseOverNode, node: this.lastMouseOverNode };
                 this.emit(EVENT_NAMES.NODE_MOUSELEAVE, eventData);
+                // 恢复默认光标（如果不在 Port 上）
+                if (!currentPort) {
+                    this.canvas.style.cursor = 'default';
+                }
             }
             // 鼠标进入新节点
             if (currentNode) {
@@ -1648,6 +1642,10 @@ export class Graph {
                 currentNode.triggerNodeEvent('mouseenter', originalEvent, { x: worldPoint.x, y: worldPoint.y });
                 const eventData = { ...baseEventData, target: currentNode, node: currentNode };
                 this.emit(EVENT_NAMES.NODE_MOUSEENTER, eventData);
+                // 设置为抓取光标（如果不在 Port 上）
+                if (!currentPort) {
+                    this.canvas.style.cursor = 'grab';
+                }
             }
             this.lastMouseOverNode = currentNode;
         }

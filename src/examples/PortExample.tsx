@@ -45,7 +45,8 @@ const portMethodsData = [
   { key: '7', name: 'getNode()', params: '-', return: 'Node | null', description: '获取端口所属的节点' },
   { key: '8', name: 'isConnected()', params: '-', return: 'boolean', description: '检查端口是否已连接边' },
   { key: '9', name: 'getEdges()', params: '-', return: 'Edge[]', description: '获取连接到此端口的所有边' },
-  { key: '10', name: 'toJSON()', params: '-', return: 'object', description: '序列化为 JSON' },
+  { key: '10', name: 'on(event, handler)', params: 'event: string, handler: Function', return: 'void', description: '监听端口事件（click, dblclick等）' },
+  { key: '11', name: 'toJSON()', params: '-', return: 'object', description: '序列化为 JSON' },
 ];
 
 // PortPosition 类型
@@ -541,6 +542,125 @@ ports.forEach((p) => {
 
 console.log('\\n可以使用 port.setVisible(true/false) 切换可见性');`;
 
+// 示例 6: Port 事件
+const EXAMPLE_6_CODE = `// 创建 Graph 画布
+const graph = new Graph({
+  container: container,
+  width: 600,
+  height: 280,
+  draggable: true,
+  scalable: true,
+  backgroundColor: '#f8fafc',
+  grid: { enabled: true, size: 20, color: '#e2e8f0' },
+});
+
+// 创建日志显示区域
+const logContainer = document.createElement('div');
+logContainer.style.cssText = 'position:absolute;bottom:8px;left:8px;right:8px;height:100px;background:#1e293b;color:#e2e8f0;padding:8px;borderRadius:6px;overflow:auto;fontSize:12px;fontFamily:monospace;';
+container.appendChild(logContainer);
+
+const addLog = (msg) => {
+  const line = document.createElement('div');
+  line.textContent = \`[\${new Date().toLocaleTimeString()}] \${msg}\`;
+  logContainer.appendChild(line);
+  logContainer.scrollTop = logContainer.scrollHeight;
+};
+
+// 创建两个节点
+const sourceNode = graph.addNode({
+  id: 'node-source',
+  label: '源节点',
+  x: 120,
+  y: 120,
+  shape: Shape.Circle,
+  style: {
+    width: 80,
+    height: 80,
+    backgroundColor: '#22c55e',
+    borderColor: '#16a34a',
+    textColor: '#ffffff',
+  },
+});
+
+const targetNode = graph.addNode({
+  id: 'node-target',
+  label: '目标节点',
+  x: 400,
+  y: 120,
+  shape: Shape.Circle,
+  style: {
+    width: 80,
+    height: 80,
+    backgroundColor: '#ef4444',
+    borderColor: '#dc2626',
+    textColor: '#ffffff',
+  },
+});
+
+// 添加连接桩
+sourceNode.addPort({ id: 'port-out', position: 'right', visible: true });
+targetNode.addPort({ id: 'port-in', position: 'left', visible: true });
+targetNode.addPort({ id: 'port-top', position: 'top', visible: true });
+targetNode.addPort({ id: 'port-bottom', position: 'bottom', visible: true });
+
+// 创建边
+graph.addEdge({
+  id: 'edge-demo',
+  source: { nodeId: 'node-source', portId: 'port-out' },
+  target: { nodeId: 'node-target', portId: 'port-in' },
+  label: '连接边',
+  type: EdgeType.Straight,
+  style: { stroke: '#64748b', strokeWidth: 2 },
+});
+
+// ========== Port 事件监听 ==========
+
+// 鼠标进入事件
+graph.on(EVENT_NAMES.PORT_MOUSEENTER, (e) => {
+  addLog(\`🖱️ 鼠标进入连接桩: \${e.portId} (节点: \${e.nodeId})\`);
+  // 高亮效果
+  e.port.updateStyle({ fillColor: '#fbbf24', strokeColor: '#f59e0b', strokeWidth: 3 });
+  graph.scheduleRender();
+});
+
+// 鼠标离开事件
+graph.on(EVENT_NAMES.PORT_MOUSELEAVE, (e) => {
+  addLog(\`🖱️ 鼠标离开连接桩: \${e.portId}\`);
+  // 恢复默认样式
+  e.port.updateStyle({ fillColor: '#ffffff', strokeColor: '#64748b', strokeWidth: 2 });
+  graph.scheduleRender();
+});
+
+// 鼠标按下事件
+graph.on(EVENT_NAMES.PORT_MOUSEDOWN, (e) => {
+  addLog(\`🔽 鼠标按下连接桩: \${e.portId}\`);
+});
+
+// 鼠标释放事件
+graph.on(EVENT_NAMES.PORT_MOUSEUP, (e) => {
+  addLog(\`🔼 鼠标释放连接桩: \${e.portId}\`);
+});
+
+// 点击事件
+graph.on(EVENT_NAMES.PORT_CLICK, (e) => {
+  addLog(\`👆 点击连接桩: \${e.portId}\`);
+  addLog(\`   所属节点: \${e.nodeId}, 位置: \${e.port.getPosition()}\`);
+});
+
+// 双击事件
+graph.on(EVENT_NAMES.PORT_DBLCLICK, (e) => {
+  addLog(\`👆👆 双击连接桩: \${e.portId}\`);
+});
+
+// 右键菜单事件
+graph.on(EVENT_NAMES.PORT_CONTEXTMENU, (e) => {
+  addLog(\`📋 右键菜单连接桩: \${e.portId}\`);
+  // 阻止默认右键菜单
+  e.preventDefault?.();
+});
+
+addLog('连接桩事件监听已启动，请与连接桩交互...');`;
+
 // 所有示例
 const EXAMPLES = [
   { id: 'example-1', title: '基础方位端口', code: EXAMPLE_1_CODE },
@@ -548,6 +668,7 @@ const EXAMPLES = [
   { id: 'example-3', title: '自定义位置', code: EXAMPLE_3_CODE },
   { id: 'example-4', title: '端口样式', code: EXAMPLE_4_CODE },
   { id: 'example-5', title: '可见性控制', code: EXAMPLE_5_CODE },
+  { id: 'example-6', title: 'Port 事件', code: EXAMPLE_6_CODE },
 ];
 
 /**
@@ -567,7 +688,7 @@ export const PortExample: React.FC = () => {
     graphContainerRef.current.innerHTML = '';
 
     try {
-      const { Graph, Shape, EdgeType } = await import('../core');
+      const { Graph, Shape, EdgeType, EVENT_NAMES } = await import('../core');
 
       const sandbox = {
         container: graphContainerRef.current,
@@ -575,10 +696,11 @@ export const PortExample: React.FC = () => {
         Graph,
         Shape,
         EdgeType,
+        EVENT_NAMES,
       };
 
       const executableCode = `'use strict';
-        const { container, console, Graph, Shape, EdgeType } = sandbox;
+        const { container, console, Graph, Shape, EdgeType, EVENT_NAMES } = sandbox;
         ${codeToExecute}
       `;
 
