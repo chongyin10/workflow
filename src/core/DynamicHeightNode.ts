@@ -258,14 +258,20 @@ export class DynamicHeightNode extends Node {
 
   /**
    * 计算行的Y坐标（相对于节点中心）
+   * 连接桩在行的垂直居中位置
    */
   private calculateRowY(index: number): number {
-    const rowCount = this.rows.length;
-    const totalRowsHeight =
-      rowCount * this.extendedStyle.rowHeight +
-      (rowCount - 1) * this.extendedStyle.rowGap;
-    const startY = -totalRowsHeight / 2 + this.extendedStyle.rowHeight / 2;
-    return startY + index * (this.extendedStyle.rowHeight + this.extendedStyle.rowGap);
+    const nodeHeight = this.getStyle().height;
+    const headerHeight = this.extendedStyle.headerHeight;
+    const rowHeight = this.extendedStyle.rowHeight;
+    const rowGap = this.extendedStyle.rowGap;
+    
+    // 内容区域起始位置（相对于节点中心）
+    const contentStartY = -nodeHeight / 2 + headerHeight;
+    // 行的顶部位置
+    const rowTop = contentStartY + index * (rowHeight + rowGap);
+    // 行的中心位置（连接桩应该在这里，与绘制逻辑一致）
+    return rowTop + rowHeight / 2;
   }
 
   /**
