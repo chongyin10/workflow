@@ -523,6 +523,126 @@ graph.addEdge({
   style: { stroke: '#f59e0b', strokeWidth: 2 },
 });`;
 
+// 示例 6: 边事件
+const EXAMPLE_6_CODE = `// 创建 Graph 画布
+const graph = new Graph({
+  container: container,
+  width: 600,
+  height: 280,
+  draggable: true,
+  scalable: true,
+  backgroundColor: '#f8fafc',
+  grid: { enabled: true, size: 20, color: '#e2e8f0' },
+});
+
+// 创建日志显示区域
+const logContainer = document.createElement('div');
+logContainer.style.cssText = 'position:absolute;bottom:8px;left:8px;right:8px;height:100px;background:#1e293b;color:#e2e8f0;padding:8px;borderRadius:6px;overflow:auto;fontSize:12px;fontFamily:monospace;';
+container.appendChild(logContainer);
+
+const addLog = (msg) => {
+  const line = document.createElement('div');
+  line.textContent = \`[\${new Date().toLocaleTimeString()}] \${msg}\`;
+  logContainer.appendChild(line);
+  logContainer.scrollTop = logContainer.scrollHeight;
+};
+
+// 创建两个节点
+const node1 = graph.addNode({
+  id: 'node-source',
+  label: '源节点',
+  x: 120,
+  y: 120,
+  shape: Shape.Circle,
+  style: {
+    width: 80,
+    height: 80,
+    backgroundColor: '#22c55e',
+    borderColor: '#16a34a',
+    textColor: '#ffffff',
+  },
+});
+
+const node2 = graph.addNode({
+  id: 'node-target',
+  label: '目标节点',
+  x: 400,
+  y: 120,
+  shape: Shape.Circle,
+  style: {
+    width: 80,
+    height: 80,
+    backgroundColor: '#ef4444',
+    borderColor: '#dc2626',
+    textColor: '#ffffff',
+  },
+});
+
+node1.addPort({ id: 'port-out', position: 'right', visible: true });
+node2.addPort({ id: 'port-in', position: 'left', visible: true });
+
+// 创建边
+const edge = graph.addEdge({
+  id: 'edge-demo',
+  source: { nodeId: 'node-source', portId: 'port-out' },
+  target: { nodeId: 'node-target', portId: 'port-in' },
+  label: '事件边',
+  type: EdgeType.Bezier,
+  style: {
+    stroke: '#3b82f6',
+    strokeWidth: 3,
+    hoverStroke: '#8b5cf6',
+    selectedStroke: '#f59e0b',
+  },
+});
+
+// 绑定各种边事件
+graph.on('edge:mouseenter', (e) => {
+  addLog(\`🖱️ 鼠标进入边: \${e.edge.getLabel()}\`);
+  e.edge.setStyle({ strokeWidth: 5 });
+});
+
+graph.on('edge:mouseleave', (e) => {
+  addLog(\`🖱️ 鼠标离开边: \${e.edge.getLabel()}\`);
+  e.edge.setStyle({ strokeWidth: 3 });
+});
+
+graph.on('edge:mousedown', (e) => {
+  addLog(\`🖱️ 鼠标按下边: \${e.edge.getLabel()}\`);
+});
+
+graph.on('edge:mouseup', (e) => {
+  addLog(\`🖱️ 鼠标释放边: \${e.edge.getLabel()}\`);
+});
+
+graph.on('edge:click', (e) => {
+  addLog(\`👆 点击边: \${e.edge.getLabel()}\`);
+  const label = e.edge.getLabel();
+  addLog(\`   源节点: \${e.edge.getSource().nodeId} → 目标节点: \${e.edge.getTarget().nodeId}\`);
+});
+
+graph.on('edge:dblclick', (e) => {
+  addLog(\`👆👆 双击边: \${e.edge.getLabel()}\`);
+});
+
+graph.on('edge:selected', (e) => {
+  addLog(\`☑️ 边被选中: \${e.edge.getLabel()}\`);
+});
+
+graph.on('edge:unselected', (e) => {
+  addLog(\`⬜ 边取消选中: \${e.edge.getLabel()}\`);
+});
+
+// 监听节点移动时边的更新
+graph.on('node:drag', (e) => {
+  const pos = e.node.getPosition();
+  if (Math.floor(Date.now() / 100) % 20 === 0) {
+    addLog(\`🔄 节点移动中: \${e.node.getLabel()} 位置: (\${Math.round(pos.x)}, \${Math.round(pos.y)})\`);
+  }
+});
+
+addLog('边事件监听已启动，请与边交互...');`;
+
 // 所有示例
 const EXAMPLES = [
   { id: 'example-1', title: '直线边', code: EXAMPLE_1_CODE },
@@ -530,6 +650,7 @@ const EXAMPLES = [
   { id: 'example-3', title: '曲线边', code: EXAMPLE_3_CODE },
   { id: 'example-4', title: '样式配置', code: EXAMPLE_4_CODE },
   { id: 'example-5', title: '多端口连接', code: EXAMPLE_5_CODE },
+  { id: 'example-6', title: '边事件', code: EXAMPLE_6_CODE },
 ];
 
 /**

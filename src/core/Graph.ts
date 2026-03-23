@@ -87,6 +87,12 @@ export class Graph {
         onMouseLeave: (e: globalThis.MouseEvent) => void;
         onWheel: (e: globalThis.WheelEvent) => void;
         onResize: () => void;
+        onHover: (e: globalThis.MouseEvent) => void;
+        onClick: (e: globalThis.MouseEvent) => void;
+        onDblClick: (e: globalThis.MouseEvent) => void;
+        onContextMenu: (e: globalThis.MouseEvent) => void;
+        onMouseEnter: (e: globalThis.MouseEvent) => void;
+        onMouseLeaveCanvas: (e: globalThis.MouseEvent) => void;
     };
 
     // ResizeObserver 用于监听容器尺寸变化
@@ -103,6 +109,9 @@ export class Graph {
     
     // 已注册的插件
     private plugins: Map<string, Plugin> = new Map();
+
+    // 记录待取消选中的节点（用于延迟触发 node:unselected 事件）
+    private nodeToUnselect: Node | null = null;
 
     // 默认配置
     private static readonly DEFAULT_OPTIONS: Omit<
@@ -165,6 +174,12 @@ export class Graph {
             onMouseLeave: this.handleMouseLeave.bind(this),
             onWheel: this.handleWheel.bind(this),
             onResize: this.handleResize.bind(this),
+            onHover: this.handleHover.bind(this),
+            onClick: this.handleClick.bind(this),
+            onDblClick: this.handleDblClick.bind(this),
+            onContextMenu: this.handleContextMenu.bind(this),
+            onMouseEnter: (e: globalThis.MouseEvent) => this.handleMouseEnterLeave(e, true),
+            onMouseLeaveCanvas: (e: globalThis.MouseEvent) => this.handleMouseEnterLeave(e, false),
         };
 
         this.init();
@@ -216,18 +231,23 @@ export class Graph {
      * 调整画布尺寸
      */
     private resizeCanvas(): void {
-        const rect = this.container.getBoundingClientRect();
-        const dpr = window.devicePixelRatio || 1;
+        // 使用 requestAnimationFrame 避免 ResizeObserver loop 错误
+        requestAnimationFrame(() => {
+            if (!this.container || !this.canvas) return;
+            
+            const rect = this.container.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
 
-        this.canvas.width = rect.width * dpr;
-        this.canvas.height = rect.height * dpr;
-        this.canvas.style.width = `${rect.width}px`;
-        this.canvas.style.height = `${rect.height}px`;
+            this.canvas.width = rect.width * dpr;
+            this.canvas.height = rect.height * dpr;
+            this.canvas.style.width = `${rect.width}px`;
+            this.canvas.style.height = `${rect.height}px`;
 
-        // 设置上下文缩放以适应 DPR
-        this.ctx.scale(dpr, dpr);
+            // 重置变换矩阵并设置上下文缩放以适应 DPR
+            this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-        this.render();
+            this.render();
+        });
     }
 
     /**
@@ -250,8 +270,13 @@ export class Graph {
             });
         }
 
-        // 添加鼠标移动监听用于悬停检测
-        this.canvas.addEventListener('mousemove', this.handleHover.bind(this));
+        // 添加鼠标移动监听用于悬停检测和空白区域事件
+        this.canvas.addEventListener('mousemove', this.boundHandlers.onHover);
+
+        // 添加 click、dblclick、contextmenu 事件监听
+        this.canvas.addEventListener('click', this.boundHandlers.onClick);
+        this.canvas.addEventListener('dblclick', this.boundHandlers.onDblClick);
+        this.canvas.addEventListener('contextmenu', this.boundHandlers.onContextMenu);
 
         window.addEventListener('resize', this.boundHandlers.onResize);
 
@@ -265,84 +290,13 @@ export class Graph {
     }
 
     /**
-     * 鼠标悬停处理
+     * 鼠标悬停处理（已废弃，使用 updateMouseOverState 替代）
+     * @deprecated 此方法已不再使用，请使用 updateMouseOverState 方法
      */
     private handleHover(e: MouseEvent): void {
-        if (this.isDraggingNode || this.state.isDragging) return;
-
-        const rect = this.canvas.getBoundingClientRect();
-        const screenPoint: Point = {
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top,
-        };
-        const worldPoint = this.screenToWorld(screenPoint);
-
-        // 检查是否悬停在节点上（节点优先）
-        const nodes = this.getAllNodes();
-        let hoveredNode: Node | null = null;
-        for (let i = nodes.length - 1; i >= 0; i--) {
-            if (nodes[i].containsPoint(worldPoint)) {
-                hoveredNode = nodes[i];
-                break;
-            }
-        }
-
-        if (hoveredNode) {
-            // 清除之前的边悬停状态
-            if (this.hoveredEdge) {
-                this.hoveredEdge.setHovered(false);
-                this.hoveredEdge = null;
-            }
-            this.canvas.style.cursor = 'grab';
-            if (this.hoveredNode !== hoveredNode) {
-                // 清除之前的节点悬停状态
-                if (this.hoveredNode) {
-                    this.hoveredNode.setHovered(false);
-                }
-                // 设置新的节点悬停状态
-                this.hoveredNode = hoveredNode;
-                this.hoveredNode.setHovered(true);
-                this.scheduleRender();
-            }
-            return;
-        }
-
-        // 清除节点悬停状态
-        if (this.hoveredNode) {
-            this.hoveredNode.setHovered(false);
-            this.hoveredNode = null;
-        }
-
-        // 检查是否悬停在边上
-        const edges = this.getAllEdges();
-        let hoveredEdge: Edge | null = null;
-        for (let i = edges.length - 1; i >= 0; i--) {
-            if (edges[i].containsPoint(worldPoint)) {
-                hoveredEdge = edges[i];
-                break;
-            }
-        }
-
-        if (hoveredEdge) {
-            this.canvas.style.cursor = 'pointer';
-            if (this.hoveredEdge !== hoveredEdge) {
-                // 清除之前的边悬停状态
-                if (this.hoveredEdge) {
-                    this.hoveredEdge.setHovered(false);
-                }
-                // 设置新的边悬停状态
-                this.hoveredEdge = hoveredEdge;
-                this.hoveredEdge.setHovered(true);
-                this.scheduleRender();
-            }
-        } else {
-            this.canvas.style.cursor = this.options.draggable ? 'grab' : 'default';
-            if (this.hoveredEdge) {
-                this.hoveredEdge.setHovered(false);
-                this.hoveredEdge = null;
-                this.scheduleRender();
-            }
-        }
+        // 此方法已废弃，不再被调用
+        // 保留此代码作为历史参考，后续可以安全移除
+        console.warn('handleHover is deprecated, use updateMouseOverState instead');
     }
 
     /**
@@ -362,6 +316,14 @@ export class Graph {
         this.canvas.removeEventListener('wheel', this.boundHandlers.onWheel);
         window.removeEventListener('resize', this.boundHandlers.onResize);
 
+        // 移除悬停检测的 mousemove 监听器（修复事件泄漏）
+        this.canvas.removeEventListener('mousemove', this.boundHandlers.onHover);
+
+        // 移除 click、dblclick、contextmenu 监听器
+        this.canvas.removeEventListener('click', this.boundHandlers.onClick);
+        this.canvas.removeEventListener('dblclick', this.boundHandlers.onDblClick);
+        this.canvas.removeEventListener('contextmenu', this.boundHandlers.onContextMenu);
+
         // 断开 ResizeObserver
         if (this.resizeObserver) {
             this.resizeObserver.disconnect();
@@ -377,9 +339,6 @@ export class Graph {
 
         e.preventDefault();
 
-        // 分发 mousedown 事件
-        this.dispatchMouseEvent('mousedown', e);
-
         // 将鼠标位置转换为世界坐标
         const rect = this.canvas.getBoundingClientRect();
         const screenPoint: Point = {
@@ -388,7 +347,7 @@ export class Graph {
         };
         const worldPoint = this.screenToWorld(screenPoint);
 
-        // 检查是否点击到了节点（从后往前查找，确保点击最上层的节点）
+        // 检查点击目标（一次遍历）
         const nodes = this.getAllNodes();
         let clickedNode: Node | null = null;
         let clickedPort: Port | null = null;
@@ -402,11 +361,15 @@ export class Graph {
                 break;
             }
             
+            // 再检查节点主体
             if (nodes[i].containsPoint(worldPoint)) {
                 clickedNode = nodes[i];
                 break;
             }
         }
+
+        // 分发 mousedown 事件（复用已检测的结果）
+        this.dispatchMouseEventWithTarget('mousedown', e, worldPoint, clickedNode, clickedPort);
 
         if (clickedNode) {
             // 开始拖拽节点
@@ -416,8 +379,19 @@ export class Graph {
             const nodePos = clickedNode.getPosition();
             this.dragNodeStartPosition = { ...nodePos };
             
-            // 选中节点
-            this.selectNode(clickedNode.getId());
+            // 选中节点（延迟触发 node:unselected 事件，在 mouseup 时触发）
+            this.selectNode(clickedNode.getId(), false);
+            
+            // 触发 node:dragstart 事件
+            clickedNode.triggerNodeEvent('dragstart', e, { x: worldPoint.x, y: worldPoint.y });
+            this.emit(EVENT_NAMES.NODE_DRAGSTART, {
+                type: 'node',
+                target: clickedNode,
+                node: clickedNode,
+                originalEvent: e,
+                x: worldPoint.x,
+                y: worldPoint.y,
+            });
             
             this.canvas.style.cursor = 'grabbing';
         } else {
@@ -452,25 +426,40 @@ export class Graph {
             const newY = this.dragNodeStartPosition.y + deltaY;
             this.draggedNode.setPosition(newX, newY);
             
+            // 触发 node:drag 事件
+            this.draggedNode.triggerNodeEvent('drag', e, { x: newX, y: newY });
+            this.emit(EVENT_NAMES.NODE_DRAG, {
+                type: 'node',
+                target: this.draggedNode,
+                node: this.draggedNode,
+                originalEvent: e,
+                x: newX,
+                y: newY,
+            });
+            
             this.scheduleRender();
             return;
         }
 
         // 处理画布拖拽
-        if (!this.state.isDragging || !this.state.lastMousePosition) return;
+        if (this.state.isDragging && this.state.lastMousePosition) {
+            const deltaX = e.clientX - this.state.lastMousePosition.x;
+            const deltaY = e.clientY - this.state.lastMousePosition.y;
 
-        const deltaX = e.clientX - this.state.lastMousePosition.x;
-        const deltaY = e.clientY - this.state.lastMousePosition.y;
+            this.state.offset.x += deltaX;
+            this.state.offset.y += deltaY;
 
-        this.state.offset.x += deltaX;
-        this.state.offset.y += deltaY;
+            this.state.lastMousePosition = {
+                x: e.clientX,
+                y: e.clientY,
+            };
 
-        this.state.lastMousePosition = {
-            x: e.clientX,
-            y: e.clientY,
-        };
+            this.scheduleRender();
+            return;
+        }
 
-        this.scheduleRender();
+        // 处理鼠标悬停状态（非拖拽状态下）
+        this.handleMouseEnterLeave(e, true);
     }
 
     /**
@@ -487,19 +476,72 @@ export class Graph {
     }
 
     /**
+     * 点击事件处理
+     */
+    private handleClick(e: globalThis.MouseEvent): void {
+        this.dispatchMouseEvent('click', e);
+    }
+
+    /**
+     * 双击事件处理
+     */
+    private handleDblClick(e: globalThis.MouseEvent): void {
+        this.dispatchMouseEvent('dblclick', e);
+    }
+
+    /**
+     * 右键菜单事件处理
+     */
+    private handleContextMenu(e: globalThis.MouseEvent): void {
+        e.preventDefault();
+        this.dispatchMouseEvent('contextmenu', e);
+    }
+
+    /**
      * 鼠标释放处理
      */
-    private handleMouseUp(): void {
+    private handleMouseUp(e: globalThis.MouseEvent): void {
+        // 将鼠标位置转换为世界坐标
+        const rect = this.canvas.getBoundingClientRect();
+        const screenPoint: Point = {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
+        };
+        const worldPoint = this.screenToWorld(screenPoint);
+
         // 处理节点拖拽结束
-        if (this.isDraggingNode) {
+        if (this.isDraggingNode && this.draggedNode) {
+            // 触发 node:dragend 事件
+            const finalPosition = this.draggedNode.getPosition();
+            this.draggedNode.triggerNodeEvent('dragend', e, { x: finalPosition.x, y: finalPosition.y });
+            this.emit(EVENT_NAMES.NODE_DRAGEND, {
+                type: 'node',
+                target: this.draggedNode,
+                node: this.draggedNode,
+                originalEvent: e,
+                x: finalPosition.x,
+                y: finalPosition.y,
+            });
+
+            // 触发延迟的 node:unselected 事件（如果有）
+            if (this.nodeToUnselect) {
+                this.triggerNodeUnselected(this.nodeToUnselect, worldPoint.x, worldPoint.y, e);
+                this.nodeToUnselect = null;
+            }
+
             this.isDraggingNode = false;
             this.draggedNode = null;
             this.canvas.style.cursor = 'grab';
             return;
         }
 
+        // 分发 mouseup 事件
+        this.dispatchMouseEvent('mouseup', e);
+
         // 处理画布拖拽结束
-        if (!this.state.isDragging) return;
+        if (!this.state.isDragging) {
+            return;
+        }
 
         this.state.isDragging = false;
         this.state.lastMousePosition = null;
@@ -512,10 +554,14 @@ export class Graph {
     /**
      * 鼠标离开处理
      */
-    private handleMouseLeave(): void {
+    private handleMouseLeave(e: globalThis.MouseEvent): void {
         if (this.state.isDragging) {
-            this.handleMouseUp();
+            this.handleMouseUp(e);
         }
+        
+        // 触发 mouseleave 事件
+        this.handleMouseEnterLeave(e, false);
+        
         // 清除所有悬停状态
         if (this.hoveredNode) {
             this.hoveredNode.setHovered(false);
@@ -543,6 +589,35 @@ export class Graph {
         // 计算缩放前鼠标在世界坐标系中的位置
         const worldX = (mouseX - this.state.offset.x) / this.state.scale;
         const worldY = (mouseY - this.state.offset.y) / this.state.scale;
+
+        // 检查鼠标是否在空白区域
+        const worldPoint: Point = { x: worldX, y: worldY };
+        let isOnElement = false;
+
+        // 检查是否在节点上
+        const nodes = this.getAllNodes();
+        for (let i = nodes.length - 1; i >= 0; i--) {
+            if (nodes[i].containsPoint(worldPoint)) {
+                isOnElement = true;
+                break;
+            }
+        }
+
+        // 如果不在节点上，检查是否在边上
+        if (!isOnElement) {
+            const edges = this.getAllEdges();
+            for (let i = edges.length - 1; i >= 0; i--) {
+                if (edges[i].containsPoint(worldPoint)) {
+                    isOnElement = true;
+                    break;
+                }
+            }
+        }
+
+        // 如果在空白区域，触发 blank:mousewheel 事件
+        if (!isOnElement) {
+            this.dispatchMouseEvent('mousewheel', e as globalThis.WheelEvent);
+        }
 
         // 计算新的缩放比例
         const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
@@ -572,7 +647,7 @@ export class Graph {
     /**
      * 调度渲染（使用 requestAnimationFrame 优化性能）
      */
-    private scheduleRender(): void {
+    scheduleRender(): void {
         if (this.rafId !== null) return;
 
         this.rafId = requestAnimationFrame(() => {
@@ -678,11 +753,13 @@ export class Graph {
 
     /**
      * 添加节点
-     * @param options - 节点配置
-     * @returns 创建的节点实例
+     * @param nodeOrOptions - 节点配置或节点实例
+     * @returns 节点实例
      */
-    addNode(options: NodeOptions): Node {
-        const node = new Node(options);
+    addNode(nodeOrOptions: NodeOptions | Node): Node {
+        const node = nodeOrOptions instanceof Node 
+            ? nodeOrOptions 
+            : new Node(nodeOrOptions);
         this.nodes.set(node.getId(), node);
         this.scheduleRender();
         return node;
@@ -696,8 +773,19 @@ export class Graph {
     removeNode(nodeId: string): boolean {
         const node = this.nodes.get(nodeId);
         if (node) {
-            // 如果移除的是选中的节点，取消选中
+            // 如果移除的是选中的节点，触发 unselected 事件并取消选中
             if (this.selectedNode === node) {
+                // 触发 node:unselected 事件
+                this.selectedNode.emit(EVENT_NAMES.NODE_UNSELECTED, {
+                    type: 'node',
+                    target: this.selectedNode,
+                    node: this.selectedNode,
+                });
+                this.emit(EVENT_NAMES.NODE_UNSELECTED, {
+                    type: 'node',
+                    target: this.selectedNode,
+                    node: this.selectedNode,
+                });
                 this.selectedNode = null;
                 this.options.onNodeSelect(null);
             }
@@ -736,11 +824,30 @@ export class Graph {
     /**
      * 选中节点
      * @param nodeId - 节点 ID
+     * @param triggerUnselectImmediately - 是否立即触发 node:unselected 事件，默认为 true
+     *                                     如果为 false，则在鼠标松开时触发
      */
-    selectNode(nodeId: string | null): void {
+    selectNode(nodeId: string | null, triggerUnselectImmediately: boolean = true): void {
         // 取消之前的选中
         if (this.selectedNode) {
             this.selectedNode.setSelected(false);
+
+            if (triggerUnselectImmediately) {
+                // 立即触发 node:unselected 事件
+                this.selectedNode.emit(EVENT_NAMES.NODE_UNSELECTED, {
+                    type: 'node',
+                    target: this.selectedNode,
+                    node: this.selectedNode,
+                });
+                this.emit(EVENT_NAMES.NODE_UNSELECTED, {
+                    type: 'node',
+                    target: this.selectedNode,
+                    node: this.selectedNode,
+                });
+            } else {
+                // 记录待取消选中的节点，延迟到鼠标松开时触发
+                this.nodeToUnselect = this.selectedNode;
+            }
         }
 
         if (nodeId) {
@@ -748,6 +855,17 @@ export class Graph {
             if (node) {
                 node.setSelected(true);
                 this.selectedNode = node;
+                // 触发 node:selected 事件
+                node.emit(EVENT_NAMES.NODE_SELECTED, {
+                    type: 'node',
+                    target: node,
+                    node: node,
+                });
+                this.emit(EVENT_NAMES.NODE_SELECTED, {
+                    type: 'node',
+                    target: node,
+                    node: node,
+                });
             }
         } else {
             this.selectedNode = null;
@@ -758,11 +876,41 @@ export class Graph {
     }
 
     /**
+     * 触发 node:unselected 事件（用于延迟触发）
+     * @param node - 要触发 unselected 事件的节点
+     */
+    private triggerNodeUnselected(node: Node, x: number, y: number, originalEvent: globalThis.MouseEvent): void {
+        const eventData = {
+            type: 'node',
+            target: node,
+            node: node,
+            x,
+            y,
+            originalEvent,
+        };
+        node.emit(EVENT_NAMES.NODE_UNSELECTED, eventData);
+        this.emit(EVENT_NAMES.NODE_UNSELECTED, eventData);
+    }
+
+    /**
      * 清除所有节点
      */
     clearNodes(): void {
+        // 如果有选中的节点，触发 unselected 事件
+        if (this.selectedNode) {
+            this.selectedNode.emit(EVENT_NAMES.NODE_UNSELECTED, {
+                type: 'node',
+                target: this.selectedNode,
+                node: this.selectedNode,
+            });
+            this.emit(EVENT_NAMES.NODE_UNSELECTED, {
+                type: 'node',
+                target: this.selectedNode,
+                node: this.selectedNode,
+            });
+            this.selectedNode = null;
+        }
         this.nodes.clear();
-        this.selectedNode = null;
         this.scheduleRender();
     }
 
@@ -1270,16 +1418,57 @@ export class Graph {
         };
         const worldPoint = this.screenToWorld(screenPoint);
 
+        // 调用带目标检测的版本
+        this.dispatchMouseEventWithTarget(eventType, originalEvent, worldPoint, null, null);
+    }
+
+    /**
+     * 分发鼠标事件（带已知目标，避免重复遍历）
+     */
+    private dispatchMouseEventWithTarget(
+        eventType: string,
+        originalEvent: globalThis.MouseEvent,
+        worldPoint: Point,
+        knownNode: Node | null,
+        knownPort: Port | null
+    ): void {
         // 创建基础事件数据
         const baseEventData = this.createMouseEvent(originalEvent, null);
 
-        // 1. 检查连接桩（优先级最高）
+        // 如果提供了已知的节点和连接桩，直接使用
+        if (knownPort && knownNode) {
+            const portEventData = {
+                ...baseEventData,
+                target: knownPort,
+                port: knownPort,
+                portId: knownPort.getId(),
+                nodeId: knownNode.getId(),
+            };
+            knownPort.triggerPortEvent(eventType, originalEvent);
+            this.emit(EVENT_NAMES[`PORT_${eventType.toUpperCase()}` as keyof typeof EVENT_NAMES], portEventData);
+            return;
+        }
+
+        if (knownNode) {
+            const nodeEventData = {
+                ...baseEventData,
+                target: knownNode,
+                node: knownNode,
+            };
+            knownNode.triggerNodeEvent(eventType, originalEvent, { x: worldPoint.x, y: worldPoint.y });
+            this.emit(EVENT_NAMES[`NODE_${eventType.toUpperCase()}` as keyof typeof EVENT_NAMES], nodeEventData);
+            return;
+        }
+
+        // 没有已知目标，执行完整检测
+        // 1. 检查节点和连接桩（一次遍历，优先级：连接桩 > 节点主体）
         const nodes = this.getAllNodes();
         for (let i = nodes.length - 1; i >= 0; i--) {
             const node = nodes[i];
+            
+            // 先检查连接桩
             const port = node.getPortAtPoint(worldPoint);
             if (port) {
-                // 触发 port 事件
                 const portEventData = {
                     ...baseEventData,
                     target: port,
@@ -1287,36 +1476,25 @@ export class Graph {
                     portId: port.getId(),
                     nodeId: node.getId(),
                 };
-                
-                // 触发 cell:xxx 和 node:port:xxx 事件
                 port.triggerPortEvent(eventType, originalEvent);
-                
-                // 同时触发 Graph 级别的事件
                 this.emit(EVENT_NAMES[`PORT_${eventType.toUpperCase()}` as keyof typeof EVENT_NAMES], portEventData);
                 return;
             }
-        }
-
-        // 2. 检查节点
-        for (let i = nodes.length - 1; i >= 0; i--) {
-            const node = nodes[i];
+            
+            // 再检查节点主体
             if (node.containsPoint(worldPoint)) {
                 const nodeEventData = {
                     ...baseEventData,
                     target: node,
                     node,
                 };
-                
-                // 触发 node 事件（会同时触发 cell:xxx）
                 node.triggerNodeEvent(eventType, originalEvent, { x: worldPoint.x, y: worldPoint.y });
-                
-                // 同时触发 Graph 级别的事件
                 this.emit(EVENT_NAMES[`NODE_${eventType.toUpperCase()}` as keyof typeof EVENT_NAMES], nodeEventData);
                 return;
             }
         }
 
-        // 3. 检查边
+        // 2. 检查边
         const edges = this.getAllEdges();
         for (let i = edges.length - 1; i >= 0; i--) {
             const edge = edges[i];
@@ -1328,25 +1506,55 @@ export class Graph {
                     sourceId: edge.getSourceId(),
                     targetId: edge.getTargetId(),
                 };
-                
-                // 触发 edge 事件（会同时触发 cell:xxx）
                 edge.triggerEdgeEvent(eventType, originalEvent, { x: worldPoint.x, y: worldPoint.y });
-                
-                // 同时触发 Graph 级别的事件
                 this.emit(EVENT_NAMES[`EDGE_${eventType.toUpperCase()}` as keyof typeof EVENT_NAMES], edgeEventData);
                 return;
             }
         }
 
-        // 4. 空白区域（blank 事件）
-        const blankEventData = {
-            ...baseEventData,
-            target: 'blank',
-        };
-        
-        const blankEventName = `blank:${eventType}` as keyof typeof EVENT_NAMES;
-        if (blankEventName in EVENT_NAMES) {
-            this.emit(EVENT_NAMES[blankEventName], blankEventData);
+        // 3. 空白区域 - 触发 blank 事件并取消选中
+        const blankEventName = this.getBlankEventName(eventType);
+        if (blankEventName) {
+            const blankEventData = {
+                ...baseEventData,
+                target: null,
+                x: worldPoint.x,
+                y: worldPoint.y,
+            };
+            this.emit(blankEventName, blankEventData);
+
+            // 如果是 mouseup 事件且有选中的节点，取消选中并触发 unselected 事件
+            if (eventType === 'mouseup' && this.selectedNode) {
+                const unselectedNode = this.selectedNode;
+                unselectedNode.setSelected(false);
+
+                // 优先使用延迟触发的节点（如果有）
+                const nodeToTrigger = this.nodeToUnselect || unselectedNode;
+
+                // 触发 node:unselected 事件
+                const unselectedEventData = {
+                    ...baseEventData,
+                    type: 'node',
+                    target: nodeToTrigger,
+                    node: nodeToTrigger,
+                    x: worldPoint.x,
+                    y: worldPoint.y,
+                };
+                nodeToTrigger.emit(EVENT_NAMES.NODE_UNSELECTED, unselectedEventData);
+                this.emit(EVENT_NAMES.NODE_UNSELECTED, unselectedEventData);
+
+                this.selectedNode = null;
+                this.nodeToUnselect = null; // 清除延迟触发标记
+                this.options.onNodeSelect(null);
+                this.scheduleRender();
+            }
+
+            // 如果是 mouseup 事件且有选中的边，取消选中
+            if (eventType === 'mouseup' && this.selectedEdge) {
+                this.selectedEdge.setSelected(false);
+                this.selectedEdge = null;
+                this.scheduleRender();
+            }
         }
     }
 
@@ -1402,8 +1610,8 @@ export class Graph {
 
         // 处理 Port 的 mouseenter/mouseleave
         if (currentPort !== this.lastMouseOverPort) {
-            if (this.lastMouseOverPort && !isEnter) {
-                // mouseleave port
+            // mouseleave port
+            if (this.lastMouseOverPort) {
                 const eventData = {
                     ...baseEventData,
                     target: this.lastMouseOverPort,
@@ -1412,8 +1620,8 @@ export class Graph {
                 this.lastMouseOverPort.emit(EVENT_NAMES.PORT_MOUSELEAVE, eventData);
                 this.emit(EVENT_NAMES.PORT_MOUSELEAVE, eventData);
             }
-            if (currentPort && isEnter) {
-                // mouseenter port
+            // mouseenter port
+            if (currentPort) {
                 const eventData = {
                     ...baseEventData,
                     target: currentPort,
@@ -1427,14 +1635,18 @@ export class Graph {
 
         // 处理 Node 的 mouseenter/mouseleave
         if (currentNode !== this.lastMouseOverNode) {
-            if (this.lastMouseOverNode && !isEnter) {
+            // 鼠标离开上一个节点（无论是从节点移到空白，还是从节点A移到节点B，或者鼠标离开canvas）
+            if (this.lastMouseOverNode) {
+                // 使用 triggerNodeEvent 确保同时触发 cell:mouseleave 和 node:mouseleave
+                this.lastMouseOverNode.triggerNodeEvent('mouseleave', originalEvent, { x: worldPoint.x, y: worldPoint.y });
                 const eventData = { ...baseEventData, target: this.lastMouseOverNode, node: this.lastMouseOverNode };
-                this.lastMouseOverNode.emit(EVENT_NAMES.NODE_MOUSELEAVE, eventData);
                 this.emit(EVENT_NAMES.NODE_MOUSELEAVE, eventData);
             }
-            if (currentNode && isEnter) {
+            // 鼠标进入新节点
+            if (currentNode) {
+                // 使用 triggerNodeEvent 确保同时触发 cell:mouseenter 和 node:mouseenter
+                currentNode.triggerNodeEvent('mouseenter', originalEvent, { x: worldPoint.x, y: worldPoint.y });
                 const eventData = { ...baseEventData, target: currentNode, node: currentNode };
-                currentNode.emit(EVENT_NAMES.NODE_MOUSEENTER, eventData);
                 this.emit(EVENT_NAMES.NODE_MOUSEENTER, eventData);
             }
             this.lastMouseOverNode = currentNode;
@@ -1442,12 +1654,14 @@ export class Graph {
 
         // 处理 Edge 的 mouseenter/mouseleave
         if (currentEdge !== this.lastMouseOverEdge) {
-            if (this.lastMouseOverEdge && !isEnter) {
+            // mouseleave edge
+            if (this.lastMouseOverEdge) {
                 const eventData = { ...baseEventData, target: this.lastMouseOverEdge, edge: this.lastMouseOverEdge };
                 this.lastMouseOverEdge.emit(EVENT_NAMES.EDGE_MOUSELEAVE, eventData);
                 this.emit(EVENT_NAMES.EDGE_MOUSELEAVE, eventData);
             }
-            if (currentEdge && isEnter) {
+            // mouseenter edge
+            if (currentEdge) {
                 const eventData = { ...baseEventData, target: currentEdge, edge: currentEdge };
                 currentEdge.emit(EVENT_NAMES.EDGE_MOUSEENTER, eventData);
                 this.emit(EVENT_NAMES.EDGE_MOUSEENTER, eventData);

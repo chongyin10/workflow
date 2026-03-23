@@ -408,6 +408,107 @@ const warningNode = graph.addNode({
   },
 });`;
 
+// 示例 6: 节点事件
+const EXAMPLE_6_CODE = `// 创建 Graph 画布
+const graph = new Graph({
+  container: container,
+  width: 600,
+  height: 280,
+  draggable: true,
+  scalable: true,
+  backgroundColor: '#f8fafc',
+  grid: { enabled: true, size: 20, color: '#e2e8f0' },
+});
+
+// 创建日志显示区域
+const logContainer = document.createElement('div');
+logContainer.style.cssText = 'position:absolute;bottom:8px;left:8px;right:8px;height:100px;background:#1e293b;color:#e2e8f0;padding:8px;borderRadius:6px;overflow:auto;fontSize:12px;fontFamily:monospace;';
+container.appendChild(logContainer);
+
+const addLog = (msg) => {
+  const line = document.createElement('div');
+  line.textContent = \`[\${new Date().toLocaleTimeString()}] \${msg}\`;
+  logContainer.appendChild(line);
+  logContainer.scrollTop = logContainer.scrollHeight;
+};
+
+// 创建交互节点
+const eventNode = graph.addNode({
+  id: 'node-events',
+  label: '事件节点',
+  x: 300,
+  y: 100,
+  shape: Shape.Rect,
+  style: {
+    width: 140,
+    height: 80,
+    backgroundColor: '#3b82f6',
+    borderColor: '#2563eb',
+    borderWidth: 2,
+    borderRadius: 8,
+    textColor: '#ffffff',
+    hoverBackgroundColor: '#60a5fa',
+    selectedBackgroundColor: '#1d4ed8',
+  },
+  data: { description: '鼠标悬停、点击、拖拽此节点查看事件' },
+});
+
+// 绑定各种节点事件
+graph.on('node:mouseenter', (e) => {
+  addLog(\`🖱️ 鼠标进入节点: \${e.node.getLabel()}\`);
+  e.node.setStyle({ borderWidth: 4 });
+});
+
+graph.on('node:mouseleave', (e) => {
+  addLog(\`🖱️ 鼠标离开节点: \${e.node.getLabel()}\`);
+  e.node.setStyle({ borderWidth: 2 });
+});
+
+graph.on('node:mousedown', (e) => {
+  addLog(\`🖱️ 鼠标按下节点: \${e.node.getLabel()}\`);
+});
+
+graph.on('node:mouseup', (e) => {
+  addLog(\`🖱️ 鼠标释放节点: \${e.node.getLabel()}\`);
+});
+
+graph.on('node:click', (e) => {
+  addLog(\`👆 点击节点: \${e.node.getLabel()}\`);
+});
+
+graph.on('node:dblclick', (e) => {
+  addLog(\`👆👆 双击节点: \${e.node.getLabel()}\`);
+  const data = e.node.getData();
+  addLog(\`   节点数据: \${JSON.stringify(data)}\`);
+});
+
+graph.on('node:dragstart', (e) => {
+  addLog(\`✋ 开始拖拽节点: \${e.node.getLabel()}\`);
+});
+
+graph.on('node:drag', (e) => {
+  const pos = e.node.getPosition();
+  // 限制日志频率，每10次更新一次
+  if (Math.floor(Date.now() / 100) % 10 === 0) {
+    addLog(\`🔄 拖拽中... 位置: (\${Math.round(pos.x)}, \${Math.round(pos.y)})\`);
+  }
+});
+
+graph.on('node:dragend', (e) => {
+  const pos = e.node.getPosition();
+  addLog(\`✅ 拖拽结束: \${e.node.getLabel()} 最终位置: (\${Math.round(pos.x)}, \${Math.round(pos.y)})\`);
+});
+
+graph.on('node:selected', (e) => {
+  addLog(\`☑️ 节点被选中: \${e.node.getLabel()}\`);
+});
+
+graph.on('node:unselected', (e) => {
+  addLog(\`⬜ 节点取消选中: \${e.node.getLabel()}\`);
+});
+
+addLog('事件监听已启动，请与节点交互...');`;
+
 // 所有示例
 const EXAMPLES = [
   { id: 'example-1', title: '基础形状', code: EXAMPLE_1_CODE },
@@ -415,6 +516,7 @@ const EXAMPLES = [
   { id: 'example-3', title: '多边形', code: EXAMPLE_3_CODE },
   { id: 'example-4', title: '端口管理', code: EXAMPLE_4_CODE },
   { id: 'example-5', title: '动态交互', code: EXAMPLE_5_CODE },
+  { id: 'example-6', title: '节点事件', code: EXAMPLE_6_CODE },
 ];
 
 /**

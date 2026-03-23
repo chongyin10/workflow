@@ -82,6 +82,11 @@ export const EVENT_NAMES = {
     NODE_MOUSEWHEEL: 'node:mousewheel',
     NODE_MOUSEENTER: 'node:mouseenter',
     NODE_MOUSELEAVE: 'node:mouseleave',
+    NODE_DRAGSTART: 'node:dragstart',
+    NODE_DRAG: 'node:drag',
+    NODE_DRAGEND: 'node:dragend',
+    NODE_SELECTED: 'node:selected',
+    NODE_UNSELECTED: 'node:unselected',
 
     // Port 事件
     PORT_CLICK: 'node:port:click',

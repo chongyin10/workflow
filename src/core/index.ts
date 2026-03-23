@@ -17,6 +17,17 @@ export {
   type NodeEvent,
 } from './Node';
 
+// 动态高度节点
+export {
+  DynamicHeightNode,
+  type DynamicHeightNodeOptions,
+  type DynamicHeightNodeStyle,
+  type DynamicHeightNodeData,
+  type DynamicHeightNodeEvent,
+  type RowConfig,
+  type RowData,
+} from './DynamicHeightNode';
+
 // 边
 export {
   Edge,

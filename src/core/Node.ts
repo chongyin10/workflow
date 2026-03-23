@@ -97,23 +97,23 @@ export class Node extends Cell {
 
     // 默认样式
     private static readonly DEFAULT_STYLE: NodeStyle = {
-        width: 120,
-        height: 60,
-        backgroundColor: '#3b82f6',
-        borderColor: '#1d4ed8',
-        borderWidth: 2,
-        borderRadius: 8,
-        textColor: '#ffffff',
+        width: 200,
+        height: 80,
+        backgroundColor: '#ffffff',
+        borderColor: '#3b82f6',
+        borderWidth: 1,
+        borderRadius: 12,
+        textColor: '#1f2937',
         fontSize: 14,
         fontFamily: 'system-ui, -apple-system, sans-serif',
-        shadowColor: 'rgba(0, 0, 0, 0.2)',
-        shadowBlur: 4,
+        shadowColor: 'rgba(0, 0, 0, 0.08)',
+        shadowBlur: 8,
         shadowOffsetX: 0,
         shadowOffsetY: 2,
-        selectedBorderColor: '#f59e0b',
-        selectedBorderWidth: 3,
-        hoverBackgroundColor: '#60a5fa',
-        shape: { type: Shape.Rect, borderRadius: 8 },
+        selectedBorderColor: '#3b82f6',
+        selectedBorderWidth: 2,
+        hoverBackgroundColor: '#f8fafc',
+        shape: { type: Shape.Rect, borderRadius: 12 },
     };
 
     /**
@@ -136,22 +136,76 @@ export class Node extends Cell {
         .node {
             position: absolute;
             display: flex;
-            align-items: center;
-            justify-content: center;
+            flex-direction: column;
+            padding: 12px 16px;
             cursor: grab;
-            transition: box-shadow 0.2s ease;
+            transition: all 0.2s ease;
+            box-shadow:
+                0 2px 8px rgba(0, 0, 0, 0.06),
+                0 1px 2px rgba(0, 0, 0, 0.04);
         }
         
         .node:hover {
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            box-shadow:
+                0 8px 16px rgba(59, 130, 246, 0.12),
+                0 4px 8px rgba(59, 130, 246, 0.08);
+            transform: translateY(-1px);
         }
         
         .node:active {
             cursor: grabbing;
+            box-shadow:
+                0 2px 4px rgba(0, 0, 0, 0.06);
+            transform: translateY(0);
         }
         
         .node.selected {
-            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.5);
+            box-shadow:
+                0 0 0 2px rgba(59, 130, 246, 0.3),
+                0 4px 12px rgba(59, 130, 246, 0.15);
+        }
+        
+        .node-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+        }
+        
+        .node-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: #0284c7;
+            flex-shrink: 0;
+        }
+        
+        .node-title {
+            flex: 1;
+            font-size: 15px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+        
+        .node-tag {
+            font-size: 11px;
+            color: #6b7280;
+            background: #f3f4f6;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+        
+        .node-desc {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 6px;
+            margin-left: 38px;
         }
         
         .node-label {
@@ -226,6 +280,14 @@ export class Node extends Cell {
     }
 
     /**
+     * 设置节点样式（updateStyle 的别名）
+     * @deprecated 请使用 updateStyle 方法
+     */
+    setStyle(style: Partial<NodeStyle>): void {
+        this.updateStyle(style);
+    }
+
+    /**
      * 获取节点边界框
      */
     getBounds(): { x: number; y: number; width: number; height: number } {
@@ -293,7 +355,7 @@ export class Node extends Cell {
         ctx.fill();
 
         // 绘制边框
-        ctx.shadowColor = 'transparent'; // 边框不需要阴影
+        ctx.shadowColor = 'transparent';
         ctx.lineWidth = this.isSelected ? style.selectedBorderWidth : style.borderWidth;
         ctx.strokeStyle = this.isSelected ? style.selectedBorderColor : style.borderColor;
         ctx.stroke();
@@ -310,7 +372,6 @@ export class Node extends Cell {
         const textMetrics = ctx.measureText(displayLabel);
         
         if (textMetrics.width > maxTextWidth) {
-            // 截断文字并添加省略号
             let truncated = displayLabel;
             while (ctx.measureText(truncated + '...').width > maxTextWidth && truncated.length > 0) {
                 truncated = truncated.slice(0, -1);
@@ -783,6 +844,9 @@ export class Node extends Cell {
             mousewheel: EVENT_NAMES.NODE_MOUSEWHEEL,
             mouseenter: EVENT_NAMES.NODE_MOUSEENTER,
             mouseleave: EVENT_NAMES.NODE_MOUSELEAVE,
+            dragstart: EVENT_NAMES.NODE_DRAGSTART,
+            drag: EVENT_NAMES.NODE_DRAG,
+            dragend: EVENT_NAMES.NODE_DRAGEND,
         };
     }
 

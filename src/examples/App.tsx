@@ -7,14 +7,16 @@ import {
     PortExample,
     ShapeExample,
     DndExample,
+    DynamicHeightNodeExample,
+    BlankEventExample,
 } from './index';
 
 /**
  * Examples App - 示例应用入口
- * 
+ *
  * 提供所有核心组件示例的导航和展示
  */
-type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'dnd';
+type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'dnd' | 'dynamicHeightNode' | 'blankEvent';
 
 interface ExampleItem {
     key: ExampleKey;
@@ -65,6 +67,18 @@ const examples: ExampleItem[] = [
         title: '🎯 Dnd 拖拽示例',
         description: '从外部拖拽节点到画布的交互展示',
         component: DndExample,
+    },
+    {
+        key: 'dynamicHeightNode',
+        title: '📐 动态高度节点示例',
+        description: '高度随连接桩数量自动增长的节点',
+        component: DynamicHeightNodeExample,
+    },
+    {
+        key: 'blankEvent',
+        title: '🖱️ Blank 事件示例',
+        description: '画布空白区域点击、双击、右键、拖动、滚动事件演示',
+        component: BlankEventExample,
     },
 ];
 

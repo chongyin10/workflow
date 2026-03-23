@@ -228,6 +228,20 @@ export class Edge extends Cell {
     }
 
     /**
+     * 获取源连接点（同 getSourceAnchor）
+     */
+    getSource(): EdgeAnchor {
+        return { ...this.source };
+    }
+
+    /**
+     * 获取目标连接点（同 getTargetAnchor）
+     */
+    getTarget(): EdgeAnchor {
+        return { ...this.target };
+    }
+
+    /**
      * 获取边类型
      */
     getType(): EdgeType {
@@ -253,6 +267,14 @@ export class Edge extends Cell {
      */
     updateStyle(style: Partial<EdgeStyle>): void {
         this.style = { ...this.style, ...style };
+    }
+
+    /**
+     * 设置边样式（updateStyle 的别名）
+     * @deprecated 请使用 updateStyle 方法
+     */
+    setStyle(style: Partial<EdgeStyle>): void {
+        this.updateStyle(style);
     }
 
     /**
