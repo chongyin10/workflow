@@ -67,6 +67,10 @@ export interface PortOptions extends CellOptions {
     style?: Partial<PortStyle>;
     /** 形状配置 */
     shape?: Shape | ShapeConfig;
+    /** 连接桩旁边显示的标签（位于连接桩外侧） */
+    lable?: string;
+    /** 连接桩标签的方位：'inside'内侧, 'outside'外侧, 'top'上面, 'bottom'下面。默认为'outside' */
+    lablePosition?: 'inside' | 'outside' | 'top' | 'bottom';
 }
 
 /**
@@ -133,9 +137,11 @@ const DEFAULT_LAYOUT_CONFIG: PortLayoutConfig = {
 export class Port extends Cell {
     private nodeId: string;
     private position: PortPosition;
-    private visible: boolean;
+    private portVisible: boolean;
     private style: PortStyle;
     private shapeConfig: ShapeConfig;
+    private portLabel?: string;
+    private portLabelPosition: 'inside' | 'outside' | 'top' | 'bottom';
 
     // 默认样式
     private static readonly DEFAULT_STYLE: PortStyle = {
@@ -175,8 +181,10 @@ export class Port extends Cell {
         super(options);
         this.nodeId = options.nodeId;
         this.position = options.position;
-        this.visible = options.visible !== false; // 默认可见
+        this.portVisible = options.visible !== false; // 默认可见
         this.style = { ...Port.DEFAULT_STYLE, ...options.style };
+        this.portLabel = options.lable;
+        this.portLabelPosition = options.lablePosition || 'outside';
 
         // 解析形状配置
         if (options.shape) {
@@ -212,17 +220,52 @@ export class Port extends Cell {
     }
 
     /**
-     * 是否可见
+     * 获取可见性状态
      */
-    isVisible(): boolean {
-        return this.visible;
+    getVisible(): boolean {
+        return this.portVisible;
     }
 
     /**
      * 设置可见性
      */
     setVisible(visible: boolean): void {
-        this.visible = visible;
+        this.portVisible = visible;
+    }
+
+    /**
+     * 是否可见（Port 特有，用于端口可见性）
+     */
+    isPortVisible(): boolean {
+        return this.portVisible;
+    }
+
+    /**
+     * 获取连接桩标签
+     */
+    getPortLabel(): string | undefined {
+        return this.portLabel;
+    }
+
+    /**
+     * 设置连接桩标签
+     */
+    setPortLabel(label: string | undefined): void {
+        this.portLabel = label;
+    }
+
+    /**
+     * 获取连接桩标签方位
+     */
+    getPortLabelPosition(): 'inside' | 'outside' | 'top' | 'bottom' {
+        return this.portLabelPosition;
+    }
+
+    /**
+     * 设置连接桩标签方位
+     */
+    setPortLabelPosition(position: 'inside' | 'outside' | 'top' | 'bottom'): void {
+        this.portLabelPosition = position;
     }
 
     /**
@@ -330,7 +373,7 @@ export class Port extends Cell {
         nodeWidth: number,
         nodeHeight: number
     ): void {
-        if (!this.visible) return;
+        if (!this.portVisible) return;
 
         const pos = this.calculatePosition(nodeX, nodeY, nodeWidth, nodeHeight);
 
@@ -403,7 +446,7 @@ export class Port extends Cell {
         nodeWidth: number,
         nodeHeight: number
     ): boolean {
-        if (!this.visible) return false;
+        if (!this.portVisible) return false;
 
         const pos = this.calculatePosition(nodeX, nodeY, nodeWidth, nodeHeight);
 
@@ -474,7 +517,7 @@ export class Port extends Cell {
             id: newId || `${this.id}_clone`,
             nodeId: this.nodeId,
             position: this.position,
-            visible: this.visible,
+            visible: this.portVisible,
             style: { ...this.style },
             shape: { ...this.shapeConfig },
             label: this.label,

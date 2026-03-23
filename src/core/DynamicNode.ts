@@ -522,6 +522,9 @@ export class DynamicHeightNode extends Node {
 
     // 绘制所有连接桩
     this.drawAllPorts(ctx);
+
+    // 绘制连接桩标签
+    this.drawPortLabels(ctx);
   }
 
   /**
@@ -816,6 +819,95 @@ export class DynamicHeightNode extends Node {
       style: { ...this.extendedStyle },
       data: this.getData(),
     });
+  }
+
+  /**
+   * 绘制连接桩标签
+   * 在连接桩旁边显示标签文字
+   */
+  private drawPortLabels(ctx: CanvasRenderingContext2D): void {
+    const pos = this.getPosition();
+    const ports = this.getAllPorts();
+    const style = this.getStyle();
+
+    ctx.save();
+    ctx.font = `${this.extendedStyle.rowLabelFontSize}px ${style.fontFamily}`;
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = this.extendedStyle.rowLabelColor;
+
+    ports.forEach((port) => {
+      const label = port.getPortLabel();
+      if (!label) return;
+
+      // 获取连接桩的世界坐标
+      const portPos = port.getPosition();
+      let portWorldX: number;
+      let portWorldY: number;
+
+      if (typeof portPos === 'object' && 'x' in portPos && 'y' in portPos) {
+        portWorldX = pos.x + portPos.x;
+        portWorldY = pos.y + portPos.y;
+      } else {
+        return; // 不支持的位置类型
+      }
+
+      // 判断连接桩方位
+      const isLeftPort = portPos.x < 0;
+      const labelPosition = port.getPortLabelPosition();
+      const labelOffset = 8; // 标签到节点边框的距离
+
+      // 计算节点边框的 X 坐标
+      const halfWidth = style.width / 2;
+      const leftBorderX = pos.x - halfWidth;
+      const rightBorderX = pos.x + halfWidth;
+
+      switch (labelPosition) {
+        case 'inside':
+          // 内侧：标签在连接桩内侧（朝向节点中心方向）
+          ctx.textBaseline = 'middle';
+          if (isLeftPort) {
+            // 左侧连接桩：标签在右侧（内侧）
+            ctx.textAlign = 'left';
+            ctx.fillText(label, portWorldX + labelOffset, portWorldY);
+          } else {
+            // 右侧连接桩：标签在左侧（内侧）
+            ctx.textAlign = 'right';
+            ctx.fillText(label, portWorldX - labelOffset, portWorldY);
+          }
+          break;
+
+        case 'top':
+          // 上面：标签在连接桩上方
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          ctx.fillText(label, portWorldX, portWorldY - labelOffset);
+          break;
+
+        case 'bottom':
+          // 下面：标签在连接桩下方
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          ctx.fillText(label, portWorldX, portWorldY + labelOffset);
+          break;
+
+        case 'outside':
+        default:
+          // 外侧：标签在连接桩外侧（远离节点方向）
+          ctx.textBaseline = 'middle';
+          if (isLeftPort) {
+            // 左侧连接桩：标签在左侧（外侧），距离左边框 8px
+            ctx.textAlign = 'right';
+            ctx.fillText(label, leftBorderX - labelOffset, portWorldY);
+          } else {
+            // 右侧连接桩：标签在右侧（外侧），距离右边框 8px
+            ctx.textAlign = 'left';
+            ctx.fillText(label, rightBorderX + labelOffset, portWorldY);
+          }
+          break;
+      }
+    });
+
+    ctx.restore();
   }
 }
 

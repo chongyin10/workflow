@@ -26,6 +26,23 @@ const rowConfigData = [
   { name: 'data', type: 'Record<string, any>', required: '否', default: '{}', description: '自定义业务数据' },
 ];
 
+// PortOptions 表格数据
+const portOptionsColumns = [
+  { title: '属性名', dataIndex: 'name', width: 180 },
+  { title: '类型', dataIndex: 'type', width: 200 },
+  { title: '必填', dataIndex: 'required', width: 80 },
+  { title: '默认值', dataIndex: 'default', width: 150 },
+  { title: '说明', dataIndex: 'description' },
+];
+
+const portOptionsData = [
+  { name: 'id', type: 'string', required: '是', default: '-', description: '连接桩唯一标识符' },
+  { name: 'label', type: 'string', required: '否', default: "''", description: '连接桩标签（内部显示）' },
+  { name: 'lable', type: 'string', required: '否', default: 'undefined', description: '连接桩外部标签（显示在连接桩旁）' },
+  { name: 'lablePosition', type: "'inside' | 'outside' | 'top' | 'bottom'", required: '否', default: "'outside'", description: '标签方位：inside内侧, outside外侧, top上面, bottom下面' },
+  { name: 'style', type: 'Partial<PortStyle>', required: '否', default: '{}', description: '连接桩样式配置' },
+];
+
 // DynamicHeightNode 类方法表格数据
 const nodeMethodsColumns = [
   { title: '方法名', dataIndex: 'name', width: 260 },
@@ -400,16 +417,118 @@ setTimeout(() => {
   
   graph.scheduleRender();
   console.log('样式已更新！新高度:', node.getStyle().height);
-}, 3000);`;
-
-// 所有示例
-const EXAMPLES = [
-  { id: 'example-1', title: '基础节点', code: EXAMPLE_1_CODE },
-  { id: 'example-2', title: '不同行数', code: EXAMPLE_2_CODE },
-  { id: 'example-3', title: '动态增删行', code: EXAMPLE_3_CODE },
-  { id: 'example-4', title: '连接桩连线', code: EXAMPLE_4_CODE },
-  { id: 'example-5', title: '样式自定义', code: EXAMPLE_5_CODE },
-];
+  }, 3000);`;
+  
+  // 示例 6: 连接桩标签（lable 属性）
+  const EXAMPLE_6_CODE = `// 创建 Graph 画布
+  const graph = new Graph({
+    container: container,
+    width: 600,
+    height: 280,
+    draggable: true,
+    scalable: true,
+    backgroundColor: '#f8fafc',
+    grid: { enabled: true, size: 20, color: '#e2e8f0' },
+  });
+  
+  // 示例 6: 带标签的连接桩
+  // 通过 lable 属性在连接桩旁边显示说明文字
+  // 支持 lablePosition: 'inside' | 'outside' | 'top' | 'bottom'，默认为 'outside'
+  
+  const inputNode = new DynamicHeightNode({
+    id: 'input-labeled',
+    x: 150,
+    y: 140,
+    label: '数据源',
+    rows: [
+      {
+        id: 'row-1',
+        label: '数据库',
+        // lablePosition: 'inside' - 标签在连接桩内侧（节点内部）
+        rightPort: { id: 'out-1', label: 'out', lable: '数据库输出', lablePosition: 'inside' },
+      },
+      {
+        id: 'row-2',
+        label: 'API接口',
+        rightPort: { id: 'out-2', label: 'out', lable: 'API响应', lablePosition: 'inside' },
+      },
+    ],
+    style: {
+      width: 140,
+      backgroundColor: '#dbeafe',
+      borderColor: '#3b82f6',
+      textColor: '#1e40af',
+    },
+  });
+  
+  const processNode = new DynamicHeightNode({
+    id: 'process-labeled',
+    x: 350,
+    y: 140,
+    label: '处理中心',
+    rows: [
+      {
+        id: 'row-1',
+        label: '数据清洗',
+        // lablePosition: 'inside' - 输入标签在内侧，输出标签在外侧（默认）
+        leftPort: { id: 'in-1', label: 'in', lable: '输入数据', lablePosition: 'inside' },
+        rightPort: { id: 'out-1', label: 'out', lable: '清洗结果' },
+      },
+      {
+        id: 'row-2',
+        label: '格式转换',
+        leftPort: { id: 'in-2', label: 'in', lable: '原始格式', lablePosition: 'inside' },
+        rightPort: { id: 'out-2', label: 'out', lable: '目标格式' },
+      },
+      {
+        id: 'row-3',
+        label: '结果输出',
+        leftPort: { id: 'in-3', label: 'in', lable: '处理结果', lablePosition: 'inside' },
+      },
+    ],
+    style: {
+      width: 160,
+      backgroundColor: '#fef3c7',
+      borderColor: '#f59e0b',
+      textColor: '#92400e',
+    },
+  });
+  
+  // 添加节点
+  graph.addNode(inputNode);
+  graph.addNode(processNode);
+  
+  // 创建连线
+  graph.addEdge({
+    id: 'edge-1',
+    source: { nodeId: 'input-labeled', portId: 'out-1' },
+    target: { nodeId: 'process-labeled', portId: 'in-1' },
+    type: EdgeType.Bezier,
+  });
+  
+  graph.addEdge({
+    id: 'edge-2',
+    source: { nodeId: 'input-labeled', portId: 'out-2' },
+    target: { nodeId: 'process-labeled', portId: 'in-2' },
+    type: EdgeType.Bezier,
+  });
+  
+  console.log('带标签的连接桩示例创建成功！');
+  console.log('lablePosition 选项：');
+  console.log('- "outside"（默认）：标签在连接桩外侧，距离节点边框 8px');
+  console.log('- "inside"：标签在连接桩内侧（节点内部），距离节点边框 8px');
+  console.log('- "top"：标签在连接桩上方');
+  console.log('- "bottom"：标签在连接桩下方');`;
+  
+  // 所有示例
+  const EXAMPLES = [
+    { id: 'example-1', title: '基础节点', code: EXAMPLE_1_CODE },
+    { id: 'example-2', title: '不同行数', code: EXAMPLE_2_CODE },
+    { id: 'example-3', title: '动态增删行', code: EXAMPLE_3_CODE },
+    { id: 'example-4', title: '连接桩连线', code: EXAMPLE_4_CODE },
+    { id: 'example-5', title: '样式自定义', code: EXAMPLE_5_CODE },
+    { id: 'example-6', title: '连接桩标签', code: EXAMPLE_6_CODE },
+  ];
 
 /**
  * DynamicHeightNodeExample - 动态高度节点示例
@@ -420,6 +539,7 @@ const EXAMPLES = [
  * 3. 动态添加/删除行
  * 4. 连接桩间连线
  * 5. 样式自定义
+ * 6. 连接桩标签（lable 属性）
  */
 export default function DynamicHeightNodeExample() {
   const graphContainerRef = useRef<HTMLDivElement>(null);
@@ -533,6 +653,12 @@ export default function DynamicHeightNodeExample() {
           </h3>
           <Table columns={rowConfigColumns} dataSource={rowConfigData} pagination={false} />
         </div>
+        <div id="port-options-section" style={{ marginBottom: '24px' }}>
+          <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#1e293b' }}>
+            PortOptions - 连接桩配置选项
+          </h3>
+          <Table columns={portOptionsColumns} dataSource={portOptionsData} pagination={false} />
+        </div>
         <div id="node-methods-section">
           <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#1e293b' }}>
             DynamicHeightNode 类方法
@@ -601,6 +727,7 @@ export default function DynamicHeightNodeExample() {
             <Anchor.Link key={ex.id} href={`#${ex.id}`} title={`示例 ${index + 1}: ${ex.title}`} />
           ))}
           <Anchor.Link href="#row-config-section" title="RowConfig" />
+          <Anchor.Link href="#port-options-section" title="PortOptions" />
           <Anchor.Link href="#node-methods-section" title="类方法" />
         </Anchor>
       </div>
