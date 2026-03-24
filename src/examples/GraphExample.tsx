@@ -67,20 +67,28 @@ const graphMethodsData = [
   { key: '18', name: 'panTo(offset, duration?, easing?)', params: 'offset: Point, duration?: number, easing?: (t: number) => number', return: 'Promise<void>', description: '平移到指定位置（带动画）' },
   { key: '19', name: 'zoomTo(scale, duration?, easing?)', params: 'scale: number, duration?: number, easing?: (t: number) => number', return: 'Promise<void>', description: '缩放到指定比例（带动画）' },
   { key: '20', name: 'reset()', params: '-', return: 'void', description: '重置视图到初始状态' },
-  { key: '21', name: 'fitToContent(bounds, padding?)', params: 'bounds: { x, y, width, height }, padding?: number', return: 'void', description: '自适应内容到视图' },
-  { key: '22', name: 'screenToWorld(point)', params: 'point: Point', return: 'Point', description: '屏幕坐标转世界坐标' },
-  { key: '23', name: 'worldToScreen(point)', params: 'point: Point', return: 'Point', description: '世界坐标转屏幕坐标' },
-  { key: '24', name: 'toJSON()', params: '-', return: '{ cells: Array }', description: '导出图为 JSON 格式' },
-  { key: '25', name: 'destroy()', params: '-', return: 'void', description: '销毁 Graph 实例' },
-  { key: '26', name: 'on(eventName, handler)', params: 'eventName: string, handler: EventHandler', return: '() => void', description: '注册事件监听器' },
-  { key: '27', name: 'once(eventName, handler)', params: 'eventName: string, handler: EventHandler', return: '() => void', description: '注册一次性事件监听器' },
-  { key: '28', name: 'off(eventName, handler?)', params: 'eventName: string, handler?: EventHandler', return: 'void', description: '注销事件监听器' },
-  { key: '29', name: 'use(plugin)', params: 'plugin: Plugin', return: 'this', description: '注册插件' },
-  { key: '30', name: 'unuse(pluginName)', params: 'pluginName: string', return: 'this', description: '注销插件' },
+  { key: '21', name: 'resetToCenter()', params: '-', return: 'void', description: '重置视图到画布中心点' },
+  { key: '22', name: 'fitToContent(bounds, padding?)', params: 'bounds: { x, y, width, height }, padding?: number', return: 'void', description: '自适应内容到视图' },
+  { key: '23', name: 'zoomIn(factor?)', params: 'factor?: number', return: 'void', description: '放大画布，默认因子 1.1' },
+  { key: '24', name: 'zoomOut(factor?)', params: 'factor?: number', return: 'void', description: '缩小画布，默认因子 0.9' },
+  { key: '25', name: 'getZoom()', params: '-', return: 'number', description: '获取当前缩放比例' },
+  { key: '26', name: 'setGridSize(size)', params: 'size: number', return: 'void', description: '设置网格大小' },
+  { key: '27', name: 'setGridColor(color)', params: 'color: string', return: 'void', description: '设置网格颜色' },
+  { key: '28', name: 'setGridEnabled(enabled)', params: 'enabled: boolean', return: 'void', description: '启用/禁用网格' },
+  { key: '29', name: 'getGridConfig()', params: '-', return: '{ enabled, size, color }', description: '获取网格配置' },
+  { key: '30', name: 'screenToWorld(point)', params: 'point: Point', return: 'Point', description: '屏幕坐标转世界坐标' },
+  { key: '31', name: 'worldToScreen(point)', params: 'point: Point', return: 'Point', description: '世界坐标转屏幕坐标' },
+  { key: '32', name: 'toJSON()', params: '-', return: '{ cells: Array }', description: '导出图为 JSON 格式' },
+  { key: '33', name: 'destroy()', params: '-', return: 'void', description: '销毁 Graph 实例' },
+  { key: '34', name: 'on(eventName, handler)', params: 'eventName: string, handler: EventHandler', return: '() => void', description: '注册事件监听器' },
+  { key: '35', name: 'once(eventName, handler)', params: 'eventName: string, handler: EventHandler', return: '() => void', description: '注册一次性事件监听器' },
+  { key: '36', name: 'off(eventName, handler?)', params: 'eventName: string, handler?: EventHandler', return: 'void', description: '注销事件监听器' },
+  { key: '37', name: 'use(plugin)', params: 'plugin: Plugin', return: 'this', description: '注册插件' },
+  { key: '38', name: 'unuse(pluginName)', params: 'pluginName: string', return: 'this', description: '注销插件' },
 ];
 
-// 默认示例代码
-const DEFAULT_EXAMPLE_CODE = `// 创建 Graph 画布
+// 示例 1: 基础 Graph 示例
+const EXAMPLE_1_CODE = `// 示例 1: 基础 Graph 画布
 const graph = new Graph({
   container: container,
   width: 600,
@@ -199,7 +207,372 @@ graph.addEdge({
     strokeWidth: 2,
     arrowSize: 8,
   },
-});`;
+});
+
+console.log('基础 Graph 示例已加载');
+console.log('可拖拽画布、滚轮缩放、选中节点');`;
+
+// 示例 2: 缩放控制
+const EXAMPLE_2_CODE = `// 示例 2: 缩放控制 (zoomIn, zoomOut, getZoom)
+const graph = new Graph({
+  container: container,
+  width: 600,
+  height: 400,
+  draggable: true,
+  scalable: true,
+  backgroundColor: '#f8fafc',
+  grid: { enabled: true, size: 20, color: '#e2e8f0' },
+  minZoom: 0.3,
+  maxZoom: 3,
+});
+
+// 创建一些节点用于演示缩放效果
+const nodes = [
+  { id: 'node-1', label: '节点 1', x: 200, y: 150, color: '#22c55e' },
+  { id: 'node-2', label: '节点 2', x: 350, y: 100, color: '#3b82f6' },
+  { id: 'node-3', label: '节点 3', x: 350, y: 250, color: '#f59e0b' },
+  { id: 'node-4', label: '节点 4', x: 500, y: 150, color: '#ef4444' },
+];
+
+nodes.forEach((n) => {
+  graph.addNode({
+    id: n.id,
+    label: n.label,
+    x: n.x,
+    y: n.y,
+    shape: Shape.Circle,
+    style: {
+      width: 70,
+      height: 70,
+      backgroundColor: n.color,
+      textColor: '#ffffff',
+    },
+  });
+});
+
+// 添加边
+graph.addEdge({
+  id: 'edge-1',
+  source: { nodeId: 'node-1', portId: 'port-right' },
+  target: { nodeId: 'node-2', portId: 'port-left' },
+  type: EdgeType.Straight,
+  style: { stroke: '#64748b', strokeWidth: 2 },
+});
+
+graph.addEdge({
+  id: 'edge-2',
+  source: { nodeId: 'node-1', portId: 'port-right' },
+  target: { nodeId: 'node-3', portId: 'port-left' },
+  type: EdgeType.Straight,
+  style: { stroke: '#64748b', strokeWidth: 2 },
+});
+
+graph.addEdge({
+  id: 'edge-3',
+  source: { nodeId: 'node-2', portId: 'port-right' },
+  target: { nodeId: 'node-4', portId: 'port-left' },
+  type: EdgeType.Straight,
+  style: { stroke: '#64748b', strokeWidth: 2 },
+});
+
+graph.addEdge({
+  id: 'edge-4',
+  source: { nodeId: 'node-3', portId: 'port-right' },
+  target: { nodeId: 'node-4', portId: 'port-left' },
+  type: EdgeType.Straight,
+  style: { stroke: '#64748b', strokeWidth: 2 },
+});
+
+// 添加控制按钮
+const controls = document.createElement('div');
+controls.style.cssText = 'position:absolute;top:12px;right:12px;display:flex;gap:8px;background:#1e293b;padding:8px 12px;borderRadius:8px;boxShadow:0 2px 8px rgba(0,0,0,0.15);';
+
+const zoomInBtn = document.createElement('button');
+zoomInBtn.textContent = '🔍 +';
+zoomInBtn.style.cssText = 'padding:6px 12px;background:#3b82f6;color:#fff;border:none;borderRadius:4px;cursor:pointer;fontSize:13px;fontWeight:500;';
+zoomInBtn.onclick = () => {
+  graph.zoomIn();
+  updateZoomDisplay();
+};
+
+const zoomOutBtn = document.createElement('button');
+zoomOutBtn.textContent = '🔍 -';
+zoomOutBtn.style.cssText = 'padding:6px 12px;background:#3b82f6;color:#fff;border:none;borderRadius:4px;cursor:pointer;fontSize:13px;fontWeight:500;';
+zoomOutBtn.onclick = () => {
+  graph.zoomOut();
+  updateZoomDisplay();
+};
+
+const zoomDisplay = document.createElement('span');
+zoomDisplay.style.cssText = 'padding:6px 12px;background:#334155;color:#e2e8f0;borderRadius:4px;fontSize:13px;fontFamily:monospace;minWidth:60px;textAlign:center;';
+
+function updateZoomDisplay() {
+  zoomDisplay.textContent = Math.round(graph.getZoom() * 100) + '%';
+}
+
+controls.appendChild(zoomOutBtn);
+controls.appendChild(zoomDisplay);
+controls.appendChild(zoomInBtn);
+container.appendChild(controls);
+
+// 初始化显示
+updateZoomDisplay();
+
+// 监听缩放变化
+graph.on('zoom', () => {
+  updateZoomDisplay();
+});
+
+console.log('缩放控制示例');
+console.log('- zoomIn(factor?): 放大，默认 1.1');
+console.log('- zoomOut(factor?): 缩小，默认 0.9');
+console.log('- getZoom(): 获取当前缩放比例');`;
+
+// 示例 3: 网格配置
+const EXAMPLE_3_CODE = `// 示例 3: 网格配置 (setGridSize, setGridColor, setGridEnabled, getGridConfig)
+const graph = new Graph({
+  container: container,
+  width: 600,
+  height: 400,
+  draggable: true,
+  scalable: true,
+  backgroundColor: '#0f172a',
+  grid: {
+    enabled: true,
+    size: 40,
+    color: '#1e293b',
+  },
+});
+
+// 创建一些节点
+const positions = [
+  { x: 200, y: 150, label: '小', color: '#22c55e' },
+  { x: 300, y: 150, label: '网', color: '#3b82f6' },
+  { x: 400, y: 150, label: '格', color: '#f59e0b' },
+];
+
+positions.forEach((p, i) => {
+  graph.addNode({
+    id: \`node-\${i}\`,
+    label: p.label,
+    x: p.x,
+    y: p.y,
+    shape: Shape.Circle,
+    style: {
+      width: 60,
+      height: 60,
+      backgroundColor: p.color,
+      textColor: '#ffffff',
+    },
+  });
+});
+
+// 添加控制面板
+const panel = document.createElement('div');
+panel.style.cssText = 'position:absolute;top:12px;right:12px;background:#1e293b;padding:12px;borderRadius:8px;boxShadow:0 2px 8px rgba(0,0,0,0.15);color:#e2e8f0;minWidth:180px;';
+
+// 网格大小控制
+const sizeControl = document.createElement('div');
+sizeControl.style.cssText = 'marginBottom:12px;';
+sizeControl.innerHTML = '<div style="fontSize:12px;marginBottom:6px;color:#94a3b8;">网格大小</div>';
+
+const sizeSlider = document.createElement('input');
+sizeSlider.type = 'range';
+sizeSlider.min = '10';
+sizeSlider.max = '60';
+sizeSlider.value = '40';
+sizeSlider.style.cssText = 'width:100%;cursor:pointer;';
+sizeSlider.oninput = (e) => {
+  const size = parseInt(e.target.value);
+  graph.setGridSize(size);
+  updateConfigDisplay();
+};
+sizeControl.appendChild(sizeSlider);
+panel.appendChild(sizeControl);
+
+// 颜色选择
+const colorControl = document.createElement('div');
+colorControl.style.cssText = 'marginBottom:12px;';
+colorControl.innerHTML = '<div style="fontSize:12px;marginBottom:6px;color:#94a3b8;">网格颜色</div>';
+
+const colors = ['#1e293b', '#334155', '#94a3b8', '#22c55e', '#3b82f6', '#f59e0b', '#ef4444'];
+const colorButtons = document.createElement('div');
+colorButtons.style.cssText = 'display:flex;gap:6px;flexWrap:wrap;';
+
+colors.forEach((color) => {
+  const btn = document.createElement('button');
+  btn.style.cssText = \`width:24px;height:24px;borderRadius:4px;border:none;cursor:pointer;background:\${color};\`;
+  btn.onclick = () => {
+    graph.setGridColor(color);
+    updateConfigDisplay();
+  };
+  colorButtons.appendChild(btn);
+});
+colorControl.appendChild(colorButtons);
+panel.appendChild(colorControl);
+
+// 显示/隐藏网格
+const toggleControl = document.createElement('div');
+toggleControl.style.cssText = 'display:flex;alignItems:center;gap:8px;marginBottom:12px;';
+
+const toggleCheckbox = document.createElement('input');
+toggleCheckbox.type = 'checkbox';
+toggleCheckbox.checked = true;
+toggleCheckbox.onchange = (e) => {
+  graph.setGridEnabled(e.target.checked);
+  updateConfigDisplay();
+};
+
+toggleControl.appendChild(toggleCheckbox);
+toggleControl.appendChild(document.createTextNode('显示网格'));
+panel.appendChild(toggleControl);
+
+// 配置信息显示
+const configDisplay = document.createElement('div');
+configDisplay.style.cssText = 'fontSize:12px;color:#64748b;fontFamily:monospace;borderTop:1px solid #334155;paddingTop:8px;marginTop:8px;';
+
+function updateConfigDisplay() {
+  const config = graph.getGridConfig();
+  configDisplay.innerHTML = \`
+    enabled: \${config.enabled}<br>
+    size: \${config.size}<br>
+    color: \${config.color}
+  \`;
+}
+panel.appendChild(configDisplay);
+
+container.appendChild(panel);
+
+// 初始化显示
+updateConfigDisplay();
+
+console.log('网格配置示例');
+console.log('- setGridSize(size): 设置网格大小');
+console.log('- setGridColor(color): 设置网格颜色');
+console.log('- setGridEnabled(enabled): 启用/禁用网格');
+console.log('- getGridConfig(): 获取网格配置');`;
+
+// 示例 4: 重置到中心
+const EXAMPLE_4_CODE = `// 示例 4: 重置到中心 (resetToCenter)
+const graph = new Graph({
+  container: container,
+  width: 600,
+  height: 400,
+  draggable: true,
+  scalable: true,
+  backgroundColor: '#f8fafc',
+  grid: { enabled: true, size: 20, color: '#e2e8f0' },
+  initialOffsetX: -100,
+  initialOffsetY: -50,
+});
+
+// 创建一圈节点（用于演示中心位置）
+const centerX = 0;
+const centerY = 0;
+const radius = 150;
+const count = 8;
+
+for (let i = 0; i < count; i++) {
+  const angle = (i / count) * Math.PI * 2;
+  const x = centerX + Math.cos(angle) * radius;
+  const y = centerY + Math.sin(angle) * radius;
+  
+  const colors = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#ec4899', '#f97316'];
+  
+  graph.addNode({
+    id: \`node-\${i}\`,
+    label: \`\${i + 1}\`,
+    x: x,
+    y: y,
+    shape: Shape.Circle,
+    style: {
+      width: 60,
+      height: 60,
+      backgroundColor: colors[i],
+      textColor: '#ffffff',
+    },
+  });
+}
+
+// 中心节点
+graph.addNode({
+  id: 'node-center',
+  label: '中心',
+  x: centerX,
+  y: centerY,
+  shape: Shape.Rect,
+  style: {
+    width: 80,
+    height: 80,
+    backgroundColor: '#1e293b',
+    textColor: '#ffffff',
+    borderRadius: 8,
+  },
+});
+
+// 创建星形连接
+for (let i = 0; i < count; i++) {
+  graph.addEdge({
+    id: \`edge-center-\${i}\`,
+    source: { nodeId: 'node-center', portId: 'port-auto' },
+    target: { nodeId: \`node-\${i}\`, portId: 'port-auto' },
+    type: EdgeType.Straight,
+    style: { stroke: '#94a3b8', strokeWidth: 1 },
+  });
+}
+
+// 控制按钮
+const controls = document.createElement('div');
+controls.style.cssText = 'position:absolute;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:12px;background:#1e293b;padding:12px 20px;borderRadius:8px;boxShadow:0 2px 12px rgba(0,0,0,0.2);';
+
+const resetBtn = document.createElement('button');
+resetBtn.textContent = '🔄 重置视图';
+resetBtn.style.cssText = 'padding:8px 16px;background:#64748b;color:#fff;border:none;borderRadius:6px;cursor:pointer;fontSize:13px;fontWeight:500;';
+resetBtn.onclick = () => {
+  graph.reset();
+  console.log('视图已重置到初始位置');
+};
+
+const centerBtn = document.createElement('button');
+centerBtn.textContent = '🎯 重置到中心';
+centerBtn.style.cssText = 'padding:8px 16px;background:#3b82f6;color:#fff;border:none;borderRadius:6px;cursor:pointer;fontSize:13px;fontWeight:500;';
+centerBtn.onclick = () => {
+  graph.resetToCenter();
+  console.log('视图已重置到画布中心');
+};
+
+const randomBtn = document.createElement('button');
+randomBtn.textContent = '🎲 随机位置';
+randomBtn.style.cssText = 'padding:8px 16px;background:#f59e0b;color:#fff;border:none;borderRadius:6px;cursor:pointer;fontSize:13px;fontWeight:500;';
+randomBtn.onclick = () => {
+  const randomX = (Math.random() - 0.5) * 400;
+  const randomY = (Math.random() - 0.5) * 300;
+  graph.setOffset({ x: randomX, y: randomY });
+  console.log(\`视图偏移到: \${randomX.toFixed(0)}, \${randomY.toFixed(0)}\`);
+};
+
+controls.appendChild(resetBtn);
+controls.appendChild(centerBtn);
+controls.appendChild(randomBtn);
+container.appendChild(controls);
+
+// 提示信息
+const hint = document.createElement('div');
+hint.style.cssText = 'position:absolute;top:12px;left:12px;background:rgba(30,41,59,0.9);color:#e2e8f0;padding:10px 16px;borderRadius:6px;fontSize:13px;maxWidth:280px;';
+hint.innerHTML = '<b>💡 操作提示</b><br>先拖拽画布到任意位置，然后点击下方按钮测试 resetToCenter 方法';
+container.appendChild(hint);
+
+console.log('重置到中心示例');
+console.log('- reset(): 重置到初始位置 (initialOffsetX, initialOffsetY)');
+console.log('- resetToCenter(): 重置到画布中心点 (0, 0) 在画布中心');`;
+
+// 所有示例
+const EXAMPLES = [
+  { id: 'example-1', title: '基础 Graph', code: EXAMPLE_1_CODE },
+  { id: 'example-2', title: '缩放控制', code: EXAMPLE_2_CODE },
+  { id: 'example-3', title: '网格配置', code: EXAMPLE_3_CODE },
+  { id: 'example-4', title: '重置到中心', code: EXAMPLE_4_CODE },
+];
 
 /**
  * GraphExample - 交互式图表示例
@@ -207,8 +580,9 @@ graph.addEdge({
 export const GraphExample: React.FC = () => {
   const graphContainerRef = useRef<HTMLDivElement>(null);
   const mainContainerRef = useRef<HTMLDivElement>(null);
-  const codeRef = useRef(DEFAULT_EXAMPLE_CODE);
+  const codeRef = useRef(EXAMPLE_1_CODE);
   const [editorKey, setEditorKey] = useState(0);
+  const [currentExample, setCurrentExample] = useState(0);
 
   // 执行用户代码并渲染 Graph
   const executeCode = useCallback(async (codeToExecute: string) => {
@@ -248,13 +622,25 @@ export const GraphExample: React.FC = () => {
   }, [executeCode]);
 
   const handleResetCode = useCallback(() => {
-    codeRef.current = DEFAULT_EXAMPLE_CODE;
-    setEditorKey(prev => prev + 1);
-    executeCode(DEFAULT_EXAMPLE_CODE);
-  }, [executeCode]);
+    const code = EXAMPLES[currentExample].code;
+    codeRef.current = code;
+    setEditorKey((prev) => prev + 1);
+    executeCode(code);
+  }, [currentExample, executeCode]);
+
+  const switchExample = useCallback(
+    (index: number) => {
+      setCurrentExample(index);
+      const code = EXAMPLES[index].code;
+      codeRef.current = code;
+      setEditorKey((prev) => prev + 1);
+      executeCode(code);
+    },
+    [executeCode]
+  );
 
   useEffect(() => {
-    executeCode(DEFAULT_EXAMPLE_CODE);
+    executeCode(EXAMPLE_1_CODE);
   }, [executeCode]);
 
   // 左侧面板 - 图例展示
@@ -279,14 +665,16 @@ export const GraphExample: React.FC = () => {
       <PanelContent>
         <CodeEditor
           key={editorKey}
-          value={DEFAULT_EXAMPLE_CODE}
+          value={EXAMPLES[currentExample].code}
           onUpdate={handleCodeChange}
           language="tsx"
         />
       </PanelContent>
       <PanelToolbar>
         <Button onClick={handleResetCode}>重置</Button>
-        <Button type="primary" onClick={handleRunCode}>▶ 运行代码</Button>
+        <Button type="primary" onClick={handleRunCode}>
+          ▶ 运行代码
+        </Button>
       </PanelToolbar>
     </Panel>
   );
@@ -300,21 +688,13 @@ export const GraphExample: React.FC = () => {
           <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#1e293b' }}>
             GraphOptions - 画布配置选项
           </h3>
-          <Table
-            columns={graphOptionsColumns}
-            dataSource={graphOptionsData}
-            pagination={false}
-          />
+          <Table columns={graphOptionsColumns} dataSource={graphOptionsData} pagination={false} />
         </div>
         <div id="graph-methods-section">
           <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#1e293b' }}>
             Graph 类方法
           </h3>
-          <Table
-            columns={graphMethodsColumns}
-            dataSource={graphMethodsData}
-            pagination={false}
-          />
+          <Table columns={graphMethodsColumns} dataSource={graphMethodsData} pagination={false} />
         </div>
       </div>
     </Panel>
@@ -322,9 +702,38 @@ export const GraphExample: React.FC = () => {
 
   return (
     <div ref={mainContainerRef} style={{ position: 'relative' }}>
-      <div id="graph-example-title" style={{ height: '600px' }}>
+      <div id="graph-example-title" style={{ height: '600px', display: 'flex', flexDirection: 'column' }}>
         <PanelHeader title="图编辑器示例" />
-        <Splitter style={{ height: '100%' }}>
+        {/* 示例切换按钮 */}
+        <div
+          style={{
+            display: 'flex',
+            gap: '8px',
+            padding: '12px 16px',
+            background: '#f1f5f9',
+            borderBottom: '1px solid #e2e8f0',
+          }}
+        >
+          {EXAMPLES.map((ex, index) => (
+            <button
+              key={ex.id}
+              onClick={() => switchExample(index)}
+              style={{
+                padding: '6px 16px',
+                background: currentExample === index ? '#3b82f6' : '#ffffff',
+                color: currentExample === index ? '#ffffff' : '#64748b',
+                border: '1px solid #e2e8f0',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: 500,
+              }}
+            >
+              示例 {index + 1}: {ex.title}
+            </button>
+          ))}
+        </div>
+        <Splitter style={{ flex: 1, minHeight: 0 }}>
           {LeftPanel}
           {RightPanel}
         </Splitter>
@@ -343,12 +752,11 @@ export const GraphExample: React.FC = () => {
           boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
         }}
       >
-        <Anchor
-          affix={false}
-          getContainer={() => document.body}
-          onChange={(activeLink) => console.log('锚点切换:', activeLink)}
-        >
+        <Anchor affix={false} getContainer={() => document.body}>
           <Anchor.Link href="#graph-example-title" title="图编辑器示例" />
+          {EXAMPLES.map((ex, index) => (
+            <Anchor.Link key={ex.id} href={`#${ex.id}`} title={`示例 ${index + 1}: ${ex.title}`} />
+          ))}
           <Anchor.Link href="#graph-options-section" title="GraphOptions" />
           <Anchor.Link href="#graph-methods-section" title="Graph 类方法" />
         </Anchor>

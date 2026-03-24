@@ -1,6 +1,6 @@
 import { Node, NodeOptions, type NodeEvent } from './Node';
 import { DynamicHeightNode } from './DynamicNode';
-import { Edge, EdgeOptions, type EdgeEvent } from './Edge';
+import { Edge, EdgeOptions, EdgeType, type EdgeEvent } from './Edge';
 import { Port, type PortEvent } from './Port';
 import { EventManager, EVENT_NAMES, type BaseEvent, type MouseEvent, type WheelEvent, type EventHandler } from './EventManager';
 import { Plugin } from './Dnd';
@@ -80,6 +80,14 @@ export class Graph {
     private isDraggingNode: boolean = false;
     private dragStartPosition: Point = { x: 0, y: 0 };
     private dragNodeStartPosition: Point = { x: 0, y: 0 };
+
+    // 连接拖拽状态
+    private isConnecting: boolean = false;
+    private connectSourceNode: Node | null = null;
+    private connectSourcePort: Port | null = null;
+    private connectTargetNode: Node | null = null;
+    private connectTargetPort: Port | null = null;
+    private connectCurrentPoint: Point = { x: 0, y: 0 };
     private rafId: number | null = null;
     private boundHandlers: {
         onMouseDown: (e: globalThis.MouseEvent) => void;
@@ -354,6 +362,12 @@ export class Graph {
         // 分发 mousedown 事件（复用已检测的结果）
         this.dispatchMouseEventWithTarget('mousedown', e, worldPoint, clickedNode, clickedPort);
 
+        // 如果点击了连接桩，开始连接拖拽
+        if (clickedPort && clickedNode) {
+            this.startConnection(clickedNode, clickedPort, worldPoint);
+            return;
+        }
+
         if (clickedNode) {
             // 开始拖拽节点
             this.draggedNode = clickedNode;
@@ -389,9 +403,119 @@ export class Graph {
     }
 
     /**
+     * 开始连接拖拽
+     */
+    private startConnection(sourceNode: Node, sourcePort: Port, startPoint: Point): void {
+        this.isConnecting = true;
+        this.connectSourceNode = sourceNode;
+        this.connectSourcePort = sourcePort;
+        this.connectCurrentPoint = startPoint;
+        this.connectTargetNode = null;
+        this.connectTargetPort = null;
+        
+        this.canvas.style.cursor = 'crosshair';
+        this.scheduleRender();
+    }
+
+    /**
+     * 更新连接目标
+     */
+    private updateConnectionTarget(worldPoint: Point): void {
+        if (!this.isConnecting) return;
+
+        this.connectCurrentPoint = worldPoint;
+        
+        // 查找当前鼠标下的连接桩
+        let targetPort: Port | null = null;
+        let targetNode: Node | null = null;
+        
+        const nodes = this.getAllNodes();
+        for (let i = nodes.length - 1; i >= 0; i--) {
+            const node = nodes[i];
+            // 跳过源节点
+            if (node === this.connectSourceNode) continue;
+            
+            const port = node.getPortAtPoint(worldPoint);
+            if (port) {
+                targetPort = port;
+                targetNode = node;
+                break;
+            }
+        }
+
+        // 如果目标变化，更新状态
+        if (targetPort !== this.connectTargetPort) {
+            this.connectTargetPort = targetPort;
+            this.connectTargetNode = targetNode;
+        }
+        
+        this.scheduleRender();
+    }
+
+    /**
+     * 完成连接
+     */
+    private completeConnection(): void {
+        if (!this.isConnecting) return;
+
+        // 如果有有效的目标连接桩，创建边
+        if (this.connectSourceNode && this.connectSourcePort &&
+            this.connectTargetNode && this.connectTargetPort) {
+            this.addEdge({
+                id: `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                source: {
+                    nodeId: this.connectSourceNode.getId(),
+                    portId: this.connectSourcePort.getId(),
+                },
+                target: {
+                    nodeId: this.connectTargetNode.getId(),
+                    portId: this.connectTargetPort.getId(),
+                },
+                type: EdgeType.Straight,
+            });
+        }
+
+        this.resetConnection();
+    }
+
+    /**
+     * 取消连接
+     */
+    private cancelConnection(): void {
+        this.resetConnection();
+    }
+
+    /**
+     * 重置连接状态
+     */
+    private resetConnection(): void {
+        this.isConnecting = false;
+        this.connectSourceNode = null;
+        this.connectSourcePort = null;
+        this.connectTargetNode = null;
+        this.connectTargetPort = null;
+        this.connectCurrentPoint = { x: 0, y: 0 };
+        this.canvas.style.cursor = 'grab';
+        this.scheduleRender();
+    }
+
+    /**
      * 鼠标移动处理
      */
     private handleMouseMove(e: globalThis.MouseEvent): void {
+        // 处理连接拖拽
+        if (this.isConnecting) {
+            const rect = this.canvas.getBoundingClientRect();
+            const screenPoint: Point = {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top,
+            };
+            const worldPoint = this.screenToWorld(screenPoint);
+            
+            this.updateConnectionTarget(worldPoint);
+            return;
+        }
+
         // 处理节点拖拽
         if (this.isDraggingNode && this.draggedNode) {
             const rect = this.canvas.getBoundingClientRect();
@@ -495,6 +619,12 @@ export class Graph {
         };
         const worldPoint = this.screenToWorld(screenPoint);
 
+        // 处理连接拖拽结束
+        if (this.isConnecting) {
+            this.completeConnection();
+            return;
+        }
+
         // 处理节点拖拽结束
         if (this.isDraggingNode && this.draggedNode) {
             // 触发 node:dragend 事件
@@ -541,6 +671,12 @@ export class Graph {
      * 鼠标离开处理
      */
     private handleMouseLeave(e: globalThis.MouseEvent): void {
+        // 如果正在连接，取消连接
+        if (this.isConnecting) {
+            this.cancelConnection();
+            return;
+        }
+
         if (this.state.isDragging) {
             this.handleMouseUp(e);
         }
@@ -672,11 +808,68 @@ export class Graph {
         // 绘制所有节点
         this.renderNodes();
 
+        // 绘制连接中的临时连线（在节点上方）
+        this.renderConnectingEdge();
+
         // 恢复上下文状态
         this.ctx.restore();
 
         // 触发自定义绘制
         this.onRender();
+    }
+
+    /**
+     * 绘制连接中的临时连线
+     */
+    private renderConnectingEdge(): void {
+        if (!this.isConnecting || !this.connectSourceNode || !this.connectSourcePort) {
+            return;
+        }
+
+        const sourcePoint = this.connectSourcePort.getConnectionPoint(
+            this.connectSourceNode.getPosition().x,
+            this.connectSourceNode.getPosition().y,
+            this.connectSourceNode.getStyle().width,
+            this.connectSourceNode.getStyle().height
+        );
+
+        const targetPoint = this.connectCurrentPoint;
+
+        this.ctx.save();
+
+        // 设置虚线样式
+        this.ctx.strokeStyle = this.connectTargetPort ? '#3b82f6' : '#94a3b8';
+        this.ctx.lineWidth = 2;
+        this.ctx.lineCap = 'round';
+        this.ctx.setLineDash([5, 5]);
+
+        // 绘制直线
+        this.ctx.beginPath();
+        this.ctx.moveTo(sourcePoint.x, sourcePoint.y);
+        this.ctx.lineTo(targetPoint.x, targetPoint.y);
+        this.ctx.stroke();
+
+        // 如果有目标连接桩，高亮显示
+        if (this.connectTargetPort && this.connectTargetNode) {
+            const portPos = this.connectTargetPort.getConnectionPoint(
+                this.connectTargetNode.getPosition().x,
+                this.connectTargetNode.getPosition().y,
+                this.connectTargetNode.getStyle().width,
+                this.connectTargetNode.getStyle().height
+            );
+
+            // 绘制目标点高亮圈
+            this.ctx.beginPath();
+            this.ctx.arc(portPos.x, portPos.y, 8, 0, Math.PI * 2);
+            this.ctx.fillStyle = 'rgba(59, 130, 246, 0.2)';
+            this.ctx.fill();
+            this.ctx.strokeStyle = '#3b82f6';
+            this.ctx.lineWidth = 2;
+            this.ctx.setLineDash([]);
+            this.ctx.stroke();
+        }
+
+        this.ctx.restore();
     }
 
     /**
@@ -1180,6 +1373,94 @@ export class Graph {
         };
         this.state.scale = 1;
         this.render();
+    }
+
+    /**
+     * 重置到画布中心点
+     * 将视图移动到画布中心，保持当前缩放比例
+     */
+    resetToCenter(): void {
+        const { width, height } = this.canvas.getBoundingClientRect();
+        
+        this.state.offset = {
+            x: width / 2,
+            y: height / 2,
+        };
+        this.render();
+        
+        // 触发拖拽完成回调
+        this.options.onDragEnd({ ...this.state.offset });
+    }
+
+    /**
+     * 放大画布
+     * @param factor - 缩放因子，默认为 1.1
+     */
+    zoomIn(factor: number = 1.1): void {
+        const newScale = Math.min(
+            this.options.maxZoom,
+            this.state.scale * factor
+        );
+        this.setScale(newScale);
+    }
+
+    /**
+     * 缩小画布
+     * @param factor - 缩放因子，默认为 0.9
+     */
+    zoomOut(factor: number = 0.9): void {
+        const newScale = Math.max(
+            this.options.minZoom,
+            this.state.scale * factor
+        );
+        this.setScale(newScale);
+    }
+
+    /**
+     * 获取当前缩放比例
+     * @returns 当前缩放比例
+     */
+    getZoom(): number {
+        return this.state.scale;
+    }
+
+    /**
+     * 设置网格大小
+     * @param size - 网格大小（像素）
+     */
+    setGridSize(size: number): void {
+        this.options.grid.size = size;
+        this.scheduleRender();
+    }
+
+    /**
+     * 设置网格颜色
+     * @param color - 网格颜色（CSS 颜色值）
+     */
+    setGridColor(color: string): void {
+        this.options.grid.color = color;
+        this.scheduleRender();
+    }
+
+    /**
+     * 启用或禁用网格
+     * @param enabled - 是否启用网格
+     */
+    setGridEnabled(enabled: boolean): void {
+        this.options.grid.enabled = enabled;
+        this.scheduleRender();
+    }
+
+    /**
+     * 获取网格配置
+     * @returns 当前网格配置
+     */
+    getGridConfig(): { enabled: boolean; size: number; color: string } {
+        return {
+            enabled: this.options.grid.enabled,
+            size: this.options.grid.size ?? 20,
+            color: this.options.grid.color ?? '#e5e7eb',
+        };
     }
 
     /**

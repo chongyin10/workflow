@@ -661,6 +661,140 @@ graph.on(EVENT_NAMES.PORT_CONTEXTMENU, (e) => {
 
 addLog('连接桩事件监听已启动，请与连接桩交互...');`;
 
+// 示例 7: 拖拽连接（新功能）
+const EXAMPLE_7_CODE = `// 示例 7: 拖拽连接创建边
+const graph = new Graph({
+  container: container,
+  width: 600,
+  height: 300,
+  draggable: true,
+  scalable: true,
+  backgroundColor: '#f8fafc',
+  grid: { enabled: true, size: 20, color: '#e2e8f0' },
+});
+
+// 创建源节点（左侧）
+const sourceNode = graph.addNode({
+  id: 'node-source',
+  label: '源节点',
+  x: 120,
+  y: 150,
+  shape: Shape.Rect,
+  style: {
+    width: 120,
+    height: 80,
+    backgroundColor: '#22c55e',
+    borderColor: '#16a34a',
+    textColor: '#ffffff',
+  },
+});
+
+// 为源节点添加输出连接桩（右侧）
+sourceNode.addPort({
+  id: 'port-out',
+  position: 'right',
+  visible: true,
+  style: {
+    width: 14,
+    height: 14,
+    fillColor: '#ffffff',
+    strokeColor: '#16a34a',
+    strokeWidth: 2,
+    hoverFillColor: '#dcfce7',
+    hoverStrokeColor: '#22c55e',
+  },
+});
+
+// 创建目标节点（右侧）
+const targetNode = graph.addNode({
+  id: 'node-target',
+  label: '目标节点',
+  x: 480,
+  y: 100,
+  shape: Shape.Rect,
+  style: {
+    width: 120,
+    height: 80,
+    backgroundColor: '#3b82f6',
+    borderColor: '#2563eb',
+    textColor: '#ffffff',
+  },
+});
+
+// 为目标节点添加入连接桩（左侧）
+targetNode.addPort({
+  id: 'port-in',
+  position: 'left',
+  visible: true,
+  style: {
+    width: 14,
+    height: 14,
+    fillColor: '#ffffff',
+    strokeColor: '#2563eb',
+    strokeWidth: 2,
+    hoverFillColor: '#dbeafe',
+    hoverStrokeColor: '#3b82f6',
+  },
+});
+
+// 为目标节点添加底部连接桩
+targetNode.addPort({
+  id: 'port-bottom',
+  position: 'bottom',
+  visible: true,
+  style: {
+    width: 14,
+    height: 14,
+    fillColor: '#ffffff',
+    strokeColor: '#2563eb',
+    strokeWidth: 2,
+    hoverFillColor: '#dbeafe',
+    hoverStrokeColor: '#3b82f6',
+  },
+});
+
+// 创建另一个节点
+const bottomNode = graph.addNode({
+  id: 'node-bottom',
+  label: '底部节点',
+  x: 480,
+  y: 220,
+  shape: Shape.Rect,
+  style: {
+    width: 120,
+    height: 80,
+    backgroundColor: '#f59e0b',
+    borderColor: '#d97706',
+    textColor: '#ffffff',
+  },
+});
+
+bottomNode.addPort({
+  id: 'port-top',
+  position: 'top',
+  visible: true,
+  style: {
+    width: 14,
+    height: 14,
+    fillColor: '#ffffff',
+    strokeColor: '#d97706',
+    strokeWidth: 2,
+    hoverFillColor: '#fef3c7',
+    hoverStrokeColor: '#f59e0b',
+  },
+});
+
+// 添加操作提示
+const hint = document.createElement('div');
+hint.style.cssText = 'position:absolute;top:8px;left:8px;background:#1e293b;color:#e2e8f0;padding:8px 12px;borderRadius:6px;fontSize:13px;';
+hint.innerHTML = '💡 <b>操作提示：</b>从源节点的连接桩拖拽到目标节点的连接桩创建连线';
+container.appendChild(hint);
+
+// 监听边创建事件
+graph.on('edge:added', (e) => {
+  console.log('新边已创建:', e.edge.getId());
+});`;
+
 // 所有示例
 const EXAMPLES = [
   { id: 'example-1', title: '基础方位端口', code: EXAMPLE_1_CODE },
@@ -669,6 +803,7 @@ const EXAMPLES = [
   { id: 'example-4', title: '端口样式', code: EXAMPLE_4_CODE },
   { id: 'example-5', title: '可见性控制', code: EXAMPLE_5_CODE },
   { id: 'example-6', title: 'Port 事件', code: EXAMPLE_6_CODE },
+  { id: 'example-7', title: '拖拽连接', code: EXAMPLE_7_CODE },
 ];
 
 /**
@@ -804,7 +939,7 @@ export const PortExample: React.FC = () => {
 
   return (
     <div ref={mainContainerRef} style={{ position: 'relative' }}>
-      <div id="port-example-title" style={{ height: '600px' }}>
+      <div id="port-example-title" style={{ height: '600px', display: 'flex', flexDirection: 'column' }}>
         <PanelHeader title="Port 连接桩示例" />
         {/* 示例切换按钮 */}
         <div
@@ -835,7 +970,7 @@ export const PortExample: React.FC = () => {
             </button>
           ))}
         </div>
-        <Splitter style={{ height: '100%' }}>
+        <Splitter style={{ flex: 1, minHeight: 0 }}>
           {LeftPanel}
           {RightPanel}
         </Splitter>
