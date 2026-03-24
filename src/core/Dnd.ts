@@ -46,6 +46,8 @@ export interface DndOptions {
     useCanvasPreview?: boolean;
     /** 拖拽预览节点样式（Canvas 模式） */
     previewNodeStyle?: Partial<NodeOptions['style']>;
+    /** 是否允许节点重叠放置，默认为 true（允许）。设为 false 时禁止在已有节点区域放置 */
+    allowOverlap?: boolean;
     /** 拖拽开始回调 */
     onDragStart?: (e: DndEvent) => void;
     /** 拖拽中回调 */
@@ -121,6 +123,8 @@ export class Dnd implements Plugin {
     private dragPreviewElement: HTMLElement | null = null;
     private currentNodeOptions: NodeOptions | null = null;
     private dropPosition: Point | null = null;
+    private isCollision: boolean = false; // 是否发生碰撞
+    private collisionOverlayElement: HTMLElement | null = null; // 碰撞提示元素
     private boundHandlers: {
         onDragOver: (e: DragEvent) => void;
         onDrop: (e: DragEvent) => void;
@@ -138,7 +142,7 @@ export class Dnd implements Plugin {
     // 默认配置
     private static readonly DEFAULT_OPTIONS: Pick<
         DndOptions,
-        'enabled' | 'dragClassName' | 'dragStyle' | 'useCanvasPreview' | 'previewNodeStyle'
+        'enabled' | 'dragClassName' | 'dragStyle' | 'useCanvasPreview' | 'previewNodeStyle' | 'allowOverlap'
     > = {
         enabled: true,
         dragClassName: 'dnd-drag-preview',
@@ -155,6 +159,7 @@ export class Dnd implements Plugin {
             borderColor: '#3b82f6',
             borderWidth: 2,
         },
+        allowOverlap: true,
     };
 
     constructor(options: DndOptions = {}) {
@@ -451,6 +456,12 @@ export class Dnd implements Plugin {
         const position = this.getWorldPosition(e);
         this.dropPosition = position;
 
+        // 检查碰撞并更新视觉反馈
+        if (this.options.allowOverlap === false && this.currentNodeOptions) {
+            const hasCollision = this.checkCollision(position, this.currentNodeOptions);
+            this.updateCollisionFeedback(hasCollision);
+        }
+
         // 设置放置效果
         if (e.dataTransfer) {
             const canDrop = this.validateDrop(position);
@@ -463,6 +474,71 @@ export class Dnd implements Plugin {
             const dndEvent = this.createDndEvent('dnd:drag', e, position);
             this.emit('dnd:drag', dndEvent);
             this.options.onDrag?.(dndEvent);
+        }
+    }
+
+    /**
+     * 更新碰撞视觉反馈
+     */
+    private updateCollisionFeedback(hasCollision: boolean): void {
+        if (this.isCollision === hasCollision) return;
+        
+        this.isCollision = hasCollision;
+        
+        if (hasCollision) {
+            this.showCollisionOverlay();
+        } else {
+            this.hideCollisionOverlay();
+        }
+    }
+
+    /**
+     * 显示碰撞提示覆盖层
+     */
+    private showCollisionOverlay(): void {
+        if (!this.graph || !this.currentNodeOptions || !this.dropPosition) return;
+
+        const canvas = this.graph.getCanvas();
+        
+        if (!this.collisionOverlayElement) {
+            this.collisionOverlayElement = document.createElement('div');
+            this.collisionOverlayElement.style.cssText = `
+                position: absolute;
+                pointer-events: none;
+                z-index: 9998;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 14px;
+                color: #ef4444;
+                background: rgba(239, 68, 68, 0.1);
+                border: 2px dashed #ef4444;
+                border-radius: 8px;
+                transition: all 0.15s ease;
+            `;
+            canvas.parentElement?.appendChild(this.collisionOverlayElement);
+        }
+
+        // 计算屏幕坐标位置
+        const screenPoint = this.graph.worldToScreen(this.dropPosition);
+        const width = this.currentNodeOptions.style?.width ?? 200;
+        const height = this.currentNodeOptions.style?.height ?? 80;
+        const scale = this.graph.getZoom();
+
+        this.collisionOverlayElement.style.left = `${screenPoint.x - (width * scale) / 2}px`;
+        this.collisionOverlayElement.style.top = `${screenPoint.y - (height * scale) / 2}px`;
+        this.collisionOverlayElement.style.width = `${width * scale}px`;
+        this.collisionOverlayElement.style.height = `${height * scale}px`;
+        this.collisionOverlayElement.textContent = '🚫 禁止放置区';
+        this.collisionOverlayElement.style.display = 'flex';
+    }
+
+    /**
+     * 隐藏碰撞提示覆盖层
+     */
+    private hideCollisionOverlay(): void {
+        if (this.collisionOverlayElement) {
+            this.collisionOverlayElement.style.display = 'none';
         }
     }
 
@@ -609,11 +685,18 @@ export class Dnd implements Plugin {
         this.isDropped = false;
         this.currentNodeOptions = null;
         this.dropPosition = null;
+        this.isCollision = false;
 
         // 移除拖拽预览元素
         if (this.dragPreviewElement && this.dragPreviewElement.parentNode) {
             this.dragPreviewElement.parentNode.removeChild(this.dragPreviewElement);
             this.dragPreviewElement = null;
+        }
+
+        // 移除碰撞提示元素
+        if (this.collisionOverlayElement && this.collisionOverlayElement.parentNode) {
+            this.collisionOverlayElement.parentNode.removeChild(this.collisionOverlayElement);
+            this.collisionOverlayElement = null;
         }
     }
 
@@ -621,10 +704,80 @@ export class Dnd implements Plugin {
      * 验证放置位置
      */
     private validateDrop(position: Point): boolean {
-        if (this.options.validateDrop && this.currentNodeOptions) {
+        if (!this.currentNodeOptions) return false;
+
+        // 检查是否允许重叠
+        if (this.options.allowOverlap === false) {
+            if (this.checkCollision(position, this.currentNodeOptions)) {
+                return false;
+            }
+        }
+
+        // 调用用户自定义验证
+        if (this.options.validateDrop) {
             return this.options.validateDrop(position, this.currentNodeOptions);
         }
         return true;
+    }
+
+    /**
+     * 检查节点是否与其他节点发生碰撞
+     * @param position - 放置位置
+     * @param nodeOptions - 节点配置
+     * @returns 是否发生碰撞
+     */
+    private checkCollision(position: Point, nodeOptions: NodeOptions): boolean {
+        if (!this.graph) return false;
+
+        // 获取新节点的边界框
+        const newNodeBounds = this.getNodeBounds(position, nodeOptions);
+
+        // 获取所有已有节点
+        const existingNodes = this.graph.getAllNodes();
+
+        // 检查与每个已有节点的碰撞
+        for (const node of existingNodes) {
+            const existingBounds = node.getBounds();
+
+            if (this.isBoundsIntersect(newNodeBounds, existingBounds)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * 获取节点在指定位置的边界框
+     */
+    private getNodeBounds(
+        position: Point,
+        nodeOptions: NodeOptions
+    ): { x: number; y: number; width: number; height: number } {
+        const width = nodeOptions.style?.width ?? 200;
+        const height = nodeOptions.style?.height ?? 80;
+
+        return {
+            x: position.x - width / 2,
+            y: position.y - height / 2,
+            width,
+            height,
+        };
+    }
+
+    /**
+     * 检查两个边界框是否相交
+     */
+    private isBoundsIntersect(
+        bounds1: { x: number; y: number; width: number; height: number },
+        bounds2: { x: number; y: number; width: number; height: number }
+    ): boolean {
+        return !(
+            bounds1.x + bounds1.width < bounds2.x ||
+            bounds2.x + bounds2.width < bounds1.x ||
+            bounds1.y + bounds1.height < bounds2.y ||
+            bounds2.y + bounds2.height < bounds1.y
+        );
     }
 
     /**

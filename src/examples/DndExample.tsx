@@ -27,6 +27,7 @@ const dndOptionsData = [
   { name: 'onDrop', type: '(e: DragEvent) => boolean', required: '否', default: '-', description: '放置回调，返回 true 允许放置' },
   { name: 'onDragEnd', type: '(e: DragEvent) => void', required: '否', default: '-', description: '拖拽结束回调' },
   { name: 'validateDrop', type: '(position: Point) => boolean', required: '否', default: '-', description: '验证放置位置是否有效' },
+  { name: 'allowOverlap', type: 'boolean', required: '否', default: 'true', description: '是否允许节点重叠放置' },
 ];
 
 // Dnd 类方法表格数据
@@ -340,6 +341,60 @@ graph.addEdge({
 console.log('工作流画布已创建');
 console.log('从左侧拖拽工具栏添加更多节点到画布');`;
 
+// 示例 6: 禁止叠加区域放置
+const EXAMPLE_6_CODE = `// 创建 Graph 画布
+const graph = new Graph({
+  container: container,
+  width: 600,
+  height: 300,
+  backgroundColor: '#f8fafc',
+  grid: { enabled: true, size: 20, color: '#e2e8f0' },
+});
+
+// 创建 Dnd 插件 - 禁止在已有节点上叠加放置
+const dnd = new Dnd({
+  enabled: true,
+  // 关键配置：禁止节点重叠
+  allowOverlap: false,
+  
+  onDrop: (e) => {
+    console.log('✅ 放置成功:', e.nodeOptions?.label);
+    console.log('   位置:', e.position);
+    return true;
+  },
+});
+
+graph.use(dnd);
+
+// 预先放置几个节点作为障碍物
+const obstacleNodes = [
+  { id: 'node-1', label: '矩形节点', x: 150, y: 100, color: '#3b82f6' },
+  { id: 'node-2', label: '圆形节点', x: 400, y: 100, color: '#22c55e', shape: Shape.Circle },
+  { id: 'node-3', label: '菱形节点', x: 150, y: 200, color: '#f59e0b', shape: Shape.Diamond },
+];
+
+obstacleNodes.forEach((n) => {
+  graph.addNode({
+    id: n.id,
+    label: n.label,
+    x: n.x,
+    y: n.y,
+    shape: n.shape || Shape.Rect,
+    style: {
+      width: 100,
+      height: 60,
+      backgroundColor: n.color,
+      borderColor: n.color,
+      textColor: '#ffffff',
+      borderRadius: n.shape === 'Circle' ? 50 : 6,
+    },
+  });
+});
+
+console.log('🚫 此示例禁止在已有节点区域放置新节点');
+console.log('尝试拖拽左侧节点到已有节点上，会看到禁止提示');
+console.log('尝试拖拽到空白区域，可以正常放置');`;
+
 // 所有示例
 const EXAMPLES = [
   { id: 'example-1', title: '基础拖拽', code: EXAMPLE_1_CODE },
@@ -347,6 +402,7 @@ const EXAMPLES = [
   { id: 'example-3', title: '拖拽事件', code: EXAMPLE_3_CODE },
   { id: 'example-4', title: '放置验证', code: EXAMPLE_4_CODE },
   { id: 'example-5', title: '完整工作流', code: EXAMPLE_5_CODE },
+  { id: 'example-6', title: '禁止叠加放置', code: EXAMPLE_6_CODE },
 ];
 
 /**
