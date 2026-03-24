@@ -111,14 +111,7 @@ export const EVENT_NAMES = {
 
     // Graph/Blank 事件
     BLANK_CLICK: 'blank:click',
-    BLANK_DBLCLICK: 'blank:dblclick',
     BLANK_CONTEXTMENU: 'blank:contextmenu',
-    BLANK_MOUSEDOWN: 'blank:mousedown',
-    BLANK_MOUSEMOVE: 'blank:mousemove',
-    BLANK_MOUSEUP: 'blank:mouseup',
-    BLANK_MOUSEWHEEL: 'blank:mousewheel',
-    GRAPH_MOUSEENTER: 'graph:mouseenter',
-    GRAPH_MOUSELEAVE: 'graph:mouseleave',
 } as const;
 
 /**

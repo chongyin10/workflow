@@ -2167,12 +2167,7 @@ export class Graph {
     private getBlankEventName(eventType: string): string | null {
         const map: Record<string, string> = {
             click: EVENT_NAMES.BLANK_CLICK,
-            dblclick: EVENT_NAMES.BLANK_DBLCLICK,
             contextmenu: EVENT_NAMES.BLANK_CONTEXTMENU,
-            mousedown: EVENT_NAMES.BLANK_MOUSEDOWN,
-            mousemove: EVENT_NAMES.BLANK_MOUSEMOVE,
-            mouseup: EVENT_NAMES.BLANK_MOUSEUP,
-            mousewheel: EVENT_NAMES.BLANK_MOUSEWHEEL,
         };
         return map[eventType] || null;
     }
