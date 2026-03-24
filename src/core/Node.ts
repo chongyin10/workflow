@@ -453,17 +453,37 @@ export class Node extends Cell {
             height: ${this.style.height}px;
             left: 0;
             top: 0;
-            pointer-events: none;
+            pointer-events: auto;
             z-index: 1;
             transform-origin: center center;
             display: flex;
             align-items: center;
             justify-content: center;
+            background: transparent;
+            overflow: hidden;
+            border-radius: 8px;
         `;
 
         // 设置 HTML 内容
         const htmlContent = this.shapeConfig.html || '';
         element.innerHTML = htmlContent;
+
+        // 添加 mousedown 事件处理，支持拖拽
+        element.addEventListener('mousedown', (e) => {
+            // 如果点击的是 input、textarea、select 等表单元素，不触发拖拽
+            const target = e.target as HTMLElement;
+            const isFormElement = ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(target.tagName) ||
+                                  target.isContentEditable;
+            
+            if (isFormElement) {
+                // 阻止事件冒泡到 overlay，让表单获得焦点，不进行拖拽
+                e.stopPropagation();
+                return;
+            }
+
+            // 非表单元素：不阻止冒泡，让事件传播到 overlay 进行拖拽处理
+            // Graph 会给 overlay 添加 mousedown 监听器来处理拖拽
+        });
 
         this.htmlElement = element;
 

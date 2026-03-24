@@ -292,6 +292,8 @@ export class Graph {
      */
     addHtmlNodeElement(nodeId: string, element: HTMLElement): void {
         this.htmlNodeElements.set(nodeId, element);
+        // 确保 HTML 节点可以接收鼠标事件
+        element.style.pointerEvents = 'auto';
         this.overlay.appendChild(element);
     }
 
@@ -402,6 +404,8 @@ export class Graph {
     private bindEvents(): void {
         if (this.options.draggable) {
             this.canvas.addEventListener('mousedown', this.boundHandlers.onMouseDown);
+            // 给 overlay 也添加 mousedown 监听，支持 HTML 节点拖拽
+            this.overlay.addEventListener('mousedown', this.boundHandlers.onMouseDown);
             document.addEventListener('mousemove', this.boundHandlers.onMouseMove);
             document.addEventListener('mouseup', this.boundHandlers.onMouseUp);
             this.canvas.addEventListener(
@@ -440,6 +444,10 @@ export class Graph {
             'mousedown',
             this.boundHandlers.onMouseDown
         );
+        this.overlay.removeEventListener(
+            'mousedown',
+            this.boundHandlers.onMouseDown
+        );
         document.removeEventListener('mousemove', this.boundHandlers.onMouseMove);
         document.removeEventListener('mouseup', this.boundHandlers.onMouseUp);
         this.canvas.removeEventListener(
@@ -467,10 +475,26 @@ export class Graph {
     private handleMouseDown(e: globalThis.MouseEvent): void {
         if (!this.options.draggable) return;
 
+        // 检查是否点击了表单元素，如果是则不拖拽
+        const target = e.target as HTMLElement;
+        const isFormElement = ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(target.tagName) ||
+                              target.isContentEditable;
+        
+        if (isFormElement) {
+            // 点击表单元素时不拖拽，但允许事件继续传播
+            return;
+        }
+
+        // 检查点击目标是否在当前 graph 容器内
+        const targetElement = e.target as HTMLElement;
+        if (!this.container.contains(targetElement) && targetElement !== this.container) {
+            return;
+        }
+
         e.preventDefault();
 
-        // 将鼠标位置转换为世界坐标
-        const rect = this.canvas.getBoundingClientRect();
+        // 将鼠标位置转换为世界坐标（使用容器的坐标系）
+        const rect = this.container.getBoundingClientRect();
         const screenPoint: Point = {
             x: e.clientX - rect.left,
             y: e.clientY - rect.top,
