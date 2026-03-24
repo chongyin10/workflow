@@ -1491,11 +1491,64 @@ export class Graph {
         this.scheduleRender();
     }
 
+    // 动画时间戳
+    private animationTime: number = 0;
+    private edgeAnimationId: number | null = null;
+    private hasAnimatedEdges: boolean = false;
+
+    /**
+     * 启动边动画循环
+     */
+    startEdgeAnimation(): void {
+        if (this.edgeAnimationId !== null) return;
+        
+        const animate = (time: number) => {
+            this.animationTime = time;
+            this.scheduleRender();
+            this.edgeAnimationId = requestAnimationFrame(animate);
+        };
+        
+        this.edgeAnimationId = requestAnimationFrame(animate);
+    }
+
+    /**
+     * 停止边动画循环
+     */
+    stopEdgeAnimation(): void {
+        if (this.edgeAnimationId !== null) {
+            cancelAnimationFrame(this.edgeAnimationId);
+            this.edgeAnimationId = null;
+        }
+    }
+
+    /**
+     * 检查是否有带动画的边
+     */
+    private checkAnimatedEdges(): boolean {
+        for (const edge of this.edges.values()) {
+            if (edge.isAnimationPlaying()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * 渲染所有边
      * @protected
      */
     protected renderEdges(): void {
+        // 检查是否有带动画的边
+        const hasAnimated = this.checkAnimatedEdges();
+        
+        // 如果有动画边但没有启动动画循环，启动它
+        if (hasAnimated && this.edgeAnimationId === null) {
+            this.startEdgeAnimation();
+        } else if (!hasAnimated && this.edgeAnimationId !== null) {
+            // 如果没有动画边但循环在运行，停止它
+            this.stopEdgeAnimation();
+        }
+
         this.edges.forEach((edge) => {
             const sourceNode = this.nodes.get(edge.getSourceId());
             const targetNode = this.nodes.get(edge.getTargetId());
@@ -1544,7 +1597,8 @@ export class Graph {
                     targetPoint = targetNode.getAnchorPoint(targetAnchor.position || 'center');
                 }
 
-                edge.draw(this.edgeCtx, sourcePoint, targetPoint);
+                // 传递时间戳用于动画
+                edge.draw(this.edgeCtx, sourcePoint, targetPoint, this.animationTime);
             }
         });
     }

@@ -37,6 +37,18 @@ export interface EdgeStyle {
     hoverStroke: string;
     /** 圆角半径（用于折线） */
     cornerRadius: number;
+    /** 是否启用流动波浪效果 */
+    animated: boolean;
+    /** 波浪颜色 */
+    waveColor: string;
+    /** 波浪宽度 */
+    waveWidth: number;
+    /** 波浪长度 */
+    waveLength: number;
+    /** 波浪流动速度（像素/帧） */
+    waveSpeed: number;
+    /** 波浪透明度 */
+    waveOpacity: number;
 }
 
 /**
@@ -117,8 +129,10 @@ export class Edge extends Cell {
     // 用于碰撞检测的点
     private lastSourcePoint: Point = { x: 0, y: 0 };
     private lastTargetPoint: Point = { x: 0, y: 0 };
-    // 用于折线的中间点
+    // 用于折线的中间点（已废弃，保留向后兼容）
     private lastMidPoint: Point | null = null;
+    // 用于保存实际路径点（用于波浪动画）
+    private pathPoints: Point[] = [];
 
     // 默认样式
     private static readonly DEFAULT_STYLE: EdgeStyle = {
@@ -132,7 +146,17 @@ export class Edge extends Cell {
         selectedStrokeWidth: 3,
         hoverStroke: '#64748b',
         cornerRadius: 10,
+        animated: false,
+        waveColor: '#3b82f6',
+        waveWidth: 4,
+        waveLength: 20,
+        waveSpeed: 2,
+        waveOpacity: 0.8,
     };
+
+    // 动画状态
+    private isAnimating: boolean = false;
+    private waveOffset: number = 0;
 
     /**
      * CSS 样式字符串 - 可用于外部容器
@@ -307,8 +331,9 @@ export class Edge extends Cell {
      * @param ctx - Canvas 2D 上下文
      * @param sourcePoint - 起点坐标
      * @param targetPoint - 终点坐标
+     * @param time - 当前时间戳（用于动画）
      */
-    draw(ctx: CanvasRenderingContext2D, sourcePoint: Point, targetPoint: Point): void {
+    draw(ctx: CanvasRenderingContext2D, sourcePoint: Point, targetPoint: Point, time?: number): void {
         // 如果边已断开，不绘制
         if (!this.connected) {
             return;
@@ -331,7 +356,7 @@ export class Edge extends Cell {
             ctx.setLineDash(this.style.dashPattern);
         }
 
-        // 根据类型绘制
+        // 根据类型绘制路径（用于碰撞检测和波浪动画路径计算）
         ctx.beginPath();
         switch (this.type) {
             case EdgeType.Straight:
@@ -350,7 +375,15 @@ export class Edge extends Cell {
                 this.drawArc(ctx, sourcePoint, targetPoint);
                 break;
         }
-        ctx.stroke();
+
+        // 如果启用了波浪动画，只绘制波浪效果，不绘制实线轨道
+        if (this.style.animated && time !== undefined) {
+            // 不绘制实线轨道，只绘制波浪
+            this.drawFlowingWave(ctx, sourcePoint, targetPoint, time);
+        } else {
+            // 没有波浪动画时，绘制实线轨道
+            ctx.stroke();
+        }
 
         // 绘制箭头
         if (this.style.arrowSize > 0) {
@@ -369,6 +402,9 @@ export class Edge extends Cell {
      * 绘制直线
      */
     private drawStraight(ctx: CanvasRenderingContext2D, source: Point, target: Point): void {
+        // 保存路径点
+        this.pathPoints = [source, target];
+        
         ctx.moveTo(source.x, source.y);
         ctx.lineTo(target.x, target.y);
         this.lastSegmentAngle = Math.atan2(target.y - source.y, target.x - source.x);
@@ -381,7 +417,15 @@ export class Edge extends Cell {
         const midX = (source.x + target.x) / 2;
         const r = this.style.cornerRadius;
 
-        // 保存中间点用于碰撞检测
+        // 保存路径点（用于波浪动画）- 水平折线路径：source -> (midX, source.y) -> (midX, target.y) -> target
+        this.pathPoints = [
+            source,
+            { x: midX, y: source.y },
+            { x: midX, y: target.y },
+            target
+        ];
+
+        // 保存中间点用于碰撞检测（向后兼容）
         this.lastMidPoint = { x: midX, y: target.y };
 
         ctx.moveTo(source.x, source.y);
@@ -415,7 +459,15 @@ export class Edge extends Cell {
         const midY = (source.y + target.y) / 2;
         const r = this.style.cornerRadius;
 
-        // 保存中间点用于碰撞检测
+        // 保存路径点（用于波浪动画）- 垂直折线路径：source -> (source.x, midY) -> (target.x, midY) -> target
+        this.pathPoints = [
+            source,
+            { x: source.x, y: midY },
+            { x: target.x, y: midY },
+            target
+        ];
+
+        // 保存中间点用于碰撞检测（向后兼容）
         this.lastMidPoint = { x: target.x, y: midY };
 
         ctx.moveTo(source.x, source.y);
@@ -459,6 +511,9 @@ export class Edge extends Cell {
         const cp2x = target.x + this.getDirectionX(this.target.position) * controlDist;
         const cp2y = target.y + this.getDirectionY(this.target.position) * controlDist;
 
+        // 保存路径点（用于波浪动画）- 贝塞尔曲线使用采样点
+        this.pathPoints = this.sampleBezierCurve(source, { x: cp1x, y: cp1y }, { x: cp2x, y: cp2y }, target, 20);
+
         ctx.moveTo(source.x, source.y);
         ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, target.x, target.y);
 
@@ -490,11 +545,415 @@ export class Edge extends Cell {
         const controlX = midX + perpX;
         const controlY = midY + perpY;
 
+        // 保存路径点（用于波浪动画）- 弧线使用采样点
+        this.pathPoints = this.sampleQuadraticCurve(source, { x: controlX, y: controlY }, target, 20);
+
         ctx.moveTo(source.x, source.y);
         ctx.quadraticCurveTo(controlX, controlY, target.x, target.y);
 
         // 计算终点处的切线角度
         this.lastSegmentAngle = Math.atan2(target.y - controlY, target.x - controlX);
+    }
+
+    /**
+     * 绘制流动波浪效果
+     * @param ctx - Canvas 2D 上下文
+     * @param source - 起点坐标
+     * @param target - 终点坐标
+     * @param time - 当前时间戳
+     */
+    private drawFlowingWave(ctx: CanvasRenderingContext2D, source: Point, target: Point, time: number): void {
+        const { waveColor, waveWidth, waveLength, waveSpeed, waveOpacity } = this.style;
+        
+        // 计算动画偏移（波浪流动的距离）
+        // 使用负号使波浪从 source（末端）流向 target（箭头端）
+        const offset = (time * waveSpeed / 50) % (waveLength * 2);
+        
+        ctx.save();
+        ctx.strokeStyle = waveColor;
+        ctx.lineWidth = waveWidth;
+        ctx.lineCap = 'round';
+        ctx.globalAlpha = waveOpacity;
+        
+        // 计算路径总长度
+        const totalLength = this.calculatePathLength(source, target);
+        if (totalLength === 0) {
+            ctx.restore();
+            return;
+        }
+
+        // 绘制多个波浪段，覆盖整个路径
+        // 波浪周期为 waveLength * 2（一个波浪 + 一个间隔）
+        const wavePeriod = waveLength * 2;
+        
+        // 从正偏移开始，使波浪从起点（source）向终点（target/箭头端）流动
+        for (let pos = offset - wavePeriod; pos < totalLength; pos += wavePeriod) {
+            const waveStart = pos;
+            const waveEnd = pos + waveLength;
+            
+            // 只绘制在路径范围内的波浪
+            if (waveEnd > 0 && waveStart < totalLength) {
+                const startDist = Math.max(0, waveStart);
+                const endDist = Math.min(totalLength, waveEnd);
+                
+                // 计算渐变透明度（波浪头部和尾部渐隐）
+                const waveProgress = (waveStart + waveLength / 2) / totalLength;
+                const fadeAlpha = Math.sin(waveProgress * Math.PI) * waveOpacity;
+                
+                ctx.globalAlpha = Math.min(fadeAlpha, waveOpacity);
+                ctx.beginPath();
+                this.drawPathSegment(ctx, source, target, startDist, endDist);
+                ctx.stroke();
+            }
+        }
+        
+        ctx.restore();
+    }
+
+    /**
+     * 计算路径长度
+     */
+    private calculatePathLength(source: Point, target: Point): number {
+        // 如果有路径点，使用路径点计算精确长度
+        if (this.pathPoints.length >= 2) {
+            let length = 0;
+            for (let i = 1; i < this.pathPoints.length; i++) {
+                const dx = this.pathPoints[i].x - this.pathPoints[i - 1].x;
+                const dy = this.pathPoints[i].y - this.pathPoints[i - 1].y;
+                length += Math.sqrt(dx * dx + dy * dy);
+            }
+            return length;
+        }
+        
+        // 回退到简单计算
+        switch (this.type) {
+            case EdgeType.Straight:
+                return Math.sqrt(Math.pow(target.x - source.x, 2) + Math.pow(target.y - source.y, 2));
+            
+            case EdgeType.Horizontal:
+            case EdgeType.Vertical:
+                // 折线路径长度
+                if (this.lastMidPoint) {
+                    const seg1 = Math.sqrt(Math.pow(this.lastMidPoint.x - source.x, 2) + Math.pow(this.lastMidPoint.y - source.y, 2));
+                    const seg2 = Math.sqrt(Math.pow(target.x - this.lastMidPoint.x, 2) + Math.pow(target.y - this.lastMidPoint.y, 2));
+                    return seg1 + seg2;
+                }
+                return Math.sqrt(Math.pow(target.x - source.x, 2) + Math.pow(target.y - source.y, 2));
+            
+            case EdgeType.Bezier:
+            case EdgeType.Arc:
+                // 使用近似长度（控制点距离的平均值）
+                const midX = (source.x + target.x) / 2;
+                const midY = (source.y + target.y) / 2;
+                const dist1 = Math.sqrt(Math.pow(midX - source.x, 2) + Math.pow(midY - source.y, 2));
+                const dist2 = Math.sqrt(Math.pow(target.x - midX, 2) + Math.pow(target.y - midY, 2));
+                return (dist1 + dist2) * 1.2; // 曲线比直线稍长
+            
+            default:
+                return Math.sqrt(Math.pow(target.x - source.x, 2) + Math.pow(target.y - source.y, 2));
+        }
+    }
+
+    /**
+     * 绘制路径的一段（使用路径点数组）
+     */
+    private drawPathSegment(ctx: CanvasRenderingContext2D, source: Point, target: Point, startDist: number, endDist: number): void {
+        const totalLength = this.calculatePathLength(source, target);
+        if (totalLength === 0) return;
+
+        const startRatio = Math.max(0, Math.min(1, startDist / totalLength));
+        const endRatio = Math.max(0, Math.min(1, endDist / totalLength));
+
+        // 使用路径点数组绘制
+        if (this.pathPoints.length >= 2) {
+            this.drawPathSegmentByPoints(ctx, startRatio, endRatio);
+            return;
+        }
+
+        // 回退到旧的绘制逻辑
+        const startPoint = this.getPointOnPath(source, target, startRatio);
+        const endPoint = this.getPointOnPath(source, target, endRatio);
+
+        if (!startPoint || !endPoint) return;
+
+        // 对于曲线类型（贝塞尔曲线和弧线），使用采样点绘制以确保沿曲线
+        if (this.type === EdgeType.Bezier || this.type === EdgeType.Arc) {
+            this.drawCurveSegment(ctx, source, target, startRatio, endRatio);
+            return;
+        }
+
+        // 对于直线，直接绘制
+        if (this.type === EdgeType.Straight) {
+            ctx.moveTo(startPoint.x, startPoint.y);
+            ctx.lineTo(endPoint.x, endPoint.y);
+            return;
+        }
+
+        // 对于折线，需要处理中间点
+        if ((this.type === EdgeType.Horizontal || this.type === EdgeType.Vertical) && this.lastMidPoint) {
+            const midDistRatio = this.calculatePathLength(source, this.lastMidPoint) / totalLength;
+            
+            if (endRatio <= midDistRatio) {
+                // 完全在第一段
+                const segStart = this.getPointOnLine(source, this.lastMidPoint, startRatio / midDistRatio);
+                const segEnd = this.getPointOnLine(source, this.lastMidPoint, endRatio / midDistRatio);
+                ctx.moveTo(segStart.x, segStart.y);
+                ctx.lineTo(segEnd.x, segEnd.y);
+            } else if (startRatio >= midDistRatio) {
+                // 完全在第二段
+                const segStart = this.getPointOnLine(this.lastMidPoint, target, (startRatio - midDistRatio) / (1 - midDistRatio));
+                const segEnd = this.getPointOnLine(this.lastMidPoint, target, (endRatio - midDistRatio) / (1 - midDistRatio));
+                ctx.moveTo(segStart.x, segStart.y);
+                ctx.lineTo(segEnd.x, segEnd.y);
+            } else {
+                // 跨越中间点
+                ctx.moveTo(startPoint.x, startPoint.y);
+                ctx.lineTo(this.lastMidPoint.x, this.lastMidPoint.y);
+                ctx.lineTo(endPoint.x, endPoint.y);
+            }
+        }
+    }
+
+    /**
+     * 使用路径点数组绘制路径段
+     */
+    private drawPathSegmentByPoints(ctx: CanvasRenderingContext2D, startRatio: number, endRatio: number): void {
+        if (this.pathPoints.length < 2) return;
+
+        // 计算每个点的累积距离
+        const distances: number[] = [0];
+        let totalLength = 0;
+        for (let i = 1; i < this.pathPoints.length; i++) {
+            const dx = this.pathPoints[i].x - this.pathPoints[i - 1].x;
+            const dy = this.pathPoints[i].y - this.pathPoints[i - 1].y;
+            totalLength += Math.sqrt(dx * dx + dy * dy);
+            distances.push(totalLength);
+        }
+
+        if (totalLength === 0) return;
+
+        const startDist = startRatio * totalLength;
+        const endDist = endRatio * totalLength;
+
+        // 找到起点和终点位置
+        const points: Point[] = [];
+        let started = false;
+
+        for (let i = 0; i < this.pathPoints.length - 1; i++) {
+            const segStart = distances[i];
+            const segEnd = distances[i + 1];
+
+            // 检查这一段是否在绘制范围内
+            if (segEnd < startDist) continue;
+            if (segStart > endDist) break;
+
+            const p1 = this.pathPoints[i];
+            const p2 = this.pathPoints[i + 1];
+            const segLength = segEnd - segStart;
+
+            if (segLength === 0) continue;
+
+            // 计算这一段的起点
+            let drawStart: Point;
+            if (segStart < startDist) {
+                const ratio = (startDist - segStart) / segLength;
+                drawStart = {
+                    x: p1.x + (p2.x - p1.x) * ratio,
+                    y: p1.y + (p2.y - p1.y) * ratio
+                };
+            } else {
+                drawStart = p1;
+            }
+
+            // 计算这一段的终点
+            let drawEnd: Point;
+            if (segEnd > endDist) {
+                const ratio = (endDist - segStart) / segLength;
+                drawEnd = {
+                    x: p1.x + (p2.x - p1.x) * ratio,
+                    y: p1.y + (p2.y - p1.y) * ratio
+                };
+            } else {
+                drawEnd = p2;
+            }
+
+            if (!started) {
+                points.push(drawStart);
+                started = true;
+            }
+            points.push(drawEnd);
+        }
+
+        // 绘制路径
+        if (points.length >= 2) {
+            ctx.moveTo(points[0].x, points[0].y);
+            for (let i = 1; i < points.length; i++) {
+                ctx.lineTo(points[i].x, points[i].y);
+            }
+        }
+    }
+
+    /**
+     * 绘制曲线段（贝塞尔曲线或弧线）
+     * 使用采样点确保波浪沿着实际曲线路径绘制
+     */
+    private drawCurveSegment(ctx: CanvasRenderingContext2D, source: Point, target: Point, startRatio: number, endRatio: number): void {
+        const numSamples = Math.max(2, Math.ceil((endRatio - startRatio) * 20)); // 根据段长度决定采样点数
+        
+        const points: Point[] = [];
+        for (let i = 0; i <= numSamples; i++) {
+            const ratio = startRatio + (endRatio - startRatio) * (i / numSamples);
+            const point = this.getPointOnCurve(source, target, ratio);
+            if (point) {
+                points.push(point);
+            }
+        }
+
+        if (points.length < 2) return;
+
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+            ctx.lineTo(points[i].x, points[i].y);
+        }
+    }
+
+    /**
+     * 获取曲线（贝塞尔或弧线）上某比例的点的精确坐标
+     */
+    private getPointOnCurve(source: Point, target: Point, ratio: number): Point | null {
+        if (ratio <= 0) return { ...source };
+        if (ratio >= 1) return { ...target };
+
+        if (this.type === EdgeType.Bezier) {
+            const dx = target.x - source.x;
+            const dy = target.y - source.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const controlDist = dist * 0.5;
+
+            const cp1x = source.x + this.getDirectionX(this.source.position) * controlDist;
+            const cp1y = source.y + this.getDirectionY(this.source.position) * controlDist;
+            const cp2x = target.x + this.getDirectionX(this.target.position) * controlDist;
+            const cp2y = target.y + this.getDirectionY(this.target.position) * controlDist;
+
+            // 三次贝塞尔曲线公式
+            const t = ratio;
+            const mt = 1 - t;
+            const x = mt * mt * mt * source.x + 3 * mt * mt * t * cp1x + 3 * mt * t * t * cp2x + t * t * t * target.x;
+            const y = mt * mt * mt * source.y + 3 * mt * mt * t * cp1y + 3 * mt * t * t * cp2y + t * t * t * target.y;
+            
+            return { x, y };
+        }
+
+        if (this.type === EdgeType.Arc) {
+            const midX = (source.x + target.x) / 2;
+            const midY = (source.y + target.y) / 2;
+            const dx = target.x - source.x;
+            const dy = target.y - source.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const arcHeight = dist * 0.2;
+            const perpX = -dy / dist * arcHeight;
+            const perpY = dx / dist * arcHeight;
+            const controlX = midX + perpX;
+            const controlY = midY + perpY;
+
+            // 二次贝塞尔曲线公式
+            const t = ratio;
+            const mt = 1 - t;
+            const x = mt * mt * source.x + 2 * mt * t * controlX + t * t * target.x;
+            const y = mt * mt * source.y + 2 * mt * t * controlY + t * t * target.y;
+            
+            return { x, y };
+        }
+
+        return null;
+    }
+
+    /**
+     * 获取路径上某比例的点的坐标
+     */
+    private getPointOnPath(source: Point, target: Point, ratio: number): Point | null {
+        if (ratio <= 0) return { ...source };
+        if (ratio >= 1) return { ...target };
+
+        switch (this.type) {
+            case EdgeType.Straight:
+                return {
+                    x: source.x + (target.x - source.x) * ratio,
+                    y: source.y + (target.y - source.y) * ratio
+                };
+
+            case EdgeType.Horizontal:
+            case EdgeType.Vertical:
+                if (this.lastMidPoint) {
+                    const seg1Length = this.calculatePathLength(source, this.lastMidPoint);
+                    const totalLength = this.calculatePathLength(source, target);
+                    const midRatio = seg1Length / totalLength;
+                    
+                    if (ratio <= midRatio) {
+                        return this.getPointOnLine(source, this.lastMidPoint, ratio / midRatio);
+                    } else {
+                        return this.getPointOnLine(this.lastMidPoint, target, (ratio - midRatio) / (1 - midRatio));
+                    }
+                }
+                return {
+                    x: source.x + (target.x - source.x) * ratio,
+                    y: source.y + (target.y - source.y) * ratio
+                };
+
+            case EdgeType.Bezier:
+            case EdgeType.Arc:
+                // 简化处理，使用线性插值
+                return {
+                    x: source.x + (target.x - source.x) * ratio,
+                    y: source.y + (target.y - source.y) * ratio
+                };
+
+            default:
+                return {
+                    x: source.x + (target.x - source.x) * ratio,
+                    y: source.y + (target.y - source.y) * ratio
+                };
+        }
+    }
+
+    /**
+     * 获取线段上某比例的点的坐标
+     */
+    private getPointOnLine(start: Point, end: Point, ratio: number): Point {
+        return {
+            x: start.x + (end.x - start.x) * ratio,
+            y: start.y + (end.y - start.y) * ratio
+        };
+    }
+
+    /**
+     * 采样三次贝塞尔曲线点
+     */
+    private sampleBezierCurve(p0: Point, p1: Point, p2: Point, p3: Point, numSamples: number): Point[] {
+        const points: Point[] = [];
+        for (let i = 0; i <= numSamples; i++) {
+            const t = i / numSamples;
+            const mt = 1 - t;
+            const x = mt * mt * mt * p0.x + 3 * mt * mt * t * p1.x + 3 * mt * t * t * p2.x + t * t * t * p3.x;
+            const y = mt * mt * mt * p0.y + 3 * mt * mt * t * p1.y + 3 * mt * t * t * p2.y + t * t * t * p3.y;
+            points.push({ x, y });
+        }
+        return points;
+    }
+
+    /**
+     * 采样二次贝塞尔曲线点（弧线）
+     */
+    private sampleQuadraticCurve(p0: Point, p1: Point, p2: Point, numSamples: number): Point[] {
+        const points: Point[] = [];
+        for (let i = 0; i <= numSamples; i++) {
+            const t = i / numSamples;
+            const mt = 1 - t;
+            const x = mt * mt * p0.x + 2 * mt * t * p1.x + t * t * p2.x;
+            const y = mt * mt * p0.y + 2 * mt * t * p1.y + t * t * p2.y;
+            points.push({ x, y });
+        }
+        return points;
     }
 
     /**
@@ -655,6 +1114,57 @@ export class Edge extends Cell {
             style: { ...this.style },
             data: { ...this.data },
         });
+    }
+
+    /**
+     * 启动流动波浪动画
+     * @param waveOptions - 可选的波浪配置，不传则使用当前样式配置
+     * @returns 是否成功启动
+     */
+    startAnimation(waveOptions?: Partial<Pick<EdgeStyle, 'waveColor' | 'waveWidth' | 'waveLength' | 'waveSpeed' | 'waveOpacity'>>): boolean {
+        if (this.isAnimating) {
+            // 如果已经在动画中，更新配置
+            if (waveOptions) {
+                this.style = { ...this.style, ...waveOptions };
+            }
+            return false;
+        }
+        
+        this.isAnimating = true;
+        
+        // 如果有传入配置，更新样式
+        if (waveOptions) {
+            this.style = {
+                ...this.style,
+                animated: true,
+                ...waveOptions
+            };
+        } else {
+            this.style.animated = true;
+        }
+        
+        return true;
+    }
+
+    /**
+     * 停止流动波浪动画
+     * @returns 是否成功停止
+     */
+    stopAnimation(): boolean {
+        if (!this.isAnimating) {
+            return false;
+        }
+        this.isAnimating = false;
+        this.style.animated = false;
+        return true;
+    }
+
+    /**
+     * 检查边是否正在播放流动动画
+     * @returns 是否正在动画
+     */
+    isAnimationPlaying(): boolean {
+        return this.isAnimating;
     }
 
     /**

@@ -29,11 +29,35 @@ const edgeOptionsData = [
   { name: 'visible', type: 'boolean', required: '否', default: 'true', description: '是否可见' },
 ];
 
+// EdgeStyle 流动波浪配置
+const edgeStyleColumns = [
+  { title: '属性名', dataIndex: 'name', width: 180 },
+  { title: '类型', dataIndex: 'type', width: 150 },
+  { title: '默认值', dataIndex: 'default', width: 150 },
+  { title: '说明', dataIndex: 'description' },
+];
+
+const edgeStyleData = [
+  { name: 'stroke', type: 'string', default: "'#94a3b8'", description: '线条颜色' },
+  { name: 'strokeWidth', type: 'number', default: '2', description: '线条宽度' },
+  { name: 'dashed', type: 'boolean', default: 'false', description: '是否为虚线' },
+  { name: 'dashPattern', type: '[number, number]', default: '[5, 5]', description: '虚线模式 [实线长度, 间隔长度]' },
+  { name: 'arrowSize', type: 'number', default: '10', description: '箭头大小（0 表示无箭头）' },
+  { name: 'arrowColor', type: 'string', default: "'#94a3b8'", description: '箭头颜色' },
+  { name: 'cornerRadius', type: 'number', default: '10', description: '圆角半径（用于折线）' },
+  { name: 'animated', type: 'boolean', default: 'false', description: '是否启用流动波浪效果' },
+  { name: 'waveColor', type: 'string', default: "'#3b82f6'", description: '波浪颜色' },
+  { name: 'waveWidth', type: 'number', default: '4', description: '波浪线条宽度' },
+  { name: 'waveLength', type: 'number', default: '20', description: '单个波浪长度（像素）' },
+  { name: 'waveSpeed', type: 'number', default: '2', description: '波浪流动速度（像素/帧）' },
+  { name: 'waveOpacity', type: 'number', default: '0.8', description: '波浪透明度（0-1）' },
+];
+
 // Edge 类方法表格数据
 const edgeMethodsColumns = [
-  { title: '方法名', dataIndex: 'name', width: 200 },
-  { title: '参数', dataIndex: 'params', width: 250 },
-  { title: '返回值', dataIndex: 'return', width: 200 },
+  { title: '方法名', dataIndex: 'name', width: 220 },
+  { title: '参数', dataIndex: 'params', width: 280 },
+  { title: '返回值', dataIndex: 'return', width: 180 },
   { title: '说明', dataIndex: 'description' },
 ];
 
@@ -44,11 +68,14 @@ const edgeMethodsData = [
   { key: '4', name: 'getLabel() / setLabel(label)', params: 'label: string', return: 'string / void', description: '获取/设置边标签' },
   { key: '5', name: 'getType() / setType(type)', params: 'type: EdgeType', return: 'EdgeType / void', description: '获取/设置边类型' },
   { key: '6', name: 'getStyle() / setStyle(style)', params: 'style: Partial<EdgeStyle>', return: 'EdgeStyle / void', description: '获取/设置边样式' },
-  { key: '7', name: 'disconnect()', params: '-', return: 'boolean', description: '断开边连接（隐藏但不删除）' },
-  { key: '8', name: 'reconnect()', params: '-', return: 'boolean', description: '重新连接边' },
-  { key: '9', name: 'isConnected()', params: '-', return: 'boolean', description: '检查边是否已连接' },
-  { key: '10', name: 'toJSON()', params: '-', return: 'object', description: '序列化为 JSON' },
-  { key: '11', name: 'clone()', params: '-', return: 'Edge', description: '克隆边' },
+  { key: '7', name: 'startAnimation(waveOptions?)', params: 'waveOptions?: WaveOptions', return: 'boolean', description: '启动流动波浪动画，可传入波浪配置' },
+  { key: '8', name: 'stopAnimation()', params: '-', return: 'boolean', description: '停止流动波浪动画' },
+  { key: '9', name: 'isAnimationPlaying()', params: '-', return: 'boolean', description: '检查是否正在播放流动动画' },
+  { key: '10', name: 'disconnect()', params: '-', return: 'boolean', description: '断开边连接（隐藏但不删除）' },
+  { key: '11', name: 'reconnect()', params: '-', return: 'boolean', description: '重新连接边' },
+  { key: '12', name: 'isConnected()', params: '-', return: 'boolean', description: '检查边是否已连接' },
+  { key: '13', name: 'toJSON()', params: '-', return: 'object', description: '序列化为 JSON' },
+  { key: '14', name: 'clone()', params: '-', return: 'Edge', description: '克隆边' },
 ];
 
 // EdgeType 枚举
@@ -643,6 +670,191 @@ graph.on('node:drag', (e) => {
 
 addLog('边事件监听已启动，请与边交互...');`;
 
+// 示例 7: 流动波浪效果
+const EXAMPLE_7_CODE = `// 创建 Graph 画布
+const graph = new Graph({
+  container: container,
+  width: 600,
+  height: 400,
+  draggable: true,
+  scalable: true,
+  backgroundColor: '#f8fafc',
+  grid: { enabled: true, size: 20, color: '#e2e8f0' },
+});
+
+// 创建节点
+const node1 = graph.addNode({
+  id: 'node-1',
+  label: '数据源',
+  x: 100,
+  y: 200,
+  shape: Shape.Rect,
+  style: {
+    width: 100,
+    height: 60,
+    backgroundColor: '#3b82f6',
+    borderColor: '#2563eb',
+    textColor: '#ffffff',
+  },
+});
+
+const node2 = graph.addNode({
+  id: 'node-2',
+  label: '处理器',
+  x: 350,
+  y: 100,
+  shape: Shape.Rect,
+  style: {
+    width: 100,
+    height: 60,
+    backgroundColor: '#8b5cf6',
+    borderColor: '#7c3aed',
+    textColor: '#ffffff',
+  },
+});
+
+const node3 = graph.addNode({
+  id: 'node-3',
+  label: '输出',
+  x: 350,
+  y: 300,
+  shape: Shape.Rect,
+  style: {
+    width: 100,
+    height: 60,
+    backgroundColor: '#10b981',
+    borderColor: '#059669',
+    textColor: '#ffffff',
+  },
+});
+
+const node4 = graph.addNode({
+  id: 'node-4',
+  label: '存储',
+  x: 500,
+  y: 200,
+  shape: Shape.Circle,
+  style: {
+    width: 80,
+    height: 80,
+    backgroundColor: '#f59e0b',
+    borderColor: '#d97706',
+    textColor: '#ffffff',
+  },
+});
+
+// 添加连接桩
+node1.addPort({ id: 'port-right', position: 'right', visible: true });
+node2.addPort({ id: 'port-left', position: 'left', visible: true });
+node2.addPort({ id: 'port-right', position: 'right', visible: true });
+node3.addPort({ id: 'port-left', position: 'left', visible: true });
+node3.addPort({ id: 'port-right', position: 'right', visible: true });
+node4.addPort({ id: 'port-left', position: 'left', visible: true });
+
+// 创建边（初始不启用动画）
+const edge1 = graph.addEdge({
+  id: 'edge-flow-1',
+  source: { nodeId: 'node-1', portId: 'port-right' },
+  target: { nodeId: 'node-2', portId: 'port-left' },
+  label: '数据流',
+  type: EdgeType.Bezier,
+  style: {
+    stroke: '#3b82f6',
+    strokeWidth: 3,
+    arrowSize: 10,
+  },
+});
+
+const edge2 = graph.addEdge({
+  id: 'edge-flow-2',
+  source: { nodeId: 'node-1', portId: 'port-right' },
+  target: { nodeId: 'node-3', portId: 'port-left' },
+  label: '控制流',
+  type: EdgeType.Bezier,
+  style: {
+    stroke: '#8b5cf6',
+    strokeWidth: 3,
+    arrowSize: 10,
+  },
+});
+
+const edge3 = graph.addEdge({
+  id: 'edge-flow-3',
+  source: { nodeId: 'node-2', portId: 'port-right' },
+  target: { nodeId: 'node-4', portId: 'port-left' },
+  label: '输出 1',
+  type: EdgeType.Horizontal,
+  style: {
+    stroke: '#10b981',
+    strokeWidth: 3,
+    arrowSize: 10,
+  },
+});
+
+const edge4 = graph.addEdge({
+  id: 'edge-flow-4',
+  source: { nodeId: 'node-3', portId: 'port-right' },
+  target: { nodeId: 'node-4', portId: 'port-left' },
+  label: '输出 2',
+  type: EdgeType.Horizontal,
+  style: {
+    stroke: '#f59e0b',
+    strokeWidth: 3,
+    arrowSize: 10,
+  },
+});
+
+// 日志输出
+const addLog = (message) => {
+  console.log('[Flow]', message);
+};
+
+// 启动 edge1 的流动动画（使用默认配置）
+edge1.startAnimation();
+
+// 启动 edge2 的流动动画（自定义波浪配置）
+edge2.startAnimation({
+  waveColor: '#a78bfa',
+  waveWidth: 5,
+  waveLength: 25,
+  waveSpeed: 2,
+  waveOpacity: 0.8,
+});
+
+// 启动 edge3 的流动动画
+edge3.startAnimation({
+  waveColor: '#34d399',
+  waveWidth: 5,
+  waveLength: 20,
+  waveSpeed: 4,
+  waveOpacity: 0.85,
+});
+
+// 启动 edge4 的流动动画
+edge4.startAnimation({
+  waveColor: '#fbbf24',
+  waveWidth: 5,
+  waveLength: 22,
+  waveSpeed: 3.5,
+  waveOpacity: 0.85,
+});
+
+// 监听边点击事件 - 点击切换动画状态
+graph.on('edge:click', (e) => {
+  const edge = e.edge;
+  const label = edge.getLabel();
+  
+  if (edge.isAnimationPlaying()) {
+    edge.stopAnimation();
+    addLog('停止动画: ' + label);
+  } else {
+    edge.startAnimation();
+    addLog('启动动画: ' + label);
+  }
+});
+
+addLog('点击任意边可切换动画状态');`;
+
 // 所有示例
 const EXAMPLES = [
   { id: 'example-1', title: '直线边', code: EXAMPLE_1_CODE },
@@ -651,6 +863,7 @@ const EXAMPLES = [
   { id: 'example-4', title: '样式配置', code: EXAMPLE_4_CODE },
   { id: 'example-5', title: '多端口连接', code: EXAMPLE_5_CODE },
   { id: 'example-6', title: '边事件', code: EXAMPLE_6_CODE },
+  { id: 'example-7', title: '流动波浪', code: EXAMPLE_7_CODE },
 ];
 
 /**
@@ -769,6 +982,12 @@ export const EdgeExample: React.FC = () => {
           </h3>
           <Table columns={edgeOptionsColumns} dataSource={edgeOptionsData} pagination={false} />
         </div>
+        <div id="edge-style-section" style={{ marginBottom: '24px' }}>
+          <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#1e293b' }}>
+            EdgeStyle - 边样式配置（含流动波浪）
+          </h3>
+          <Table columns={edgeStyleColumns} dataSource={edgeStyleData} pagination={false} />
+        </div>
         <div id="edge-type-section" style={{ marginBottom: '24px' }}>
           <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#1e293b' }}>
             EdgeType - 边类型枚举
@@ -841,6 +1060,7 @@ export const EdgeExample: React.FC = () => {
             <Anchor.Link key={ex.id} href={`#${ex.id}`} title={`示例 ${index + 1}: ${ex.title}`} />
           ))}
           <Anchor.Link href="#edge-options-section" title="EdgeOptions" />
+          <Anchor.Link href="#edge-style-section" title="EdgeStyle" />
           <Anchor.Link href="#edge-type-section" title="EdgeType 枚举" />
           <Anchor.Link href="#edge-methods-section" title="Edge 类方法" />
         </Anchor>
