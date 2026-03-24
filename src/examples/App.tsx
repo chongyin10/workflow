@@ -6,6 +6,7 @@ import {
     NodeExample,
     PortExample,
     ShapeExample,
+    ConnectionValidationExample,
     DndExample,
     DynamicHeightNodeExample,
     BlankEventExample,
@@ -16,7 +17,7 @@ import {
  *
  * 提供所有核心组件示例的导航和展示
  */
-type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'dnd' | 'dynamicHeightNode' | 'blankEvent';
+type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'connectionValidation' | 'dnd' | 'dynamicHeightNode' | 'blankEvent';
 
 interface ExampleItem {
     key: ExampleKey;
@@ -61,6 +62,12 @@ const examples: ExampleItem[] = [
         title: '🎨 Shape 形状示例',
         description: '内置形状类型和自定义多边形展示',
         component: ShapeExample,
+    },
+    {
+        key: 'connectionValidation',
+        title: '🔐 连接验证示例',
+        description: 'validateConnection 回调控制和连接规则验证',
+        component: ConnectionValidationExample,
     },
     {
         key: 'dnd',

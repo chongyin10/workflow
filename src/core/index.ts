@@ -5,7 +5,14 @@
  */
 
 // Graph 画布
-export { Graph, type GraphOptions, type GraphState, type Point } from './Graph';
+export {
+    Graph,
+    type GraphOptions,
+    type GraphState,
+    type Point,
+    type ConnectionValidateContext,
+    type ConnectionValidator,
+} from './Graph';
 
 // 节点
 export {

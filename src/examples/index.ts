@@ -24,6 +24,10 @@ export { default as PortExampleComponent } from './PortExample';
 export { ShapeExample } from './ShapeExample';
 export { default as ShapeExampleComponent } from './ShapeExample';
 
+// 连接验证示例
+export { ConnectionValidationExample } from './ConnectionValidationExample';
+export { default as ConnectionValidationExampleComponent } from './ConnectionValidationExample';
+
 // Dnd 拖拽示例
 export { default as DndExample } from './DndExample';
 export { default as DynamicHeightNodeExample } from './DynamicHeightNodeExample';

@@ -95,6 +95,10 @@ export class Node extends Cell {
     private ports: Map<string, Port> = new Map();
     private portManager: PortManager;
 
+    // HTML 节点相关
+    private htmlElement: HTMLElement | null = null;
+    private graph: any = null;
+
     // 默认样式
     private static readonly DEFAULT_STYLE: NodeStyle = {
         width: 200,
@@ -321,6 +325,13 @@ export class Node extends Cell {
     draw(ctx: CanvasRenderingContext2D): void {
         const style = this.style;
 
+        // HTML 节点在 Canvas 中绘制占位符，真实 DOM 元素由 Graph 管理
+        if (this.isHtmlNode()) {
+            this.drawHtmlPlaceholder(ctx);
+            this.drawAllPorts(ctx);
+            return;
+        }
+
         ctx.save();
 
         // 绘制阴影
@@ -386,6 +397,110 @@ export class Node extends Cell {
         // 绘制所有连接桩
         this.drawAllPorts(ctx);
     }
+
+    /**
+     * 绘制 HTML 节点的占位符
+     * @param ctx - Canvas 2D 上下文
+     */
+    private drawHtmlPlaceholder(ctx: CanvasRenderingContext2D): void {
+        const style = this.style;
+
+        ctx.save();
+
+        // 绘制阴影
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
+        ctx.shadowBlur = 8;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 2;
+
+        // 绘制圆角矩形占位框 (border-radius: 8px)
+        ctx.beginPath();
+        const left = this.position.x - style.width / 2;
+        const top = this.position.y - style.height / 2;
+        const radius = 8;
+        ctx.roundRect(left, top, style.width, style.height, radius);
+
+        // 填充白色背景
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+
+        ctx.restore();
+    }
+
+    /**
+     * 判断是否为 HTML 节点
+     */
+    isHtmlNode(): boolean {
+        return this.shapeConfig.type === Shape.HTML;
+    }
+
+    /**
+     * 创建 HTML 节点的 DOM 元素
+     * @param graph - Graph 实例
+     */
+    createHtmlElement(graph: any): HTMLElement {
+        if (!this.isHtmlNode() || this.htmlElement) {
+            return this.htmlElement!;
+        }
+
+        this.graph = graph;
+
+        // 创建容器元素
+        const element = document.createElement('div');
+        element.style.cssText = `
+            position: absolute;
+            width: ${this.style.width}px;
+            height: ${this.style.height}px;
+            left: 0;
+            top: 0;
+            pointer-events: none;
+            z-index: 1;
+            transform-origin: center center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+
+        // 设置 HTML 内容
+        const htmlContent = this.shapeConfig.html || '';
+        element.innerHTML = htmlContent;
+
+        this.htmlElement = element;
+
+        // 添加到 Graph 的 overlay 层
+        graph.addHtmlNodeElement(this.id, element);
+
+        return element;
+    }
+
+    /**
+     * 移除 HTML 节点的 DOM 元素
+     */
+    removeHtmlElement(): void {
+        if (this.htmlElement && this.graph) {
+            this.graph.removeHtmlNodeElement(this.id);
+            this.htmlElement = null;
+            this.graph = null;
+        }
+    }
+
+    /**
+     * 更新 HTML 节点的 DOM 内容
+     */
+    updateHtmlContent(html: string): void {
+        this.shapeConfig.html = html;
+        if (this.htmlElement) {
+            this.htmlElement.innerHTML = html;
+        }
+    }
+
+    /**
+     * 获取 HTML 元素
+     */
+    getHtmlElement(): HTMLElement | null {
+        return this.htmlElement;
+    }
+
 
     /**
      * 绘制节点连接点（锚点）

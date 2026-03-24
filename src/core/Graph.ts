@@ -10,6 +10,27 @@ export interface Point {
     y: number;
 }
 
+/**
+ * 连接验证上下文 - 提供给验证函数的连接信息
+ */
+export interface ConnectionValidateContext {
+    /** 源节点 */
+    sourceNode: Node;
+    /** 源连接桩 */
+    sourcePort: Port;
+    /** 目标节点 */
+    targetNode: Node;
+    /** 目标连接桩 */
+    targetPort: Port;
+}
+
+/**
+ * 连接验证函数类型
+ * @param context - 连接验证上下文
+ * @returns 返回 true 允许连接，返回 false 阻止连接
+ */
+export type ConnectionValidator = (context: ConnectionValidateContext) => boolean;
+
 export interface GraphOptions {
     /** 容器元素 */
     container: HTMLElement;
@@ -45,6 +66,30 @@ export interface GraphOptions {
         size?: number;
         color?: string;
     };
+    /**
+     * 连接验证函数
+     * 当用户尝试连接两个连接桩时调用，返回 true 允许连接，返回 false 阻止连接
+     * @example
+     * ```typescript
+     * const graph = new Graph({
+     *     container: document.getElementById('canvas'),
+     *     validateConnection: ({ sourceNode, sourcePort, targetNode, targetPort }) => {
+     *         // 示例1: 不允许连接到同一个节点
+     *         if (sourceNode.getId() === targetNode.getId()) {
+     *             return false;
+     *         }
+     *         // 示例2: 只允许左侧连接桩连接到右侧连接桩
+     *         const sourcePos = sourcePort.getPosition();
+     *         const targetPos = targetPort.getPosition();
+     *         if (sourcePos !== 'right' || targetPos !== 'left') {
+     *             return false;
+     *         }
+     *         return true;
+     *     }
+     * });
+     * ```
+     */
+    validateConnection?: ConnectionValidator;
 }
 
 export interface GraphState {
@@ -68,6 +113,7 @@ export class Graph {
     private container: HTMLElement;
     private canvas: HTMLCanvasElement;
     private ctx: CanvasRenderingContext2D;
+    private overlay: HTMLDivElement;
     private options: Required<GraphOptions>;
     private state: GraphState;
     private nodes: Map<string, Node> = new Map();
@@ -89,6 +135,9 @@ export class Graph {
     private connectTargetPort: Port | null = null;
     private connectCurrentPoint: Point = { x: 0, y: 0 };
     private rafId: number | null = null;
+
+    // HTML 节点元素管理
+    private htmlNodeElements: Map<string, HTMLElement> = new Map();
     private boundHandlers: {
         onMouseDown: (e: globalThis.MouseEvent) => void;
         onMouseMove: (e: globalThis.MouseEvent) => void;
@@ -144,6 +193,7 @@ export class Graph {
                 size: 20,
                 color: '#e5e7eb',
             },
+            validateConnection: () => true, // 默认允许所有连接
         };
 
     constructor(options: GraphOptions) {
@@ -173,6 +223,9 @@ export class Graph {
         // 创建画布元素
         this.canvas = this.createCanvas();
         this.ctx = this.canvas.getContext('2d')!;
+
+        // 创建 overlay 层
+        this.overlay = this.createOverlay();
 
         // 绑定事件处理器
         this.boundHandlers = {
@@ -210,6 +263,89 @@ export class Graph {
     }
 
     /**
+     * 创建 Overlay 层用于放置 HTML 节点
+     */
+    private createOverlay(): HTMLDivElement {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 10;
+    `;
+        return overlay;
+    }
+
+    /**
+     * 获取 Overlay 层
+     */
+    getOverlay(): HTMLDivElement {
+        return this.overlay;
+    }
+
+    /**
+     * 添加 HTML 节点元素到 Overlay
+     */
+    addHtmlNodeElement(nodeId: string, element: HTMLElement): void {
+        this.htmlNodeElements.set(nodeId, element);
+        this.overlay.appendChild(element);
+    }
+
+    /**
+     * 移除 HTML 节点元素
+     */
+    removeHtmlNodeElement(nodeId: string): void {
+        const element = this.htmlNodeElements.get(nodeId);
+        if (element && element.parentNode === this.overlay) {
+            this.overlay.removeChild(element);
+        }
+        this.htmlNodeElements.delete(nodeId);
+    }
+
+    /**
+     * 获取 HTML 节点元素
+     */
+    getHtmlNodeElement(nodeId: string): HTMLElement | undefined {
+        return this.htmlNodeElements.get(nodeId);
+    }
+
+    /**
+     * 更新 HTML 节点的位置和变换
+     */
+    updateHtmlNodeTransform(node: Node): void {
+        const element = this.htmlNodeElements.get(node.getId());
+        if (element) {
+            const pos = node.getPosition();
+            const { offset, scale } = this.state;
+            // 计算屏幕坐标 = 世界坐标 * 缩放 + 偏移
+            const screenX = pos.x * scale + offset.x;
+            const screenY = pos.y * scale + offset.y;
+            // CSS transform 从右到左执行：
+            // 1. translate(-50%, -50%) 将元素中心移到原点
+            // 2. scale(scale) 缩放元素
+            // 3. translate(screenX, screenY) 移动到目标屏幕位置
+            element.style.transform = `translate(${screenX}px, ${screenY}px) scale(${scale}) translate(-50%, -50%)`;
+        }
+    }
+
+    /**
+     * 同步所有 HTML 节点的位置和变换
+     */
+    syncHtmlNodeTransforms(): void {
+        // 只更新 HTML 节点的位置，而不是所有节点
+        this.htmlNodeElements.forEach((element, nodeId) => {
+            const node = this.nodes.get(nodeId);
+            if (node) {
+                this.updateHtmlNodeTransform(node);
+            }
+        });
+    }
+
+    /**
      * 初始化组件
      */
     private init(): void {
@@ -223,6 +359,9 @@ export class Graph {
 
         // 添加画布到容器
         this.container.appendChild(this.canvas);
+        
+        // 添加 overlay 层到容器
+        this.container.appendChild(this.overlay);
 
         // 设置画布尺寸
         this.resizeCanvas();
@@ -461,6 +600,21 @@ export class Graph {
         // 如果有有效的目标连接桩，创建边
         if (this.connectSourceNode && this.connectSourcePort &&
             this.connectTargetNode && this.connectTargetPort) {
+            
+            // 调用连接验证函数
+            const validateResult = this.options.validateConnection({
+                sourceNode: this.connectSourceNode,
+                sourcePort: this.connectSourcePort,
+                targetNode: this.connectTargetNode,
+                targetPort: this.connectTargetPort,
+            });
+            
+            // 如果验证失败，不创建边
+            if (!validateResult) {
+                this.resetConnection();
+                return;
+            }
+            
             this.addEdge({
                 id: `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                 source: {
@@ -814,6 +968,9 @@ export class Graph {
         // 恢复上下文状态
         this.ctx.restore();
 
+        // 同步 HTML 节点的位置和缩放
+        this.syncHtmlNodeTransforms();
+
         // 触发自定义绘制
         this.onRender();
     }
@@ -936,10 +1093,17 @@ export class Graph {
      * @returns 节点实例
      */
     addNode(nodeOrOptions: NodeOptions | Node): Node {
-        const node = nodeOrOptions instanceof Node 
-            ? nodeOrOptions 
+        const node = nodeOrOptions instanceof Node
+            ? nodeOrOptions
             : new Node(nodeOrOptions);
         this.nodes.set(node.getId(), node);
+        
+        // 如果是 HTML 节点，创建 DOM 元素
+        if (node.isHtmlNode()) {
+            node.createHtmlElement(this);
+            this.updateHtmlNodeTransform(node);
+        }
+        
         this.scheduleRender();
         return node;
     }
@@ -967,6 +1131,10 @@ export class Graph {
                 });
                 this.selectedNode = null;
                 this.options.onNodeSelect(null);
+            }
+            // 如果是 HTML 节点，移除其 DOM 元素
+            if (node.isHtmlNode()) {
+                this.removeHtmlNodeElement(nodeId);
             }
             this.nodes.delete(nodeId);
             this.scheduleRender();
@@ -1089,6 +1257,13 @@ export class Graph {
             });
             this.selectedNode = null;
         }
+        // 清除所有 HTML 节点的 DOM 元素
+        this.htmlNodeElements.forEach((element, nodeId) => {
+            if (element.parentNode === this.overlay) {
+                this.overlay.removeChild(element);
+            }
+        });
+        this.htmlNodeElements.clear();
         this.nodes.clear();
         this.scheduleRender();
     }
@@ -1575,10 +1750,19 @@ export class Graph {
             this.container.removeChild(this.canvas);
         }
 
+        // 移除 overlay 层
+        if (this.overlay.parentNode === this.container) {
+            this.container.removeChild(this.overlay);
+        }
+
+        // 清空 HTML 节点元素
+        this.htmlNodeElements.clear();
+
         // 清空引用
         (this as any).container = null;
         (this as any).canvas = null;
         (this as any).ctx = null;
+        (this as any).overlay = null;
 
         // 清理事件管理器
         this.eventManager.clear();
