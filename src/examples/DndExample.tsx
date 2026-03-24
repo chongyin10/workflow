@@ -536,7 +536,8 @@ export default function DndExample() {
     graphRef.current = null;
 
     try {
-      const { Graph, Shape, EdgeType, Dnd } = await import('../core');
+      const { Graph, Shape, EdgeType } = await import('../core');
+      const { Dnd } = await import('../plugins');
 
       // 将 Shape 暴露到全局，供动态配置使用
       (globalThis as any).Shape = Shape;

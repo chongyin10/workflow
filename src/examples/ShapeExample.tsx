@@ -498,42 +498,316 @@ console.log('   - opacity: 不透明度 (0-1)');
 console.log('   - fontSize: 文本字体大小');
 console.log('   - 形状支持添加端口进行连接');`;
 
-// 示例 4: HTML 自定义形状
+// 示例 4: HTML 自定义形状 + 连接桩 + 边混合示例
 const EXAMPLE_4_CODE = `// 创建 Graph 画布
 const graph = new Graph({
   container: container,
   width: 700,
-  height: 400,
+  height: 450,
   draggable: true,
   scalable: true,
   backgroundColor: '#f8fafc',
   grid: { enabled: true, size: 20, color: '#e2e8f0' },
 });
 
-// ===== HTML 自定义形状 =====
-// 使用 HTML 内容作为节点，支持任意复杂的 UI
+// ===== HTML 自定义形状 + 连接桩 + 边 完整示例 =====
 
-// 卡片样式节点
-graph.addNode({
-  id: 'html-card',
-  label: '', // HTML 节点不需要 label
-  x: 100,
-  y: 100,
+// 1. 创建带有连接桩的 HTML 数据卡片节点
+const dataCardNode = graph.addNode({
+  id: 'html-data-card',
+  label: '',
+  x: 80,
+  y: 80,
   shape: {
     type: Shape.HTML,
     html: \`
-      <div>
-        <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px;">
-          📊 数据卡片
+      <div style="
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        padding: 16px;
+        box-sizing: border-box;
+        color: white;
+        font-family: system-ui, -apple-system, sans-serif;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+      ">
+        <div style="display: flex; align-items: center; margin-bottom: 12px;">
+          <div style="
+            width: 36px;
+            height: 36px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            margin-right: 10px;
+          ">📊</div>
+          <div>
+            <div style="font-weight: 600; font-size: 14px;">数据分析</div>
+            <div style="font-size: 11px; opacity: 0.8;">Data Analysis</div>
+          </div>
         </div>
-        <div style="font-size: 12px; opacity: 0.9; line-height: 1.5;">
-          这是一个 HTML 自定义节点<br/>
-          支持任意 HTML 内容
+        <div style="
+          background: rgba(255,255,255,0.15);
+          border-radius: 6px;
+          padding: 8px 12px;
+          font-size: 12px;
+        ">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span>处理量:</span>
+            <span style="font-weight: 600;">12,580</span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span>成功率:</span>
+            <span style="font-weight: 600; color: #86efac;">98.5%</span>
+          </div>
         </div>
-        <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.3);">
-          <span style="font-size: 11px; background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 4px;">
-            Status: Active
-          </span>
+      </div>
+    \`,
+  },
+  style: {
+    width: 180,
+    height: 140,
+  },
+});
+
+// 为数据卡片添加输入/输出连接桩
+dataCardNode.addPort({
+  id: 'port-in-1',
+  position: 'top',
+  visible: true,
+  style: { fillColor: '#22c55e', strokeColor: '#16a34a', width: 10, height: 10 },
+});
+dataCardNode.addPort({
+  id: 'port-in-2',
+  position: 'left',
+  visible: true,
+  style: { fillColor: '#22c55e', strokeColor: '#16a34a', width: 10, height: 10 },
+});
+dataCardNode.addPort({
+  id: 'port-out-1',
+  position: 'right',
+  visible: true,
+  style: { fillColor: '#f59e0b', strokeColor: '#d97706', width: 10, height: 10 },
+});
+dataCardNode.addPort({
+  id: 'port-out-2',
+  position: 'bottom',
+  visible: true,
+  style: { fillColor: '#f59e0b', strokeColor: '#d97706', width: 10, height: 10 },
+});
+
+// 2. 创建 HTML 处理器节点（带多连接桩）
+const processorNode = graph.addNode({
+  id: 'html-processor',
+  label: '',
+  x: 360,
+  y: 60,
+  shape: {
+    type: Shape.HTML,
+    html: \`
+      <div style="
+        width: 100%;
+        height: 100%;
+        background: #ffffff;
+        border: 2px solid #3b82f6;
+        border-radius: 8px;
+        padding: 12px;
+        box-sizing: border-box;
+        font-family: system-ui, sans-serif;
+      ">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+          <div style="
+            width: 28px;
+            height: 28px;
+            background: #dbeafe;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+          ">⚙️</div>
+          <div style="font-weight: 600; color: #1e293b; font-size: 13px;">数据处理器</div>
+        </div>
+        <div style="
+          background: #f1f5f9;
+          border-radius: 4px;
+          padding: 6px 10px;
+          font-size: 11px;
+          color: #64748b;
+        ">
+          状态: <span style="color: #22c55e; font-weight: 500;">● 运行中</span>
+        </div>
+      </div>
+    \`,
+  },
+  style: {
+    width: 150,
+    height: 100,
+  },
+});
+
+// 批量添加左侧输入连接桩
+processorNode.addPortGroup({
+  id: 'input-ports',
+  position: 'left',
+  count: 2,
+  portConfig: (index) => ({
+    id: \`processor-in-\${index + 1}\`,
+    visible: true,
+    style: { fillColor: '#3b82f6', strokeColor: '#2563eb', width: 10, height: 10, strokeWidth: 2 },
+  }),
+});
+
+// 批量添加右侧输出连接桩
+processorNode.addPortGroup({
+  id: 'output-ports',
+  position: 'right',
+  count: 2,
+  portConfig: (index) => ({
+    id: \`processor-out-\${index + 1}\`,
+    visible: true,
+    style: { fillColor: '#ef4444', strokeColor: '#dc2626', width: 10, height: 10, strokeWidth: 2 },
+  }),
+});
+
+// 3. 创建 HTML 输出节点
+const outputNode = graph.addNode({
+  id: 'html-output',
+  label: '',
+  x: 560,
+  y: 180,
+  shape: {
+    type: Shape.HTML,
+    html: \`
+      <div style="
+        width: 100%;
+        height: 100%;
+        background: #f0fdf4;
+        border: 2px solid #22c55e;
+        border-radius: 12px;
+        padding: 12px;
+        box-sizing: border-box;
+        font-family: system-ui, sans-serif;
+      ">
+        <div style="text-align: center;">
+          <div style="
+            width: 40px;
+            height: 40px;
+            background: #22c55e;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin: 0 auto 8px;
+          ">✓</div>
+          <div style="font-weight: 600; color: #166534; font-size: 12px;">输出结果</div>
+          <div style="font-size: 10px; color: #22c55e; margin-top: 4px;">已就绪</div>
+        </div>
+      </div>
+    \`,
+  },
+  style: {
+    width: 100,
+    height: 120,
+  },
+});
+
+outputNode.addPort({
+  id: 'output-in-1',
+  position: 'top',
+  visible: true,
+  style: { fillColor: '#22c55e', strokeColor: '#16a34a', width: 10, height: 10 },
+});
+outputNode.addPort({
+  id: 'output-in-2',
+  position: 'left',
+  visible: true,
+  style: { fillColor: '#22c55e', strokeColor: '#16a34a', width: 10, height: 10 },
+});
+
+// 4. 创建 HTML 错误处理节点
+const errorNode = graph.addNode({
+  id: 'html-error',
+  label: '',
+  x: 360,
+  y: 280,
+  shape: {
+    type: Shape.HTML,
+    html: \`
+      <div style="
+        width: 100%;
+        height: 100%;
+        background: #fef2f2;
+        border: 2px solid #ef4444;
+        border-radius: 8px;
+        padding: 12px;
+        box-sizing: border-box;
+        font-family: system-ui, sans-serif;
+      ">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="
+            width: 28px;
+            height: 28px;
+            background: #fecaca;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+          ">⚠️</div>
+          <div>
+            <div style="font-weight: 600; color: #dc2626; font-size: 12px;">错误处理</div>
+            <div style="font-size: 10px; color: #ef4444;">异常捕获</div>
+          </div>
+        </div>
+      </div>
+    \`,
+  },
+  style: {
+    width: 140,
+    height: 80,
+  },
+});
+
+errorNode.addPort({
+  id: 'error-in',
+  position: 'top',
+  visible: true,
+  style: { fillColor: '#ef4444', strokeColor: '#dc2626', width: 10, height: 10 },
+});
+
+// 5. 创建 HTML 日志节点
+const logNode = graph.addNode({
+  id: 'html-log',
+  label: '',
+  x: 80,
+  y: 280,
+  shape: {
+    type: Shape.HTML,
+    html: \`
+      <div style="
+        width: 100%;
+        height: 100%;
+        background: #1e293b;
+        border-radius: 8px;
+        padding: 12px;
+        box-sizing: border-box;
+        font-family: 'Monaco', 'Consolas', monospace;
+        color: #e2e8f0;
+        font-size: 11px;
+        overflow: hidden;
+      ">
+        <div style="color: #64748b; margin-bottom: 8px; border-bottom: 1px solid #334155; padding-bottom: 4px;">
+          📋 系统日志
+        </div>
+        <div style="line-height: 1.6;">
+          <div><span style="color: #22c55e;">✓</span> 连接成功</div>
+          <div><span style="color: #3b82f6;">ℹ</span> 数据接收中...</div>
+          <div><span style="color: #f59e0b;">⚡</span> 处理完成</div>
         </div>
       </div>
     \`,
@@ -544,133 +818,103 @@ graph.addNode({
   },
 });
 
-// 按钮样式节点
-graph.addNode({
-  id: 'html-button',
-  label: '',
-  x: 350,
-  y: 100,
-  shape: {
-    type: Shape.HTML,
-    html: \`
-      <div>
-        <div style="
-          width: 48px;
-          height: 48px;
-          background: #3b82f6;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 24px;
-        ">🚀</div>
-        <div style="font-weight: 600; color: #1e293b;">启动任务</div>
-        <div style="font-size: 11px; color: #64748b;">点击开始执行</div>
-      </div>
-    \`,
-  },
+logNode.addPort({
+  id: 'log-in',
+  position: 'top',
+  visible: true,
+  style: { fillColor: '#64748b', strokeColor: '#475569', width: 10, height: 10 },
+});
+logNode.addPort({
+  id: 'log-out',
+  position: 'bottom',
+  visible: true,
+  style: { fillColor: '#64748b', strokeColor: '#475569', width: 10, height: 10 },
+});
+
+// ===== 创建边连接 =====
+
+// 数据卡片 -> 处理器 (直线边)
+graph.addEdge({
+  id: 'edge-1',
+  source: { nodeId: 'html-data-card', portId: 'port-out-1' },
+  target: { nodeId: 'html-processor', portId: 'processor-in-1' },
+  type: EdgeType.Straight,
   style: {
-    width: 120,
-    height: 130,
+    stroke: '#3b82f6',
+    strokeWidth: 2,
+    arrowSize: 8,
   },
 });
 
-// 带输入框的表单节点
-graph.addNode({
-  id: 'html-form',
-  label: '',
-  x: 100,
-  y: 260,
-  shape: {
-    type: Shape.HTML,
-    html: \`
-      <div>
-        <div style="font-weight: 600; margin-bottom: 12px; color: #334155;">配置表单</div>
-        <div style="margin-bottom: 8px;">
-          <label style="font-size: 11px; color: #64748b; display: block; margin-bottom: 4px;">名称</label>
-          <input type="text" value="Node-001" readonly style="
-            width: 100%;
-            padding: 6px 10px;
-            border: 1px solid #cbd5e1;
-            border-radius: 4px;
-            font-size: 12px;
-            box-sizing: border-box;
-          "/>
-        </div>
-        <div>
-          <label style="font-size: 11px; color: #64748b; display: block; margin-bottom: 4px;">类型</label>
-          <select disabled style="
-            width: 100%;
-            padding: 6px 10px;
-            border: 1px solid #cbd5e1;
-            border-radius: 4px;
-            font-size: 12px;
-            background: white;
-          ">
-            <option>处理器</option>
-            <option>数据源</option>
-          </select>
-        </div>
-      </div>
-    \`,
-  },
+// 处理器 -> 输出结果 (贝塞尔曲线)
+graph.addEdge({
+  id: 'edge-2',
+  source: { nodeId: 'html-processor', portId: 'processor-out-1' },
+  target: { nodeId: 'html-output', portId: 'output-in-1' },
+  label: '成功',
+  type: EdgeType.Bezier,
   style: {
-    width: 200,
-    height: 160,
+    stroke: '#22c55e',
+    strokeWidth: 2,
+    arrowSize: 8,
   },
 });
 
-// 进度指示器节点
-graph.addNode({
-  id: 'html-progress',
-  label: '',
-  x: 380,
-  y: 260,
-  shape: {
-    type: Shape.HTML,
-    html: \`
-      <div>
-        <div style="display: flex; align-items: center; margin-bottom: 12px;">
-          <div style="
-            width: 32px;
-            height: 32px;
-            background: #22c55e;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 10px;
-          ">✓</div>
-          <div>
-            <div style="font-weight: 600; color: #1e293b;">任务完成</div>
-            <div style="font-size: 11px; color: #64748b;">处理成功</div>
-          </div>
-        </div>
-        <div style="background: #f1f5f9; height: 6px; border-radius: 3px; overflow: hidden;">
-          <div style="background: #22c55e; height: 100%; width: 100%; border-radius: 3px;"></div>
-        </div>
-        <div style="text-align: right; font-size: 11px; color: #64748b; margin-top: 6px;">100%</div>
-      </div>
-    \`,
-  },
+// 处理器 -> 错误处理 (折线)
+graph.addEdge({
+  id: 'edge-3',
+  source: { nodeId: 'html-processor', portId: 'processor-out-2' },
+  target: { nodeId: 'html-error', portId: 'error-in' },
+  label: '异常',
+  type: EdgeType.Vertical,
   style: {
-    width: 180,
-    height: 120,
+    stroke: '#ef4444',
+    strokeWidth: 2,
+    strokeDasharray: '5,5',
+    arrowSize: 8,
   },
 });
 
-console.log('🎨 HTML 自定义形状创建完成');
-console.log('   - 支持任意 HTML 内容');
-console.log('   - 可以包含表单、按钮、图表等');
-console.log('   - 通过 style.width/height 设置尺寸');
-console.log('   - 注意：HTML 节点内部交互需自行处理');`;
+// 数据卡片 -> 日志 (水平折线)
+graph.addEdge({
+  id: 'edge-4',
+  source: { nodeId: 'html-data-card', portId: 'port-out-2' },
+  target: { nodeId: 'html-log', portId: 'log-in' },
+  type: EdgeType.Horizontal,
+  style: {
+    stroke: '#64748b',
+    strokeWidth: 1.5,
+    arrowSize: 6,
+  },
+});
+
+console.log('🎨 HTML 自定义形状 + 连接桩 + 边 混合示例');
+console.log('==========================================');
+console.log('📦 节点类型:');
+console.log('   - HTML 数据卡片 (带渐变背景)');
+console.log('   - HTML 处理器 (带批量连接桩)');
+console.log('   - HTML 输出结果 (圆形图标)');
+console.log('   - HTML 错误处理 (红色警示)');
+console.log('   - HTML 日志终端 (深色主题)');
+console.log('');
+console.log('🔌 连接桩特性:');
+console.log('   - 单端口添加: node.addPort()');
+console.log('   - 批量添加: node.addPortGroup()');
+console.log('   - 不同颜色区分输入/输出');
+console.log('');
+console.log('🔗 边连接:');
+console.log('   - EdgeType.Straight: 直线');
+console.log('   - EdgeType.Bezier: 贝塞尔曲线');
+console.log('   - EdgeType.Horizontal: 水平折线');
+console.log('   - EdgeType.Vertical: 垂直折线');
+console.log('   - 支持虚线样式 (strokeDasharray)');`;
 
 // 所有示例
 const EXAMPLES = [
   { id: 'example-1', title: '基础形状', code: EXAMPLE_1_CODE },
   { id: 'example-2', title: '圆角与多边形', code: EXAMPLE_2_CODE },
   { id: 'example-3', title: '样式配置', code: EXAMPLE_3_CODE },
-  { id: 'example-4', title: 'HTML 自定义', code: EXAMPLE_4_CODE },
+  { id: 'example-4', title: 'HTML + 连接桩 + 边', code: EXAMPLE_4_CODE },
 ];
 
 /**
@@ -696,17 +940,18 @@ export const ShapeExample: React.FC = () => {
     graphContainerRef.current.innerHTML = '';
 
     try {
-      const { Graph, Shape } = await import('../core');
+      const { Graph, Shape, EdgeType } = await import('../core');
 
       const sandbox = {
         container: graphContainerRef.current,
         console: window.console,
         Graph,
         Shape,
+        EdgeType,
       };
 
       const executableCode = `'use strict';
-        const { container, console, Graph, Shape } = sandbox;
+        const { container, console, Graph, Shape, EdgeType } = sandbox;
         ${codeToExecute}
       `;
 
@@ -802,7 +1047,7 @@ export const ShapeExample: React.FC = () => {
         </div>
         <div id="shape-html-section" style={{ marginBottom: '24px' }}>
           <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#1e293b' }}>
-            Shape.HTML - HTML 自定义形状
+            Shape.HTML - HTML 自定义形状 + 连接桩 + 边
           </h3>
           <Table
             columns={[
@@ -817,6 +1062,37 @@ export const ShapeExample: React.FC = () => {
             ]}
             pagination={false}
           />
+          <div style={{ marginTop: '16px' }}>
+            <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#334155' }}>HTML 节点添加连接桩</h4>
+            <Table
+              columns={[
+                { title: '方法', dataIndex: 'method', width: 280 },
+                { title: '说明', dataIndex: 'description' },
+              ]}
+              dataSource={[
+                { method: 'node.addPort({ id, position, visible, style })', description: '添加单个连接桩，position 支持 "top"/"right"/"bottom"/"left"' },
+                { method: 'node.addPortGroup({ id, position, count, portConfig })', description: '批量添加连接桩，自动均匀分布' },
+              ]}
+              pagination={false}
+            />
+          </div>
+          <div style={{ marginTop: '16px' }}>
+            <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#334155' }}>创建边连接</h4>
+            <Table
+              columns={[
+                { title: '属性', dataIndex: 'prop', width: 180 },
+                { title: '说明', dataIndex: 'description' },
+              ]}
+              dataSource={[
+                { prop: 'source', description: '源连接点 { nodeId: string, portId: string }' },
+                { prop: 'target', description: '目标连接点 { nodeId: string, portId: string }' },
+                { prop: 'type', description: 'EdgeType.Straight | Bezier | Horizontal | Vertical | Arc' },
+                { prop: 'style', description: 'stroke, strokeWidth, strokeDasharray, arrowSize 等样式' },
+                { prop: 'label', description: '边的显示文本' },
+              ]}
+              pagination={false}
+            />
+          </div>
         </div>
         <div id="shape-usage-tips">
           <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#1e293b' }}>使用提示</h3>
@@ -827,6 +1103,8 @@ export const ShapeExample: React.FC = () => {
             <li><strong>碰撞检测：</strong>所有形状都支持点是否在形状内的检测</li>
             <li><strong>锚点计算：</strong>形状支持根据位置获取边界锚点，用于边连接</li>
             <li><strong>HTML 形状：</strong>通过 html 属性传入 HTML 字符串，支持任意复杂 UI</li>
+            <li><strong>连接桩混合：</strong>HTML 节点可以像普通节点一样添加连接桩和使用边连接</li>
+            <li><strong>批量连接桩：</strong>使用 addPortGroup 可以快速创建多个均匀分布的连接桩</li>
           </ul>
         </div>
       </div>
@@ -892,7 +1170,7 @@ export const ShapeExample: React.FC = () => {
           ))}
           <Anchor.Link href="#shape-type-section" title="Shape 类型" />
           <Anchor.Link href="#shape-style-section" title="ShapeStyle 样式" />
-          <Anchor.Link href="#shape-html-section" title="HTML 形状" />
+          <Anchor.Link href="#shape-html-section" title="HTML + Port + Edge" />
           <Anchor.Link href="#shape-usage-tips" title="使用提示" />
         </Anchor>
       </div>

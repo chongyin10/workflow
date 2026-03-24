@@ -3,7 +3,7 @@ import { DynamicHeightNode } from './DynamicNode';
 import { Edge, EdgeOptions, EdgeType, type EdgeEvent } from './Edge';
 import { Port, type PortEvent } from './Port';
 import { EventManager, EVENT_NAMES, type BaseEvent, type MouseEvent, type WheelEvent, type EventHandler } from './EventManager';
-import { Plugin } from './Dnd';
+import { Plugin } from '../plugins';
 
 export interface Point {
     x: number;
@@ -114,6 +114,8 @@ export class Graph {
     private canvas: HTMLCanvasElement;
     private ctx: CanvasRenderingContext2D;
     private overlay: HTMLDivElement;
+    private edgeCanvas: HTMLCanvasElement;
+    private edgeCtx: CanvasRenderingContext2D;
     private options: Required<GraphOptions>;
     private state: GraphState;
     private nodes: Map<string, Node> = new Map();
@@ -227,6 +229,10 @@ export class Graph {
         // 创建 overlay 层
         this.overlay = this.createOverlay();
 
+        // 创建边线层（在 HTML 节点上方）
+        this.edgeCanvas = this.createEdgeCanvas();
+        this.edgeCtx = this.edgeCanvas.getContext('2d')!;
+
         // 绑定事件处理器
         this.boundHandlers = {
             onMouseDown: this.handleMouseDown.bind(this),
@@ -258,6 +264,8 @@ export class Graph {
       touch-action: none;
       user-select: none;
       -webkit-user-select: none;
+      position: relative;
+      z-index: 1;
     `;
         return canvas;
     }
@@ -275,9 +283,26 @@ export class Graph {
       height: 100%;
       pointer-events: none;
       overflow: hidden;
-      z-index: 10;
+      z-index: 2;
     `;
         return overlay;
+    }
+
+    /**
+     * 创建边线层 Canvas（在 HTML 节点上方）
+     */
+    private createEdgeCanvas(): HTMLCanvasElement {
+        const canvas = document.createElement('canvas');
+        canvas.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 3;
+    `;
+        return canvas;
     }
 
     /**
@@ -359,11 +384,14 @@ export class Graph {
       height: 100%;
     `;
 
-        // 添加画布到容器
+        // 添加画布到容器（底层：网格和节点）
         this.container.appendChild(this.canvas);
         
-        // 添加 overlay 层到容器
+        // 添加 overlay 层到容器（中层：HTML 节点）
         this.container.appendChild(this.overlay);
+
+        // 添加边线层到容器（顶层：边线，在 HTML 节点上方）
+        this.container.appendChild(this.edgeCanvas);
 
         // 设置画布尺寸
         this.resizeCanvas();
@@ -386,13 +414,21 @@ export class Graph {
             const rect = this.container.getBoundingClientRect();
             const dpr = window.devicePixelRatio || 1;
 
+            // 调整主画布尺寸
             this.canvas.width = rect.width * dpr;
             this.canvas.height = rect.height * dpr;
             this.canvas.style.width = `${rect.width}px`;
             this.canvas.style.height = `${rect.height}px`;
 
+            // 调整边线层画布尺寸
+            this.edgeCanvas.width = rect.width * dpr;
+            this.edgeCanvas.height = rect.height * dpr;
+            this.edgeCanvas.style.width = `${rect.width}px`;
+            this.edgeCanvas.style.height = `${rect.height}px`;
+
             // 重置变换矩阵并设置上下文缩放以适应 DPR
             this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            this.edgeCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
             this.render();
         });
@@ -412,6 +448,8 @@ export class Graph {
                 'mouseleave',
                 this.boundHandlers.onMouseLeave
             );
+            // 给 overlay 添加 mousemove 监听，确保在 HTML 节点上移动时也能更新连接预览线
+            this.overlay.addEventListener('mousemove', this.boundHandlers.onMouseMove);
         }
 
         if (this.options.scalable) {
@@ -450,6 +488,7 @@ export class Graph {
         );
         document.removeEventListener('mousemove', this.boundHandlers.onMouseMove);
         document.removeEventListener('mouseup', this.boundHandlers.onMouseUp);
+        this.overlay.removeEventListener('mousemove', this.boundHandlers.onMouseMove);
         this.canvas.removeEventListener(
             'mouseleave',
             this.boundHandlers.onMouseLeave
@@ -577,6 +616,13 @@ export class Graph {
         this.connectTargetPort = null;
         
         this.canvas.style.cursor = 'crosshair';
+        
+        // 禁用所有 HTML 节点的鼠标事件捕获，使鼠标事件能够穿透到 overlay 层
+        // 这样在连接拖拽时，鼠标经过 HTML 节点也不会中断连接线的更新
+        this.htmlNodeElements.forEach((element) => {
+            element.style.pointerEvents = 'none';
+        });
+        
         this.scheduleRender();
     }
 
@@ -587,17 +633,17 @@ export class Graph {
         if (!this.isConnecting) return;
 
         this.connectCurrentPoint = worldPoint;
-        
+
         // 查找当前鼠标下的连接桩
         let targetPort: Port | null = null;
         let targetNode: Node | null = null;
-        
+
         const nodes = this.getAllNodes();
         for (let i = nodes.length - 1; i >= 0; i--) {
             const node = nodes[i];
             // 跳过源节点
             if (node === this.connectSourceNode) continue;
-            
+
             const port = node.getPortAtPoint(worldPoint);
             if (port) {
                 targetPort = port;
@@ -606,12 +652,62 @@ export class Graph {
             }
         }
 
+        // 吸附逻辑：如果鼠标不在连接桩上，检查是否在吸附范围内
+        if (!targetPort) {
+            let closestPort: Port | null = null;
+            let closestNode: Node | null = null;
+            let minDistance = Infinity;
+
+            for (const node of nodes) {
+                // 跳过源节点
+                if (node === this.connectSourceNode) continue;
+
+                const nodePos = node.getPosition();
+                const nodeStyle = node.getStyle();
+
+                // 获取节点的所有连接桩
+                const ports = node.getAllPorts ? node.getAllPorts() : [];
+
+                for (const port of ports) {
+                    const distance = port.getDistanceToPoint(
+                        worldPoint,
+                        nodePos.x,
+                        nodePos.y,
+                        nodeStyle.width,
+                        nodeStyle.height
+                    );
+                    const snapDistance = port.getSnapDistance();
+
+                    // 如果距离小于吸附距离且比之前找到的更近
+                    if (distance <= snapDistance && distance < minDistance) {
+                        minDistance = distance;
+                        closestPort = port;
+                        closestNode = node;
+                    }
+                }
+            }
+
+            if (closestPort && closestNode) {
+                targetPort = closestPort;
+                targetNode = closestNode;
+                // 吸附时，将当前点设置为连接桩的位置
+                const nodePos = targetNode.getPosition();
+                const nodeStyle = targetNode.getStyle();
+                this.connectCurrentPoint = targetPort.getConnectionPoint(
+                    nodePos.x,
+                    nodePos.y,
+                    nodeStyle.width,
+                    nodeStyle.height
+                );
+            }
+        }
+
         // 如果目标变化，更新状态
         if (targetPort !== this.connectTargetPort) {
             this.connectTargetPort = targetPort;
             this.connectTargetNode = targetNode;
         }
-        
+
         this.scheduleRender();
     }
 
@@ -674,6 +770,12 @@ export class Graph {
         this.connectTargetPort = null;
         this.connectCurrentPoint = { x: 0, y: 0 };
         this.canvas.style.cursor = 'grab';
+        
+        // 恢复所有 HTML 节点的鼠标事件捕获
+        this.htmlNodeElements.forEach((element) => {
+            element.style.pointerEvents = 'auto';
+        });
+        
         this.scheduleRender();
     }
 
@@ -962,15 +1064,21 @@ export class Graph {
     private render(): void {
         const { width, height } = this.canvas.getBoundingClientRect();
 
-        // 清空画布
+        // 清空主画布
         this.ctx.clearRect(0, 0, width, height);
+
+        // 清空边线层画布
+        this.edgeCtx.clearRect(0, 0, width, height);
 
         // 保存当前上下文状态
         this.ctx.save();
+        this.edgeCtx.save();
 
         // 应用变换
         this.ctx.translate(this.state.offset.x, this.state.offset.y);
         this.ctx.scale(this.state.scale, this.state.scale);
+        this.edgeCtx.translate(this.state.offset.x, this.state.offset.y);
+        this.edgeCtx.scale(this.state.scale, this.state.scale);
 
         // 绘制背景
         this.drawBackground();
@@ -980,17 +1088,18 @@ export class Graph {
             this.drawGrid(width, height);
         }
 
-        // 绘制所有边（在节点下方）
-        this.renderEdges();
-
-        // 绘制所有节点
+        // 绘制所有节点（在主画布上）
         this.renderNodes();
 
-        // 绘制连接中的临时连线（在节点上方）
+        // 绘制所有边（在边线层上，位于 HTML 节点上方）
+        this.renderEdges();
+
+        // 绘制连接中的临时连线（在边线层上）
         this.renderConnectingEdge();
 
         // 恢复上下文状态
         this.ctx.restore();
+        this.edgeCtx.restore();
 
         // 同步 HTML 节点的位置和缩放
         this.syncHtmlNodeTransforms();
@@ -1016,19 +1125,20 @@ export class Graph {
 
         const targetPoint = this.connectCurrentPoint;
 
-        this.ctx.save();
+        // 使用边线层画布绘制临时连线
+        this.edgeCtx.save();
 
         // 设置虚线样式
-        this.ctx.strokeStyle = this.connectTargetPort ? '#3b82f6' : '#94a3b8';
-        this.ctx.lineWidth = 2;
-        this.ctx.lineCap = 'round';
-        this.ctx.setLineDash([5, 5]);
+        this.edgeCtx.strokeStyle = this.connectTargetPort ? '#3b82f6' : '#94a3b8';
+        this.edgeCtx.lineWidth = 2;
+        this.edgeCtx.lineCap = 'round';
+        this.edgeCtx.setLineDash([5, 5]);
 
         // 绘制直线
-        this.ctx.beginPath();
-        this.ctx.moveTo(sourcePoint.x, sourcePoint.y);
-        this.ctx.lineTo(targetPoint.x, targetPoint.y);
-        this.ctx.stroke();
+        this.edgeCtx.beginPath();
+        this.edgeCtx.moveTo(sourcePoint.x, sourcePoint.y);
+        this.edgeCtx.lineTo(targetPoint.x, targetPoint.y);
+        this.edgeCtx.stroke();
 
         // 如果有目标连接桩，高亮显示
         if (this.connectTargetPort && this.connectTargetNode) {
@@ -1040,17 +1150,17 @@ export class Graph {
             );
 
             // 绘制目标点高亮圈
-            this.ctx.beginPath();
-            this.ctx.arc(portPos.x, portPos.y, 8, 0, Math.PI * 2);
-            this.ctx.fillStyle = 'rgba(59, 130, 246, 0.2)';
-            this.ctx.fill();
-            this.ctx.strokeStyle = '#3b82f6';
-            this.ctx.lineWidth = 2;
-            this.ctx.setLineDash([]);
-            this.ctx.stroke();
+            this.edgeCtx.beginPath();
+            this.edgeCtx.arc(portPos.x, portPos.y, 8, 0, Math.PI * 2);
+            this.edgeCtx.fillStyle = 'rgba(59, 130, 246, 0.2)';
+            this.edgeCtx.fill();
+            this.edgeCtx.strokeStyle = '#3b82f6';
+            this.edgeCtx.lineWidth = 2;
+            this.edgeCtx.setLineDash([]);
+            this.edgeCtx.stroke();
         }
 
-        this.ctx.restore();
+        this.edgeCtx.restore();
     }
 
     /**
@@ -1434,7 +1544,7 @@ export class Graph {
                     targetPoint = targetNode.getAnchorPoint(targetAnchor.position || 'center');
                 }
 
-                edge.draw(this.ctx, sourcePoint, targetPoint);
+                edge.draw(this.edgeCtx, sourcePoint, targetPoint);
             }
         });
     }
@@ -1779,6 +1889,11 @@ export class Graph {
             this.container.removeChild(this.overlay);
         }
 
+        // 移除边线层
+        if (this.edgeCanvas.parentNode === this.container) {
+            this.container.removeChild(this.edgeCanvas);
+        }
+
         // 清空 HTML 节点元素
         this.htmlNodeElements.clear();
 
@@ -1787,6 +1902,8 @@ export class Graph {
         (this as any).canvas = null;
         (this as any).ctx = null;
         (this as any).overlay = null;
+        (this as any).edgeCanvas = null;
+        (this as any).edgeCtx = null;
 
         // 清理事件管理器
         this.eventManager.clear();

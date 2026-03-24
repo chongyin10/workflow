@@ -43,6 +43,8 @@ export interface PortStyle {
     selectedStrokeColor: string;
     /** 背景色（用于透明连接桩） */
     backgroundColor: string;
+    /** 吸附距离（像素），当鼠标靠近此距离时自动吸附到连接桩 */
+    snapDistance: number;
 }
 
 /**
@@ -71,6 +73,8 @@ export interface PortOptions extends CellOptions {
     lable?: string;
     /** 连接桩标签的方位：'inside'内侧, 'outside'外侧, 'top'上面, 'bottom'下面。默认为'outside' */
     lablePosition?: 'inside' | 'outside' | 'top' | 'bottom';
+    /** 吸附距离（像素），当鼠标靠近此距离时自动吸附到连接桩 */
+    snapDistance?: number;
 }
 
 /**
@@ -155,6 +159,7 @@ export class Port extends Cell {
         selectedFillColor: '#dbeafe',
         selectedStrokeColor: '#3b82f6',
         backgroundColor: 'transparent',
+        snapDistance: 20,
     };
 
     /**
@@ -301,6 +306,20 @@ export class Port extends Cell {
     }
 
     /**
+     * 获取吸附距离
+     */
+    getSnapDistance(): number {
+        return this.style.snapDistance ?? Port.DEFAULT_STYLE.snapDistance;
+    }
+
+    /**
+     * 设置吸附距离
+     */
+    setSnapDistance(distance: number): void {
+        this.style.snapDistance = distance;
+    }
+
+    /**
      * 计算连接桩在世界坐标系中的实际位置
      * @param nodeX - 节点中心 X 坐标
      * @param nodeY - 节点中心 Y 坐标
@@ -338,6 +357,47 @@ export class Port extends Cell {
             default:
                 return { x: nodeX, y: nodeY };
         }
+    }
+
+    /**
+     * 计算点到连接桩的距离
+     * @param point - 要计算的点
+     * @param nodeX - 节点中心 X 坐标
+     * @param nodeY - 节点中心 Y 坐标
+     * @param nodeWidth - 节点宽度
+     * @param nodeHeight - 节点高度
+     * @returns 点到连接桩的距离
+     */
+    getDistanceToPoint(
+        point: { x: number; y: number },
+        nodeX: number,
+        nodeY: number,
+        nodeWidth: number,
+        nodeHeight: number
+    ): number {
+        const portPos = this.calculatePosition(nodeX, nodeY, nodeWidth, nodeHeight);
+        const dx = point.x - portPos.x;
+        const dy = point.y - portPos.y;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    /**
+     * 检查点是否在吸附范围内
+     * @param point - 要检查的点
+     * @param nodeX - 节点中心 X 坐标
+     * @param nodeY - 节点中心 Y 坐标
+     * @param nodeWidth - 节点宽度
+     * @param nodeHeight - 节点高度
+     * @returns 是否在吸附范围内
+     */
+    isInSnapRange(
+        point: { x: number; y: number },
+        nodeX: number,
+        nodeY: number,
+        nodeWidth: number,
+        nodeHeight: number
+    ): boolean {
+        return this.getDistanceToPoint(point, nodeX, nodeY, nodeWidth, nodeHeight) <= this.getSnapDistance();
     }
 
     /**

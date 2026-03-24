@@ -1,6 +1,6 @@
-import { Node, NodeOptions } from './Node';
-import { Graph, Point } from './Graph';
-import { EventManager, type EventHandler } from './EventManager';
+import { Node, NodeOptions } from '../core/Node';
+import { Graph, Point } from '../core/Graph';
+import { EventManager, type EventHandler } from '../core/EventManager';
 
 /**
  * Dnd 拖拽源配置
