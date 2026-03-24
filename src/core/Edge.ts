@@ -377,9 +377,12 @@ export class Edge extends Cell {
         }
 
         // 如果启用了波浪动画，只绘制波浪效果，不绘制实线轨道
-        if (this.style.animated && time !== undefined) {
+        // 使用 isAnimating 判断，确保动画状态一致
+        // 当 time 未定义时使用 performance.now() 获取当前时间，确保动画持续播放
+        if (this.isAnimating) {
             // 不绘制实线轨道，只绘制波浪
-            this.drawFlowingWave(ctx, sourcePoint, targetPoint, time);
+            const animationTime = time !== undefined ? time : performance.now();
+            this.drawFlowingWave(ctx, sourcePoint, targetPoint, animationTime);
         } else {
             // 没有波浪动画时，绘制实线轨道
             ctx.stroke();

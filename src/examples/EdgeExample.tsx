@@ -839,21 +839,17 @@ edge4.startAnimation({
   waveOpacity: 0.85,
 });
 
-// 监听边点击事件 - 点击切换动画状态
+// 监听边点击事件 - 点击边时保持动画继续播放
 graph.on('edge:click', (e) => {
   const edge = e.edge;
   const label = edge.getLabel();
   
-  if (edge.isAnimationPlaying()) {
-    edge.stopAnimation();
-    addLog('停止动画: ' + label);
-  } else {
-    edge.startAnimation();
-    addLog('启动动画: ' + label);
-  }
+  // 点击边时保持动画继续播放，不停止动画
+  // 如需手动控制动画，可使用 edge.startAnimation() / edge.stopAnimation()
+  addLog('点击边: ' + label + (edge.isAnimationPlaying() ? ' (动画播放中)' : ''));
 });
 
-addLog('点击任意边可切换动画状态');`;
+addLog('流动波浪动画示例 - 动画将持续播放');`;
 
 // 所有示例
 const EXAMPLES = [
