@@ -103,7 +103,7 @@ const App: React.FC = () => {
     const ActiveComponent = activeExample?.component || GraphExample;
 
     return (
-        <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+        <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
             {/* 侧边栏导航 */}
             <aside
                 style={{
@@ -113,6 +113,8 @@ const App: React.FC = () => {
                     padding: '20px',
                     overflowY: 'auto',
                     flexShrink: 0,
+                    height: '100vh',
+                    boxSizing: 'border-box',
                 }}
             >
                 <h1 style={{ fontSize: '20px', marginBottom: '10px', color: '#60a5fa' }}>
