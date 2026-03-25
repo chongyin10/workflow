@@ -49,7 +49,7 @@ const graphMethodsColumns = [
 ];
 
 const graphMethodsData = [
-  { key: '1', name: 'addNode(options)', params: 'options: NodeOptions', return: 'Node', description: '添加节点到画布' },
+  { key: '1', name: 'addNode(options)', params: 'options: NodeOptions', return: 'Node', description: '添加节点到画布，支持普通节点和 React 组件节点（需先安装 ReactShape 插件）' },
   { key: '2', name: 'removeNode(nodeId)', params: 'nodeId: string', return: 'boolean', description: '移除指定节点' },
   { key: '3', name: 'getNode(nodeId)', params: 'nodeId: string', return: 'Node | undefined', description: '获取指定节点' },
   { key: '4', name: 'getAllNodes()', params: '-', return: 'Node[]', description: '获取所有节点' },
@@ -86,7 +86,7 @@ const graphMethodsData = [
   { key: '35', name: 'on(eventName, handler)', params: 'eventName: string, handler: EventHandler', return: '() => void', description: '注册事件监听器' },
   { key: '36', name: 'once(eventName, handler)', params: 'eventName: string, handler: EventHandler', return: '() => void', description: '注册一次性事件监听器' },
   { key: '37', name: 'off(eventName, handler?)', params: 'eventName: string, handler?: EventHandler', return: 'void', description: '注销事件监听器' },
-  { key: '38', name: 'use(plugin)', params: 'plugin: Plugin', return: 'this', description: '注册插件' },
+  { key: '38', name: 'use(plugin)', params: 'plugin: Plugin', return: 'this', description: '注册插件（如 ReactShape 插件用于支持 React 组件节点）' },
   { key: '39', name: 'unuse(pluginName)', params: 'pluginName: string', return: 'this', description: '注销插件' },
   { key: '40', name: 'hasPlugin(pluginName)', params: 'pluginName: string', return: 'boolean', description: '检查是否已注册指定插件' },
   { key: '41', name: 'getOverlay()', params: '-', return: 'HTMLDivElement', description: '获取 Overlay 层（用于放置 HTML 节点）' },
@@ -99,6 +99,57 @@ const graphMethodsData = [
   { key: '48', name: 'setScalable(enabled)', params: 'enabled: boolean', return: 'void', description: '设置是否启用缩放' },
   { key: '49', name: 'startEdgeAnimation()', params: '-', return: 'void', description: '开始边动画循环' },
   { key: '50', name: 'stopEdgeAnimation()', params: '-', return: 'void', description: '停止边动画循环' },
+];
+
+// React Shape 插件方法表格数据
+const reactShapeMethodsColumns = [
+  { title: '方法名', dataIndex: 'name', width: 220 },
+  { title: '参数', dataIndex: 'params', width: 280 },
+  { title: '返回值', dataIndex: 'return', width: 180 },
+  { title: '说明', dataIndex: 'description' },
+];
+
+const reactShapeMethodsData = [
+  { key: '1', name: 'register(config)', params: 'config: ReactShapeConfig', return: 'void', description: '注册 React 组件形状（简洁 API，推荐）' },
+  { key: '2', name: 'Graph.register(config)', params: 'config: ReactShapeConfig', return: 'void', description: '静态方法注册 React 组件形状' },
+  { key: '3', name: 'reactShapePlugin.register(config)', params: 'config: ReactShapeConfig', return: 'void', description: '通过插件实例注册 React 组件形状' },
+  { key: '4', name: 'addReactNode(graph, options)', params: 'graph: Graph, options: NodeOptions', return: 'ReactShapeNode | null', description: '辅助函数添加 React 节点（传统方式）' },
+];
+
+// ReactShapeConfig 配置表格数据
+const reactShapeConfigColumns = [
+  { title: '属性名', dataIndex: 'name', width: 150 },
+  { title: '类型', dataIndex: 'type', width: 200 },
+  { title: '必填', dataIndex: 'required', width: 80 },
+  { title: '默认值', dataIndex: 'default', width: 120 },
+  { title: '说明', dataIndex: 'description' },
+];
+
+const reactShapeConfigData = [
+  { name: 'shape', type: 'string', required: '是', default: '-', description: '形状名称（唯一标识）' },
+  { name: 'width', type: 'number', required: '否', default: '200', description: '节点默认宽度' },
+  { name: 'height', type: 'number', required: '否', default: '100', description: '节点默认高度' },
+  { name: 'component', type: 'React.ComponentType', required: '是', default: '-', description: 'React 组件，接收 ReactNodeProps 参数' },
+  { name: 'style', type: 'Partial<NodeStyle>', required: '否', default: '{}', description: '节点样式配置' },
+  { name: 'resizable', type: 'boolean', required: '否', default: 'false', description: '是否可调整大小' },
+  { name: 'ports', type: 'ReactShapePortConfig[]', required: '否', default: '[]', description: '连接桩配置数组' },
+];
+
+// ReactNodeProps 属性表格数据
+const reactNodePropsColumns = [
+  { title: '属性名', dataIndex: 'name', width: 150 },
+  { title: '类型', dataIndex: 'type', width: 220 },
+  { title: '说明', dataIndex: 'description' },
+];
+
+const reactNodePropsData = [
+  { name: 'nodeId', type: 'string', description: '节点 ID' },
+  { name: 'data', type: 'Record<string, any>', description: '节点自定义数据' },
+  { name: 'position', type: '{ x: number; y: number }', description: '节点位置坐标' },
+  { name: 'selected', type: 'boolean', description: '节点是否被选中' },
+  { name: 'hovered', type: 'boolean', description: '节点是否悬停' },
+  { name: 'graph', type: 'Graph', description: 'Graph 实例引用' },
+  { name: 'node', type: 'ReactShapeNode', description: '节点实例引用' },
 ];
 
 // Graph 事件表格数据
@@ -913,11 +964,29 @@ export const GraphExample: React.FC = () => {
           </h3>
           <Table columns={graphMethodsColumns} dataSource={graphMethodsData} pagination={false} />
         </div>
-        <div id="graph-events-section">
+        <div id="graph-events-section" style={{ marginBottom: '24px' }}>
           <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#1e293b' }}>
             Graph 事件
           </h3>
           <Table columns={graphEventColumns} dataSource={graphEventData} pagination={false} />
+        </div>
+        <div id="react-shape-methods-section" style={{ marginBottom: '24px' }}>
+          <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#1e293b' }}>
+            ReactShape 插件 - 注册方法
+          </h3>
+          <Table columns={reactShapeMethodsColumns} dataSource={reactShapeMethodsData} pagination={false} />
+        </div>
+        <div id="react-shape-config-section" style={{ marginBottom: '24px' }}>
+          <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#1e293b' }}>
+            ReactShapeConfig - 配置选项
+          </h3>
+          <Table columns={reactShapeConfigColumns} dataSource={reactShapeConfigData} pagination={false} />
+        </div>
+        <div id="react-node-props-section">
+          <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#1e293b' }}>
+            ReactNodeProps - 组件接收属性
+          </h3>
+          <Table columns={reactNodePropsColumns} dataSource={reactNodePropsData} pagination={false} />
         </div>
       </div>
     </Panel>
@@ -984,6 +1053,9 @@ export const GraphExample: React.FC = () => {
           <Anchor.Link href="#graph-options-section" title="GraphOptions" />
           <Anchor.Link href="#graph-methods-section" title="Graph 类方法" />
           <Anchor.Link href="#graph-events-section" title="Graph 事件" />
+          <Anchor.Link href="#react-shape-methods-section" title="ReactShape 方法" />
+          <Anchor.Link href="#react-shape-config-section" title="ReactShapeConfig" />
+          <Anchor.Link href="#react-node-props-section" title="ReactNodeProps" />
         </Anchor>
       </div>
     </div>

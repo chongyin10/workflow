@@ -11,6 +11,7 @@ import {
     DynamicHeightNodeExample,
     BlankEventExample,
     GridExample,
+    ReactShapeExample,
 } from './index';
 
 /**
@@ -18,7 +19,7 @@ import {
  *
  * 提供所有核心组件示例的导航和展示
  */
-type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'connectionValidation' | 'dnd' | 'dynamicHeightNode' | 'blankEvent' | 'grid';
+type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'connectionValidation' | 'dnd' | 'dynamicHeightNode' | 'blankEvent' | 'grid' | 'reactShape';
 
 interface ExampleItem {
     key: ExampleKey;
@@ -93,6 +94,12 @@ const examples: ExampleItem[] = [
         title: '⚡ 网格类型示例',
         description: '线状网格(mesh)和点状网格(dot)切换展示',
         component: GridExample,
+    },
+    {
+        key: 'reactShape',
+        title: '⚛️ React Shape 示例',
+        description: '使用 React 组件作为节点的自定义渲染',
+        component: ReactShapeExample,
     },
 ];
 

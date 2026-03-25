@@ -30,5 +30,25 @@ export type { PortGroupOptions, PortLayoutConfig } from '../core/Port';
 export { Dnd } from '../plugins/Dnd';
 export type { DndOptions, DndEvent, DndSourceConfig, Plugin } from '../plugins/Dnd';
 
+// ReactShape
+export {
+    ReactShape,
+    ReactShapeNode,
+    registerReactShape,
+    unregisterReactShape,
+    getGlobalReactShape,
+    hasGlobalReactShape,
+    isReactShape,
+    addReactNode,
+} from '../plugins/ReactShape';
+export type {
+    ReactNodeProps,
+    ReactShapeConfig,
+    ReactShapePortConfig,
+} from '../plugins/ReactShape';
+
+// 简化 API：导出 register 作为 registerReactShape 的别名
+export { registerReactShape as register } from '../plugins/ReactShape';
+
 // Styles
 import './styles/index.css';

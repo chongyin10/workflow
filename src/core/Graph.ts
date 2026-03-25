@@ -1,9 +1,10 @@
-import { Node, NodeOptions, type NodeEvent, type ResizeHandlePosition } from './Node';
+import { Node, NodeOptions, type NodeEvent, type ResizeHandlePosition, type NodeStyle } from './Node';
 import { DynamicHeightNode } from './DynamicNode';
 import { Edge, EdgeOptions, EdgeType, type EdgeEvent } from './Edge';
 import { Port, type PortEvent } from './Port';
 import { EventManager, EVENT_NAMES, type BaseEvent, type MouseEvent, type WheelEvent, type EventHandler } from './EventManager';
 import { Plugin } from '../plugins';
+import { Shape, ShapeConfig } from './Shape';
 
 export interface Point {
     x: number;
@@ -111,6 +112,18 @@ export interface GraphState {
  * - 网格背景（可选）
  * - 流畅的动画效果
  */
+/**
+ * 生成 UUID v4 格式的字符串
+ * @returns UUID 字符串
+ */
+function generateUUID(): string {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        const v = c === 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+    });
+}
+
 export class Graph {
     private container: HTMLElement;
     private canvas: HTMLCanvasElement;
@@ -180,6 +193,156 @@ export class Graph {
 
     // 记录待取消选中的节点（用于延迟触发 node:unselected 事件）
     private nodeToUnselect: Node | null = null;
+
+    // ==================== 静态形状注册表 ====================
+    
+    /**
+     * 全局形状注册表
+     * 存储已注册的自定义形状配置
+     */
+    private static shapeRegistry: Map<string, {
+        width?: number;
+        height?: number;
+        shape?: ShapeConfig;
+        style?: Partial<NodeStyle>;
+        resizable?: boolean;
+        component?: any; // React 组件或其他渲染组件
+        ports?: any[];
+        inheritStyle?: boolean;
+        [key: string]: any;
+    }> = new Map();
+
+    /**
+     * 注册自定义形状
+     * @param config - 形状配置
+     * @example
+     * ```typescript
+     * // 注册一个简单的矩形形状
+     * Graph.register({
+     *     shape: 'custom-rect',
+     *     width: 100,
+     *     height: 60,
+     *     style: {
+     *         backgroundColor: '#e0f2fe',
+     *         borderColor: '#0ea5e9',
+     *     }
+     * });
+     *
+     * // 注册 React 组件形状（推荐直接使用 register() 函数）
+     * Graph.register({
+     *     shape: 'react-node',
+     *     width: 200,
+     *     height: 100,
+     *     component: MyReactComponent,
+     * });
+     *
+     * // 使用注册的形状
+     * graph.addNode({
+     *     shape: 'custom-rect',
+     *     x: 100,
+     *     y: 100,
+     * });
+     * ```
+     *
+     * @note 当配置中包含 `component` 属性时，会自动使用 ReactShape 插件进行注册。
+     *       推荐直接使用 {@link register} 函数以获得更简洁的 API 体验。
+     */
+    static register(config: {
+        shape: string;
+        width?: number;
+        height?: number;
+        shapeConfig?: ShapeConfig;
+        style?: Partial<NodeStyle>;
+        resizable?: boolean;
+        component?: any;
+        ports?: any[];
+        inheritStyle?: boolean;
+        [key: string]: any;
+    }): void {
+        if (!config.shape) {
+            console.error('Shape name is required for registration.');
+            return;
+        }
+        
+        if (Graph.shapeRegistry.has(config.shape)) {
+            console.warn(`Shape "${config.shape}" is already registered. It will be overwritten.`);
+        }
+        
+        const { shape: shapeName, shapeConfig, ...restConfig } = config;
+        
+        // 如果是 React 组件，使用 ReactShape 的全局注册
+        if (config.component) {
+            // 动态导入以避免循环依赖
+            import('../plugins/ReactShape').then(({ registerReactShape }) => {
+                registerReactShape({
+                    shape: shapeName,
+                    width: config.width ?? 200,
+                    height: config.height ?? 100,
+                    component: config.component,
+                    style: config.style,
+                    resizable: config.resizable ?? false,
+                    ports: config.ports,
+                    inheritStyle: config.inheritStyle,
+                    ...restConfig,
+                });
+            });
+            return;
+        }
+        
+        Graph.shapeRegistry.set(shapeName, {
+            width: config.width,
+            height: config.height,
+            shapeConfig: shapeConfig,
+            style: config.style,
+            resizable: config.resizable,
+            component: config.component,
+            ports: config.ports,
+            inheritStyle: config.inheritStyle,
+            ...restConfig,
+        });
+    }
+
+    /**
+     * 注销形状
+     * @param shapeName - 形状名称
+     * @returns 是否成功注销
+     */
+    static unregister(shapeName: string): boolean {
+        return Graph.shapeRegistry.delete(shapeName);
+    }
+
+    /**
+     * 获取已注册的形状配置
+     * @param shapeName - 形状名称
+     * @returns 形状配置或 undefined
+     */
+    static getRegisteredShape(shapeName: string): any {
+        return Graph.shapeRegistry.get(shapeName);
+    }
+
+    /**
+     * 检查形状是否已注册
+     * @param shapeName - 形状名称
+     * @returns 是否已注册
+     */
+    static hasRegisteredShape(shapeName: string): boolean {
+        return Graph.shapeRegistry.has(shapeName);
+    }
+
+    /**
+     * 获取所有已注册的形状名称
+     * @returns 形状名称数组
+     */
+    static getRegisteredShapes(): string[] {
+        return Array.from(Graph.shapeRegistry.keys());
+    }
+
+    /**
+     * 清空所有已注册的形状
+     */
+    static clearRegisteredShapes(): void {
+        Graph.shapeRegistry.clear();
+    }
 
     // 默认配置
     private static readonly DEFAULT_OPTIONS: Omit<
@@ -270,7 +433,7 @@ export class Graph {
       display: block;
       width: 100%;
       height: 100%;
-      cursor: ${this.options.draggable ? 'grab' : 'default'};
+      cursor: default;
       touch-action: none;
       user-select: none;
       -webkit-user-select: none;
@@ -796,7 +959,7 @@ export class Graph {
         this.connectTargetNode = null;
         this.connectTargetPort = null;
         this.connectCurrentPoint = { x: 0, y: 0 };
-        this.canvas.style.cursor = 'grab';
+        this.canvas.style.cursor = 'default';
         
         // 恢复所有 HTML 节点的鼠标事件捕获
         this.htmlNodeElements.forEach((element) => {
@@ -896,7 +1059,7 @@ export class Graph {
         this.resizingHandle = null;
         this.resizeStartPoint = { x: 0, y: 0 };
         this.resizeStartBounds = null;
-        this.canvas.style.cursor = 'grab';
+        this.canvas.style.cursor = 'default';
         
         this.scheduleRender();
     }
@@ -1022,10 +1185,8 @@ export class Graph {
             }
         }
 
-        // 恢复默认光标
-        if (this.canvas.style.cursor !== 'grab' && this.canvas.style.cursor !== 'grabbing') {
-            this.canvas.style.cursor = 'grab';
-        }
+        // 恢复光标：如果在节点上显示 grab，否则显示 default
+        // 注意：这里不处理，由 handleMouseEnterLeave 方法处理节点/端口/边的光标
     }
 
     /**
@@ -1109,7 +1270,8 @@ export class Graph {
 
             this.isDraggingNode = false;
             this.draggedNode = null;
-            this.canvas.style.cursor = 'grab';
+            // 恢复光标：如果在节点上显示 grab，否则显示 default
+            this.canvas.style.cursor = this.hoveredNode ? 'grab' : 'default';
             return;
         }
 
@@ -1123,7 +1285,7 @@ export class Graph {
 
         this.state.isDragging = false;
         this.state.lastMousePosition = null;
-        this.canvas.style.cursor = 'grab';
+        this.canvas.style.cursor = 'default';
 
         // 触发拖拽完成回调
         this.options.onDragEnd({ ...this.state.offset });
@@ -1431,11 +1593,59 @@ export class Graph {
      * 添加节点
      * @param nodeOrOptions - 节点配置或节点实例
      * @returns 节点实例
+     *
+     * @example
+     * ```typescript
+     * // 添加普通节点
+     * graph.addNode({
+     *     x: 100,
+     *     y: 100,
+     *     style: { width: 100, height: 60 },
+     * });
+     *
+     * // 使用已注册的形状添加节点
+     * graph.addNode({
+     *     shape: 'custom-rect',
+     *     x: 100,
+     *     y: 100,
+     * });
+     *
+     * // 使用 React 组件形状添加节点（自动识别）
+     * // 需要先安装 ReactShape 插件: graph.use(new ReactShape())
+     * graph.addNode({
+     *     shape: 'react-node',
+     *     x: 100,
+     *     y: 100,
+     *     data: { label: 'Node' },
+     * });
+     * ```
+     *
+     * @note 当使用 React 形状时，需要先安装 ReactShape 插件。
+     *       如果检测到 shape 是已注册的 React 形状，会自动创建 ReactShapeNode。
      */
     addNode(nodeOrOptions: NodeOptions | Node): Node {
-        const node = nodeOrOptions instanceof Node
-            ? nodeOrOptions
-            : new Node(nodeOrOptions);
+        let node: Node;
+        if (nodeOrOptions instanceof Node) {
+            node = nodeOrOptions;
+        } else {
+            // 检查是否使用了已注册的形状
+            const options = nodeOrOptions as any;
+            const shapeName = options.shape;
+            // 如果没有提供 id，自动生成 node-{uuid} 格式的 ID
+            if (!options.id) {
+                options.id = `node-${generateUUID()}`;
+            }
+            
+            if (typeof shapeName === 'string' && Graph.hasRegisteredShape(shapeName)) {
+                // 使用已注册的形状配置创建节点
+                const registeredConfig = Graph.getRegisteredShape(shapeName);
+                const mergedOptions = this.mergeRegisteredConfig(options, registeredConfig);
+                node = new Node(mergedOptions);
+            } else {
+                node = new Node(options);
+            }
+        }
+        
         this.nodes.set(node.getId(), node);
         
         // 如果是 HTML 节点，创建 DOM 元素
@@ -1446,6 +1656,56 @@ export class Graph {
         
         this.scheduleRender();
         return node;
+    }
+
+    /**
+     * 合并用户配置和已注册的形状配置
+     * @private
+     */
+    private mergeRegisteredConfig(
+        userOptions: NodeOptions,
+        registeredConfig: any
+    ): NodeOptions {
+        const merged: any = { ...userOptions };
+        
+        // 合并尺寸
+        if (registeredConfig.width !== undefined && userOptions.style?.width === undefined) {
+            merged.style = merged.style || {};
+            merged.style.width = registeredConfig.width;
+        }
+        if (registeredConfig.height !== undefined && userOptions.style?.height === undefined) {
+            merged.style = merged.style || {};
+            merged.style.height = registeredConfig.height;
+        }
+        
+        // 合并样式
+        if (registeredConfig.style) {
+            merged.style = {
+                ...registeredConfig.style,
+                ...merged.style,
+            };
+        }
+        
+        // 合并形状配置
+        if (registeredConfig.shapeConfig) {
+            merged.shape = registeredConfig.shapeConfig;
+        }
+        
+        // 合并 resizable
+        if (registeredConfig.resizable !== undefined && userOptions.resizable === undefined) {
+            merged.resizable = registeredConfig.resizable;
+        }
+        
+        // 保存组件引用（用于 React 等框架）
+        if (registeredConfig.component) {
+            merged._registeredComponent = registeredConfig.component;
+            // 如果有组件，设置为 HTML 节点
+            if (!merged.shape || typeof merged.shape === 'string') {
+                merged.shape = { type: Shape.HTML, html: '' };
+            }
+        }
+        
+        return merged;
     }
 
     /**
@@ -2224,7 +2484,7 @@ export class Graph {
      */
     setDraggable(enabled: boolean): void {
         this.options.draggable = enabled;
-        this.canvas.style.cursor = enabled ? 'grab' : 'default';
+        this.canvas.style.cursor = 'default';
     }
 
     /**
@@ -2655,12 +2915,16 @@ export class Graph {
                 const eventData = { ...baseEventData, target: this.lastMouseOverEdge, edge: this.lastMouseOverEdge };
                 this.lastMouseOverEdge.emit(EVENT_NAMES.EDGE_MOUSELEAVE, eventData);
                 this.emit(EVENT_NAMES.EDGE_MOUSELEAVE, eventData);
+                // 恢复默认光标
+                this.canvas.style.cursor = 'default';
             }
             // mouseenter edge
             if (currentEdge) {
                 const eventData = { ...baseEventData, target: currentEdge, edge: currentEdge };
                 currentEdge.emit(EVENT_NAMES.EDGE_MOUSEENTER, eventData);
                 this.emit(EVENT_NAMES.EDGE_MOUSEENTER, eventData);
+                // 设置为指针光标
+                this.canvas.style.cursor = 'pointer';
             }
             this.lastMouseOverEdge = currentEdge;
         }

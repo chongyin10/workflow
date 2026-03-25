@@ -39,3 +39,6 @@ export { default as BlankEventExampleComponent } from './BlankEventExample';
 
 // 网格类型示例
 export { default as GridExample } from './GridExample';
+
+// React Shape 示例
+export { default as ReactShapeExample } from './ReactShapeExample';
