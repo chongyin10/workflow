@@ -2503,8 +2503,8 @@ export class Graph {
             };
             this.emit(blankEventName, blankEventData);
 
-            // 如果是 mouseup 事件且有选中的节点，取消选中并触发 unselected 事件
-            if (eventType === 'mouseup' && this.selectedNode) {
+            // 如果是 mouseup 或 click 事件且有选中的节点，取消选中并触发 unselected 事件
+            if ((eventType === 'mouseup' || eventType === 'click') && this.selectedNode) {
                 const unselectedNode = this.selectedNode;
                 unselectedNode.setSelected(false);
 

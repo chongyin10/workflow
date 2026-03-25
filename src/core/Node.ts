@@ -30,8 +30,8 @@ export interface ResizeHandleConfig {
 export const DEFAULT_RESIZE_HANDLE_CONFIG: ResizeHandleConfig = {
     position: 'se',
     size: 8,
-    fillColor: '#3b82f6',
-    strokeColor: '#ffffff',
+    fillColor: '#ffffff',
+    strokeColor: '#3b82f6',
     strokeWidth: 2,
 };
 
@@ -109,6 +109,8 @@ export interface NodeOptions extends CellOptions {
     y: number;
     shape?: Shape | ShapeConfig;
     style?: Partial<NodeStyle>;
+    /** 是否允许拉伸缩小，默认为 false */
+    resizable?: boolean;
 }
 
 /**
@@ -126,6 +128,7 @@ export class Node extends Cell {
     private shapeConfig: ShapeConfig;
     private ports: Map<string, Port> = new Map();
     private portManager: PortManager;
+    private _resizable: boolean = false;
 
     // HTML 节点相关
     private htmlElement: HTMLElement | null = null;
@@ -256,6 +259,7 @@ export class Node extends Cell {
         super(options);
         this.position = { x: options.x, y: options.y };
         this.style = { ...Node.DEFAULT_STYLE, ...options.style };
+        this._resizable = options.resizable ?? false;
         
         // 解析 shape 配置
         if (options.shape) {
@@ -297,6 +301,20 @@ export class Node extends Cell {
     move(deltaX: number, deltaY: number): void {
         this.position.x += deltaX;
         this.position.y += deltaY;
+    }
+
+    /**
+     * 获取节点是否可拉伸缩小
+     */
+    get resizable(): boolean {
+        return this._resizable;
+    }
+
+    /**
+     * 设置节点是否可拉伸缩小
+     */
+    setResizable(resizable: boolean): void {
+        this._resizable = resizable;
     }
 
     /**
@@ -1100,22 +1118,38 @@ export class Node extends Cell {
      * @param config - handle 配置（可选）
      */
     drawResizeHandles(ctx: CanvasRenderingContext2D, config?: Partial<ResizeHandleConfig>): void {
-        if (!this.isSelected) return;
+        if (!this.isSelected || !this._resizable) return;
 
         const handleConfig = { ...DEFAULT_RESIZE_HANDLE_CONFIG, ...config };
         const positions = this.getResizeHandlePositions();
+        const radius = handleConfig.size / 2;
 
         ctx.save();
 
         positions.forEach((position) => {
             const point = this.getResizeHandlePoint(position, handleConfig.size);
+            // 计算圆心坐标（getResizeHandlePoint 返回的是左上角，需要转换为圆心）
+            const centerX = point.x + radius;
+            const centerY = point.y + radius;
+
+            // 绘制阴影
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
+            ctx.shadowBlur = 4;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 2;
 
             ctx.beginPath();
-            ctx.rect(point.x, point.y, handleConfig.size, handleConfig.size);
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
 
             // 填充
             ctx.fillStyle = handleConfig.fillColor;
             ctx.fill();
+
+            // 清除阴影再绘制边框，避免边框也有阴影
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
 
             // 边框
             ctx.strokeStyle = handleConfig.strokeColor;
@@ -1136,7 +1170,7 @@ export class Node extends Cell {
         point: { x: number; y: number },
         handleSize: number = 8
     ): ResizeHandlePosition | null {
-        if (!this.isSelected) return null;
+        if (!this.isSelected || !this._resizable) return null;
 
         const positions = this.getResizeHandlePositions();
         const hitSize = handleSize + 4; // 增加一点点击区域，更易命中

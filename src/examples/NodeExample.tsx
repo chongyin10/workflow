@@ -29,6 +29,7 @@ const nodeOptionsData = [
   { name: 'visible', type: 'boolean', required: '否', default: 'true', description: '是否可见' },
   { name: 'locked', type: 'boolean', required: '否', default: 'false', description: '是否锁定（不可交互）' },
   { name: 'zIndex', type: 'number', required: '否', default: '0', description: '层级索引，数值越高显示越在上层' },
+  { name: 'resizable', type: 'boolean', required: '否', default: 'false', description: '是否允许拉伸缩小' },
 ];
 
 // Node 类方法表格数据
@@ -69,6 +70,8 @@ const nodeMethodsData = [
   { key: '27', name: 'drawResizeHandles(ctx, config?)', params: 'ctx: CanvasRenderingContext2D, config?: Partial<ResizeHandleConfig>', return: 'void', description: '绘制 resize handles（节点选中时自动调用）' },
   { key: '28', name: 'getResizeHandleAtPoint(point, handleSize?)', params: 'point: { x, y }, handleSize?: number', return: 'ResizeHandlePosition | null', description: '检测点是否在 resize handle 上' },
   { key: '29', name: 'calculateResize(handlePosition, deltaX, deltaY, minWidth?, minHeight?)', params: 'handlePosition: ResizeHandlePosition, deltaX: number, deltaY: number, minWidth?: number, minHeight?: number', return: '{ x, y, width, height, changed }', description: '计算 resize 后的新尺寸和位置' },
+  { key: '30', name: 'resizable (getter)', params: '-', return: 'boolean', description: '获取节点是否可拉伸缩小' },
+  { key: '31', name: 'setResizable(resizable)', params: 'resizable: boolean', return: 'void', description: '设置节点是否可拉伸缩小' },
 ];
 
 // 示例 1: 基础形状
@@ -552,18 +555,38 @@ const addLog = (msg) => {
   logContainer.scrollTop = logContainer.scrollHeight;
 };
 
-// 创建可调整大小的节点
+// 创建可调整大小的节点（resizable: true）
 const resizableNode = graph.addNode({
   id: 'node-resizable',
-  label: '拖拽四周方块调整大小',
-  x: 300,
-  y: 140,
+  label: '可调整大小',
+  x: 180,
+  y: 100,
+  resizable: true,  // 设置为 true 才能拉伸缩小
   shape: Shape.Rect,
   style: {
-    width: 180,
-    height: 100,
+    width: 140,
+    height: 80,
     backgroundColor: '#3b82f6',
     borderColor: '#2563eb',
+    borderWidth: 2,
+    borderRadius: 8,
+    textColor: '#ffffff',
+  },
+});
+
+// 创建不可调整大小的节点（默认 resizable: false）
+const fixedNode = graph.addNode({
+  id: 'node-fixed',
+  label: '不可调整大小',
+  x: 420,
+  y: 100,
+  resizable: false,  // 默认值，选中后不会显示 resize handles
+  shape: Shape.Rect,
+  style: {
+    width: 140,
+    height: 80,
+    backgroundColor: '#6b7280',
+    borderColor: '#4b5563',
     borderWidth: 2,
     borderRadius: 8,
     textColor: '#ffffff',
@@ -577,14 +600,16 @@ graph.on('node:resize', (e) => {
 });
 
 graph.on('node:selected', (e) => {
-  addLog('☑️ 选中节点，显示 resize handles');
+  const isResizable = e.node.resizable;
+  addLog('☑️ 选中节点: ' + e.node.getLabel() + (isResizable ? ' (可调整)' : ' (不可调整)'));
 });
 
 graph.on('node:unselected', (e) => {
-  addLog('⬜ 取消选中，隐藏 resize handles');
+  addLog('⬜ 取消选中: ' + e.node.getLabel());
 });
 
-addLog('💡 提示：点击节点选中，然后拖拽四周的蓝色方块调整大小');`;
+addLog('💡 左侧节点可调整大小，右侧节点不可调整');
+addLog('💡 点击节点选中后，可调整的节点会显示圆形手柄');`;
 
 // 所有示例
 const EXAMPLES = [
@@ -765,56 +790,56 @@ export const NodeExample: React.FC = () => {
           }}
         >
           {EXAMPLES.map((ex, index) => (
-            <button
-              key={ex.id}
-              onClick={() => switchExample(index)}
-              style={{
-                padding: '6px 12px',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                background: currentExample === index ? '#3b82f6' : '#ffffff',
-                color: currentExample === index ? '#ffffff' : '#64748b',
-                fontSize: '13px',
-                fontWeight: 500,
-                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                transition: 'all 0.2s',
-              }}
-            >
-              {ex.title}
-            </button>
+            <div key={ex.id} id={ex.id}>
+              <button
+                onClick={() => switchExample(index)}
+                style={{
+                  padding: '6px 12px',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  background: currentExample === index ? '#3b82f6' : '#ffffff',
+                  color: currentExample === index ? '#ffffff' : '#64748b',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                  transition: 'all 0.2s',
+                }}
+              >
+                {ex.title}
+              </button>
+            </div>
           ))}
         </div>
-        <Splitter
-          layout="horizontal"
-          style={{ height: 'calc(100% - 100px)' }}
-          minSize={200}
-          maxSize={800}
-          defaultSize={400}
-        >
+        <Splitter style={{ flex: 1, minHeight: 0 }}>
           {LeftPanel}
           {RightPanel}
         </Splitter>
       </div>
-
-      <Anchor
-        container={mainContainerRef}
-        selector="#node-example-title"
-        direction="vertical"
-        items={[
-          { key: 'node-options', title: '配置选项', href: '#node-options-section' },
-          { key: 'node-methods', title: '类方法', href: '#node-methods-section' },
-          { key: 'node-events', title: '事件', href: '#node-events-section' },
-        ]}
+      {BottomPanel}
+      {/* 浮动锚点 */}
+      <div
         style={{
-          position: 'absolute',
-          top: 8,
-          right: 16,
-          zIndex: 100,
+          position: 'fixed',
+          right: '16px',
+          top: '20%',
+          transform: 'translateY(-50%)',
+          zIndex: 1000,
+          background: '#fff',
+          borderRadius: '8px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
         }}
-      />
-
-      <div style={{ height: '500px', marginTop: '16px' }}>{BottomPanel}</div>
+      >
+        <Anchor affix={false} getContainer={() => document.body}>
+          <Anchor.Link href="#node-example-title" title="Node 节点示例" />
+          {EXAMPLES.map((ex, index) => (
+            <Anchor.Link key={ex.id} href={`#${ex.id}`} title={`示例 ${index + 1}: ${ex.title}`} />
+          ))}
+          <Anchor.Link href="#node-options-section" title="NodeOptions" />
+          <Anchor.Link href="#node-methods-section" title="Node 类方法" />
+          <Anchor.Link href="#node-events-section" title="Node 事件" />
+        </Anchor>
+      </div>
     </div>
   );
 };

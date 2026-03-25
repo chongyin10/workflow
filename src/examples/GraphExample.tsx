@@ -938,22 +938,23 @@ export const GraphExample: React.FC = () => {
           }}
         >
           {EXAMPLES.map((ex, index) => (
-            <button
-              key={ex.id}
-              onClick={() => switchExample(index)}
-              style={{
-                padding: '6px 16px',
-                background: currentExample === index ? '#3b82f6' : '#ffffff',
-                color: currentExample === index ? '#ffffff' : '#64748b',
-                border: '1px solid #e2e8f0',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '13px',
-                fontWeight: 500,
-              }}
-            >
-              示例 {index + 1}: {ex.title}
-            </button>
+            <div key={ex.id} id={ex.id}>
+              <button
+                onClick={() => switchExample(index)}
+                style={{
+                  padding: '6px 16px',
+                  background: currentExample === index ? '#3b82f6' : '#ffffff',
+                  color: currentExample === index ? '#ffffff' : '#64748b',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                }}
+              >
+                示例 {index + 1}: {ex.title}
+              </button>
+            </div>
           ))}
         </div>
         <Splitter style={{ flex: 1, minHeight: 0 }}>
