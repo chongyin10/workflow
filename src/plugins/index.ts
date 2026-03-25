@@ -22,3 +22,12 @@ export {
     type ReactShapeConfig,
     type ReactShapePortConfig,
 } from './ReactShape';
+
+// 对齐线插件
+export {
+    Snapline,
+    type SnaplineOptions,
+    type SnaplineType,
+    type SnaplineData,
+    type SnapPoint,
+} from './Snapline';

@@ -42,3 +42,7 @@ export { default as GridExample } from './GridExample';
 
 // React Shape 示例
 export { default as ReactShapeExample } from './ReactShapeExample';
+
+// Snapline 对齐线示例
+export { SnaplineExample } from './SnaplineExample';
+export { default as SnaplineExampleComponent } from './SnaplineExample';

@@ -12,6 +12,7 @@ import {
     BlankEventExample,
     GridExample,
     ReactShapeExample,
+    SnaplineExample,
 } from './index';
 
 /**
@@ -19,7 +20,7 @@ import {
  *
  * 提供所有核心组件示例的导航和展示
  */
-type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'connectionValidation' | 'dnd' | 'dynamicHeightNode' | 'blankEvent' | 'grid' | 'reactShape';
+type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'connectionValidation' | 'dnd' | 'dynamicHeightNode' | 'blankEvent' | 'grid' | 'reactShape' | 'snapline';
 
 interface ExampleItem {
     key: ExampleKey;
@@ -100,6 +101,12 @@ const examples: ExampleItem[] = [
         title: '⚛️ React Shape 示例',
         description: '使用 React 组件作为节点的自定义渲染',
         component: ReactShapeExample,
+    },
+    {
+        key: 'snapline',
+        title: '📏 Snapline 对齐线示例',
+        description: '移动节点时的对齐辅助线插件',
+        component: SnaplineExample,
     },
 ];
 
