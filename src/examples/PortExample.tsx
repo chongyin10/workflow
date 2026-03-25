@@ -32,6 +32,27 @@ const portOptionsData = [
   { name: 'data', type: 'Record<string, any>', required: '否', default: '{}', description: '自定义业务数据' },
 ];
 
+// Port 事件表格数据
+const portEventColumns = [
+  { title: '事件名称', dataIndex: 'name', width: 260 },
+  { title: '触发时机', dataIndex: 'trigger', width: 180 },
+  { title: '事件参数', dataIndex: 'params', width: 280 },
+  { title: '说明', dataIndex: 'description' },
+];
+
+const portEventData = [
+  { name: 'port:click', trigger: '点击连接桩', params: '{ port, portId, nodeId, originalEvent }', description: '鼠标左键点击连接桩时触发' },
+  { name: 'port:dblclick', trigger: '双击连接桩', params: '{ port, portId, nodeId, originalEvent }', description: '鼠标双击连接桩时触发' },
+  { name: 'port:mousedown', trigger: '鼠标按下', params: '{ port, portId, nodeId, originalEvent }', description: '在连接桩上按下鼠标按钮时触发' },
+  { name: 'port:mouseup', trigger: '鼠标释放', params: '{ port, portId, nodeId, originalEvent }', description: '在连接桩上释放鼠标按钮时触发' },
+  { name: 'port:mouseenter', trigger: '鼠标进入', params: '{ port, portId, nodeId, originalEvent }', description: '鼠标移入连接桩区域时触发' },
+  { name: 'port:mouseleave', trigger: '鼠标离开', params: '{ port, portId, nodeId, originalEvent }', description: '鼠标移出连接桩区域时触发' },
+  { name: 'port:contextmenu', trigger: '右键菜单', params: '{ port, portId, nodeId, originalEvent }', description: '在连接桩上右键点击时触发' },
+  { name: 'port:connection:start', trigger: '开始连接', params: '{ port, portId, nodeId, originalEvent }', description: '从连接桩开始拖拽创建连线时触发' },
+  { name: 'port:connection:complete', trigger: '连接完成', params: '{ port, portId, nodeId, targetPort, edge }', description: '从该连接桩出发的连线成功创建时触发' },
+  { name: 'port:connection:fail', trigger: '连接失败', params: '{ port, portId, nodeId, targetPort, reason }', description: '从该连接桩出发的连线创建失败时触发' },
+];
+
 // Port 类方法表格数据
 const portMethodsColumns = [
   { title: '方法名', dataIndex: 'name', width: 220 },
@@ -939,9 +960,13 @@ export const PortExample: React.FC = () => {
           </h3>
           <Table columns={portPositionColumns} dataSource={portPositionData} pagination={false} />
         </div>
-        <div id="port-methods-section">
+        <div id="port-methods-section" style={{ marginBottom: '24px' }}>
           <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#1e293b' }}>Port 类方法</h3>
           <Table columns={portMethodsColumns} dataSource={portMethodsData} pagination={false} />
+        </div>
+        <div id="port-events-section">
+          <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#1e293b' }}>Port 事件</h3>
+          <Table columns={portEventColumns} dataSource={portEventData} pagination={false} />
         </div>
       </div>
     </Panel>
@@ -1007,6 +1032,7 @@ export const PortExample: React.FC = () => {
           <Anchor.Link href="#port-options-section" title="PortOptions" />
           <Anchor.Link href="#port-position-section" title="PortPosition" />
           <Anchor.Link href="#port-methods-section" title="Port 类方法" />
+          <Anchor.Link href="#port-events-section" title="Port 事件" />
         </Anchor>
       </div>
     </div>

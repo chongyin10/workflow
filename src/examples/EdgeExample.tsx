@@ -54,6 +54,32 @@ const edgeStyleData = [
   { name: 'waveOpacity', type: 'number', default: '0.8', description: '波浪透明度（0-1）' },
 ];
 
+// Edge 事件表格数据
+const edgeEventColumns = [
+  { title: '事件名称', dataIndex: 'name', width: 220 },
+  { title: '触发时机', dataIndex: 'trigger', width: 200 },
+  { title: '事件参数', dataIndex: 'params', width: 200 },
+  { title: '说明', dataIndex: 'description' },
+];
+
+const edgeEventData = [
+  { name: 'edge:click', trigger: '点击边', params: '{ edge, originalEvent }', description: '鼠标左键点击边时触发' },
+  { name: 'edge:dblclick', trigger: '双击边', params: '{ edge, originalEvent }', description: '鼠标双击边时触发' },
+  { name: 'edge:mousedown', trigger: '鼠标按下', params: '{ edge, originalEvent }', description: '在边上按下鼠标按钮时触发' },
+  { name: 'edge:mouseup', trigger: '鼠标释放', params: '{ edge, originalEvent }', description: '在边上释放鼠标按钮时触发' },
+  { name: 'edge:mouseenter', trigger: '鼠标进入', params: '{ edge, originalEvent }', description: '鼠标移入边区域时触发' },
+  { name: 'edge:mouseleave', trigger: '鼠标离开', params: '{ edge, originalEvent }', description: '鼠标移出边区域时触发' },
+  { name: 'edge:selected', trigger: '边被选中', params: '{ edge }', description: '边被选中时触发' },
+  { name: 'edge:unselected', trigger: '取消选中', params: '{ edge }', description: '边取消选中时触发' },
+  { name: 'edge:added', trigger: '添加边', params: '{ edge }', description: '新边添加到画布时触发' },
+  { name: 'edge:removed', trigger: '移除边', params: '{ edge }', description: '边从画布移除时触发' },
+  { name: 'edge:disconnect', trigger: '断开连接', params: '{ edge }', description: '边断开连接时触发' },
+  { name: 'edge:reconnect', trigger: '重新连接', params: '{ edge }', description: '边重新连接时触发' },
+  { name: 'edge:connection:start', trigger: '开始连接', params: '{ sourcePort, originalEvent }', description: '从连接桩开始拖拽连线时触发' },
+  { name: 'edge:connection:complete', trigger: '完成连接', params: '{ edge, sourcePort, targetPort }', description: '连线完成并创建边时触发' },
+  { name: 'edge:connection:fail', trigger: '连接失败', params: '{ sourcePort, targetPort, reason }', description: '连线失败时触发（如验证不通过）' },
+];
+
 // Edge 类方法表格数据
 const edgeMethodsColumns = [
   { title: '方法名', dataIndex: 'name', width: 220 },
@@ -1144,9 +1170,13 @@ export const EdgeExample: React.FC = () => {
           </h3>
           <Table columns={edgeTypeColumns} dataSource={edgeTypeData} pagination={false} />
         </div>
-        <div id="edge-methods-section">
+        <div id="edge-methods-section" style={{ marginBottom: '24px' }}>
           <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#1e293b' }}>Edge 类方法</h3>
           <Table columns={edgeMethodsColumns} dataSource={edgeMethodsData} pagination={false} />
+        </div>
+        <div id="edge-events-section">
+          <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#1e293b' }}>Edge 事件</h3>
+          <Table columns={edgeEventColumns} dataSource={edgeEventData} pagination={false} />
         </div>
       </div>
     </Panel>
@@ -1213,6 +1243,7 @@ export const EdgeExample: React.FC = () => {
           <Anchor.Link href="#edge-style-section" title="EdgeStyle" />
           <Anchor.Link href="#edge-type-section" title="EdgeType 枚举" />
           <Anchor.Link href="#edge-methods-section" title="Edge 类方法" />
+          <Anchor.Link href="#edge-events-section" title="Edge 事件" />
         </Anchor>
       </div>
     </div>

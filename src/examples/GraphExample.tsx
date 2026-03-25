@@ -99,6 +99,29 @@ const graphMethodsData = [
   { key: '49', name: 'stopEdgeAnimation()', params: '-', return: 'void', description: '停止边动画循环' },
 ];
 
+// Graph 事件表格数据
+const graphEventColumns = [
+  { title: '事件名称', dataIndex: 'name', width: 260 },
+  { title: '触发时机', dataIndex: 'trigger', width: 180 },
+  { title: '事件参数', dataIndex: 'params', width: 280 },
+  { title: '说明', dataIndex: 'description' },
+];
+
+const graphEventData = [
+  { name: 'blank:click', trigger: '点击空白', params: '{ x, y, clientX, clientY, originalEvent }', description: '在画布空白区域点击时触发' },
+  { name: 'blank:contextmenu', trigger: '右键空白', params: '{ x, y, clientX, clientY, originalEvent }', description: '在画布空白区域右键时触发' },
+  { name: 'node:selected', trigger: '节点选中', params: '{ node, type }', description: '节点被选中时触发' },
+  { name: 'node:unselected', trigger: '取消选中', params: '{ node, type }', description: '节点取消选中时触发' },
+  { name: 'node:click', trigger: '点击节点', params: '{ node, originalEvent }', description: '点击节点时触发' },
+  { name: 'node:dblclick', trigger: '双击节点', params: '{ node, originalEvent }', description: '双击节点时触发' },
+  { name: 'node:dragstart', trigger: '开始拖拽', params: '{ node, x, y }', description: '开始拖拽节点时触发' },
+  { name: 'node:drag', trigger: '拖拽中', params: '{ node, x, y }', description: '节点拖拽过程中触发' },
+  { name: 'node:dragend', trigger: '拖拽结束', params: '{ node, x, y }', description: '节点拖拽结束时触发' },
+  { name: 'edge:added', trigger: '边添加', params: '{ edge }', description: '添加边时触发' },
+  { name: 'edge:removed', trigger: '边移除', params: '{ edge }', description: '移除边时触发' },
+  { name: 'edge:click', trigger: '点击边', params: '{ edge, originalEvent }', description: '点击边时触发' },
+];
+
 // 示例 1: 基础 Graph 示例
 const EXAMPLE_1_CODE = `// 示例 1: 基础 Graph 画布
 const graph = new Graph({
@@ -882,11 +905,17 @@ export const GraphExample: React.FC = () => {
           </h3>
           <Table columns={graphOptionsColumns} dataSource={graphOptionsData} pagination={false} />
         </div>
-        <div id="graph-methods-section">
+        <div id="graph-methods-section" style={{ marginBottom: '24px' }}>
           <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#1e293b' }}>
             Graph 类方法
           </h3>
           <Table columns={graphMethodsColumns} dataSource={graphMethodsData} pagination={false} />
+        </div>
+        <div id="graph-events-section">
+          <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#1e293b' }}>
+            Graph 事件
+          </h3>
+          <Table columns={graphEventColumns} dataSource={graphEventData} pagination={false} />
         </div>
       </div>
     </Panel>
@@ -951,6 +980,7 @@ export const GraphExample: React.FC = () => {
           ))}
           <Anchor.Link href="#graph-options-section" title="GraphOptions" />
           <Anchor.Link href="#graph-methods-section" title="Graph 类方法" />
+          <Anchor.Link href="#graph-events-section" title="Graph 事件" />
         </Anchor>
       </div>
     </div>

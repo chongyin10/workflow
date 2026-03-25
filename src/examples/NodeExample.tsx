@@ -419,6 +419,30 @@ const warningNode = graph.addNode({
   },
 });`;
 
+// Node 事件表格数据
+const nodeEventColumns = [
+  { title: '事件名称', dataIndex: 'name', width: 220 },
+  { title: '触发时机', dataIndex: 'trigger', width: 200 },
+  { title: '事件参数', dataIndex: 'params', width: 200 },
+  { title: '说明', dataIndex: 'description' },
+];
+
+const nodeEventData = [
+  { name: 'node:click', trigger: '点击节点', params: '{ node, originalEvent }', description: '鼠标左键点击节点时触发' },
+  { name: 'node:dblclick', trigger: '双击节点', params: '{ node, originalEvent }', description: '鼠标双击节点时触发' },
+  { name: 'node:mousedown', trigger: '鼠标按下', params: '{ node, originalEvent }', description: '在节点上按下鼠标按钮时触发' },
+  { name: 'node:mouseup', trigger: '鼠标释放', params: '{ node, originalEvent }', description: '在节点上释放鼠标按钮时触发' },
+  { name: 'node:mouseenter', trigger: '鼠标进入', params: '{ node, originalEvent }', description: '鼠标移入节点区域时触发' },
+  { name: 'node:mouseleave', trigger: '鼠标离开', params: '{ node, originalEvent }', description: '鼠标移出节点区域时触发' },
+  { name: 'node:dragstart', trigger: '开始拖拽', params: '{ node, originalEvent }', description: '开始拖拽节点时触发' },
+  { name: 'node:drag', trigger: '拖拽中', params: '{ node, originalEvent }', description: '节点拖拽过程中持续触发' },
+  { name: 'node:dragend', trigger: '拖拽结束', params: '{ node, originalEvent }', description: '节点拖拽结束时触发' },
+  { name: 'node:selected', trigger: '节点选中', params: '{ node }', description: '节点被选中时触发' },
+  { name: 'node:unselected', trigger: '取消选中', params: '{ node }', description: '节点取消选中时触发' },
+  { name: 'node:contextmenu', trigger: '右键菜单', params: '{ node, originalEvent }', description: '在节点上右键点击时触发' },
+  { name: 'node:port:click', trigger: '点击连接桩', params: '{ node, port, originalEvent }', description: '点击节点上的连接桩时触发' },
+];
+
 // 示例 6: 节点事件
 const EXAMPLE_6_CODE = `// 创建 Graph 画布
 const graph = new Graph({
@@ -646,9 +670,13 @@ export const NodeExample: React.FC = () => {
           </h3>
           <Table columns={nodeOptionsColumns} dataSource={nodeOptionsData} pagination={false} />
         </div>
-        <div id="node-methods-section">
+        <div id="node-methods-section" style={{ marginBottom: '24px' }}>
           <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#1e293b' }}>Node 类方法</h3>
           <Table columns={nodeMethodsColumns} dataSource={nodeMethodsData} pagination={false} />
+        </div>
+        <div id="node-events-section">
+          <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#1e293b' }}>Node 事件</h3>
+          <Table columns={nodeEventColumns} dataSource={nodeEventData} pagination={false} />
         </div>
       </div>
     </Panel>
@@ -713,6 +741,7 @@ export const NodeExample: React.FC = () => {
           ))}
           <Anchor.Link href="#node-options-section" title="NodeOptions" />
           <Anchor.Link href="#node-methods-section" title="Node 类方法" />
+          <Anchor.Link href="#node-events-section" title="Node 事件" />
         </Anchor>
       </div>
     </div>

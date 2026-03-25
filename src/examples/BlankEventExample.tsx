@@ -307,14 +307,19 @@ export const BlankEventExample: React.FC = () => {
   // 底部面板 - API 文档
   const BottomPanel = (
     <Panel>
-      <PanelHeader icon="📋" title="可用事件" />
+      <PanelHeader icon="📋" title="API 文档" />
       <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
-        <div style={{ marginBottom: '16px' }}>
+        <div id="blank-event-list" style={{ marginBottom: '24px' }}>
+          <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#1e293b' }}>可用事件</h3>
           <p style={{ color: '#64748b', margin: '0 0 12px 0' }}>
             以下是在画布空白区域可用的事件。在节点、边上操作时不会触发这些事件。
           </p>
+          <Table columns={eventColumns} dataSource={eventData} pagination={false} />
         </div>
-        <Table columns={eventColumns} dataSource={eventData} pagination={false} />
+        <div id="blank-event-object-section">
+          <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#1e293b' }}>事件对象属性</h3>
+          <Table columns={eventObjectColumns} dataSource={eventObjectData} pagination={false} />
+        </div>
       </div>
     </Panel>
   );
@@ -377,6 +382,7 @@ export const BlankEventExample: React.FC = () => {
             <Anchor.Link key={ex.id} href={`#${ex.id}`} title={`示例 ${index + 1}: ${ex.title}`} />
           ))}
           <Anchor.Link href="#blank-event-list" title="可用事件列表" />
+          <Anchor.Link href="#blank-event-object-section" title="事件对象属性" />
         </Anchor>
       </div>
     </div>
