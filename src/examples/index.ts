@@ -36,3 +36,6 @@ export { default as DndExampleComponent } from './DndExample';
 // Blank 事件示例
 export { BlankEventExample } from './BlankEventExample';
 export { default as BlankEventExampleComponent } from './BlankEventExample';
+
+// 网格类型示例
+export { default as GridExample } from './GridExample';

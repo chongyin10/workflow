@@ -10,6 +10,7 @@ import {
     DndExample,
     DynamicHeightNodeExample,
     BlankEventExample,
+    GridExample,
 } from './index';
 
 /**
@@ -17,7 +18,7 @@ import {
  *
  * 提供所有核心组件示例的导航和展示
  */
-type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'connectionValidation' | 'dnd' | 'dynamicHeightNode' | 'blankEvent';
+type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'connectionValidation' | 'dnd' | 'dynamicHeightNode' | 'blankEvent' | 'grid';
 
 interface ExampleItem {
     key: ExampleKey;
@@ -86,6 +87,12 @@ const examples: ExampleItem[] = [
         title: '🖱️ Blank 事件示例',
         description: '画布空白区域点击、双击、右键、拖动、滚动事件演示',
         component: BlankEventExample,
+    },
+    {
+        key: 'grid',
+        title: '⚡ 网格类型示例',
+        description: '线状网格(mesh)和点状网格(dot)切换展示',
+        component: GridExample,
     },
 ];
 

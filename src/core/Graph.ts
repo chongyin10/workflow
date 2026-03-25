@@ -65,6 +65,8 @@ export interface GraphOptions {
         enabled: boolean;
         size?: number;
         color?: string;
+        /** 网格类型：'mesh' 为线状网格（默认），'dot' 为点状网格 */
+        type?: 'mesh' | 'dot';
     };
     /**
      * 连接验证函数
@@ -194,6 +196,7 @@ export class Graph {
                 enabled: true,
                 size: 20,
                 color: '#e5e7eb',
+                type: 'mesh',
             },
             validateConnection: () => true, // 默认允许所有连接
         };
@@ -1176,6 +1179,7 @@ export class Graph {
     private drawGrid(viewWidth: number, viewHeight: number): void {
         const size = this.options.grid.size ?? 20;
         const color = this.options.grid.color ?? '#e5e7eb';
+        const type = this.options.grid.type ?? 'mesh';
         const { offset, scale } = this.state;
 
         // 计算可见区域在世界坐标系中的范围
@@ -1191,24 +1195,41 @@ export class Graph {
         const gridEndY = Math.ceil(endY / size) * size;
 
         this.ctx.save();
-        this.ctx.strokeStyle = color;
-        this.ctx.lineWidth = 1 / scale;
 
-        this.ctx.beginPath();
+        if (type === 'dot') {
+            // 绘制点状网格
+            this.ctx.fillStyle = color;
+            const dotRadius = Math.max(1, 1 / scale);
+            
+            for (let x = gridStartX; x <= gridEndX; x += size) {
+                for (let y = gridStartY; y <= gridEndY; y += size) {
+                    this.ctx.beginPath();
+                    this.ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
+                    this.ctx.fill();
+                }
+            }
+        } else {
+            // 绘制线状网格（默认）
+            this.ctx.strokeStyle = color;
+            this.ctx.lineWidth = 1 / scale;
 
-        // 绘制垂直线
-        for (let x = gridStartX; x <= gridEndX; x += size) {
-            this.ctx.moveTo(x, gridStartY);
-            this.ctx.lineTo(x, gridEndY);
+            this.ctx.beginPath();
+
+            // 绘制垂直线
+            for (let x = gridStartX; x <= gridEndX; x += size) {
+                this.ctx.moveTo(x, gridStartY);
+                this.ctx.lineTo(x, gridEndY);
+            }
+
+            // 绘制水平线
+            for (let y = gridStartY; y <= gridEndY; y += size) {
+                this.ctx.moveTo(gridStartX, y);
+                this.ctx.lineTo(gridEndX, y);
+            }
+
+            this.ctx.stroke();
         }
 
-        // 绘制水平线
-        for (let y = gridStartY; y <= gridEndY; y += size) {
-            this.ctx.moveTo(gridStartX, y);
-            this.ctx.lineTo(gridEndX, y);
-        }
-
-        this.ctx.stroke();
         this.ctx.restore();
     }
 
@@ -1928,14 +1949,24 @@ export class Graph {
     }
 
     /**
+     * 设置网格类型
+     * @param type - 网格类型：'mesh' 为线状网格，'dot' 为点状网格
+     */
+    setGridType(type: 'mesh' | 'dot'): void {
+        this.options.grid.type = type;
+        this.scheduleRender();
+    }
+
+    /**
      * 获取网格配置
      * @returns 当前网格配置
      */
-    getGridConfig(): { enabled: boolean; size: number; color: string } {
+    getGridConfig(): { enabled: boolean; size: number; color: string; type: 'mesh' | 'dot' } {
         return {
             enabled: this.options.grid.enabled,
             size: this.options.grid.size ?? 20,
             color: this.options.grid.color ?? '#e5e7eb',
+            type: this.options.grid.type ?? 'mesh',
         };
     }
 
