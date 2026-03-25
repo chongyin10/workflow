@@ -25,19 +25,28 @@ const validatorOptionsData = [
   { name: 'targetPort', type: 'Port', required: '是', default: '-', description: '目标端口实例' },
 ];
 
-// ConnectionValidateContext 返回值
+// ConnectionValidator 函数类型
+const validatorTypeColumns = [
+  { title: '类型', dataIndex: 'type', width: 300 },
+  { title: '说明', dataIndex: 'description' },
+];
+
+const validatorTypeData = [
+  { type: 'ConnectionValidator', description: '(context: ConnectionValidateContext) => boolean -返回 true 允许连接，返回 false 阻止连接' },
+];
+
+// ConnectionValidateContext 表格数据
 const contextColumns = [
-  { title: '属性名', dataIndex: 'name', width: 200 },
-  { title: '类型', dataIndex: 'type', width: 200 },
+  { title: '属性名', dataIndex: 'name', width: 180 },
+  { title: '类型', dataIndex: 'type', width: 250 },
   { title: '说明', dataIndex: 'description' },
 ];
 
 const contextData = [
-  { name: 'sourceNode', type: 'Node', description: '源节点对象' },
-  { name: 'sourcePort', type: 'Port', description: '源端口对象' },
-  { name: 'targetNode', type: 'Node', description: '目标节点对象' },
-  { name: 'targetPort', type: 'Port', description: '目标端口对象' },
-  { name: 'graph', type: 'Graph', description: '图实例对象' },
+  { name: 'sourceNode', type: 'Node', description: '源节点实例' },
+  { name: 'sourcePort', type: 'Port', description: '源端口实例' },
+  { name: 'targetNode', type: 'Node', description: '目标节点实例' },
+  { name: 'targetPort', type: 'Port', description: '目标端口实例' },
 ];
 
 // 验证规则示例

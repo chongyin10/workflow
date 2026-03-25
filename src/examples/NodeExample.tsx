@@ -28,6 +28,7 @@ const nodeOptionsData = [
   { name: 'data', type: 'Record<string, any>', required: '否', default: '{}', description: '自定义业务数据' },
   { name: 'visible', type: 'boolean', required: '否', default: 'true', description: '是否可见' },
   { name: 'locked', type: 'boolean', required: '否', default: 'false', description: '是否锁定（不可交互）' },
+  { name: 'zIndex', type: 'number', required: '否', default: '0', description: '层级索引，数值越高显示越在上层' },
 ];
 
 // Node 类方法表格数据
@@ -44,15 +45,25 @@ const nodeMethodsData = [
   { key: '3', name: 'getPosition() / setPosition(x, y)', params: 'x: number, y: number', return: 'Point / void', description: '获取/设置节点位置' },
   { key: '4', name: 'move(dx, dy)', params: 'dx: number, dy: number', return: 'void', description: '相对移动节点' },
   { key: '5', name: 'getStyle() / setStyle(style)', params: 'style: Partial<NodeStyle>', return: 'NodeStyle / void', description: '获取/设置节点样式' },
-  { key: '6', name: 'getData() / setData(data)', params: 'data: Record<string, any>', return: 'any / void', description: '获取/设置业务数据' },
-  { key: '7', name: 'addPort(options)', params: 'options: PortOptions', return: 'Port', description: '添加连接桩到节点' },
-  { key: '8', name: 'removePort(portId)', params: 'portId: string', return: 'boolean', description: '移除指定连接桩' },
-  { key: '9', name: 'getPort(portId)', params: 'portId: string', return: 'Port | undefined', description: '获取指定连接桩' },
-  { key: '10', name: 'getAllPorts()', params: '-', return: 'Port[]', description: '获取所有连接桩' },
-  { key: '11', name: 'addPortGroup(options)', params: 'options: PortGroupOptions', return: 'Port[]', description: '批量添加连接桩（自动布局）' },
-  { key: '12', name: 'clearPorts()', params: '-', return: 'void', description: '清除所有连接桩' },
-  { key: '13', name: 'toJSON()', params: '-', return: 'object', description: '序列化为 JSON' },
-  { key: '14', name: 'clone()', params: '-', return: 'Node', description: '克隆节点' },
+  { key: '6', name: 'updateStyle(style)', params: 'style: Partial<NodeStyle>', return: 'void', description: '更新节点样式（合并现有样式）' },
+  { key: '7', name: 'getData() / setData(data)', params: 'data: Record<string, any>', return: 'any / void', description: '获取/设置业务数据' },
+  { key: '8', name: 'containsPoint(point)', params: 'point: { x, y }', return: 'boolean', description: '检测点是否在节点内' },
+  { key: '9', name: 'setShapeConfig(shape)', params: 'shape: Shape | ShapeConfig', return: 'void', description: '设置形状配置' },
+  { key: '10', name: 'isHtmlNode()', params: '-', return: 'boolean', description: '是否为 HTML 节点' },
+  { key: '11', name: 'addPort(options)', params: 'options: PortOptions', return: 'Port', description: '添加连接桩到节点' },
+  { key: '12', name: 'removePort(portId)', params: 'portId: string', return: 'boolean', description: '移除指定连接桩' },
+  { key: '13', name: 'getPort(portId)', params: 'portId: string', return: 'Port | undefined', description: '获取指定连接桩' },
+  { key: '14', name: 'getAllPorts()', params: '-', return: 'Port[]', description: '获取所有连接桩' },
+  { key: '15', name: 'getPortAtPoint(point)', params: 'point: { x, y }', return: 'Port | null', description: '获取指定位置的连接桩' },
+  { key: '16', name: 'addPortGroup(options)', params: 'options: PortGroupOptions', return: 'Port[]', description: '批量添加连接桩（自动布局）' },
+  { key: '17', name: 'removePortGroup(groupId)', params: 'groupId: string', return: 'boolean', description: '移除连接桩组' },
+  { key: '18', name: 'updatePortGroup(groupId, newCount)', params: 'groupId: string, newCount: number', return: 'boolean', description: '更新连接桩组数量' },
+  { key: '19', name: 'getPortsBySide(position)', params: 'position: top | right | bottom | left', return: 'Port[]', description: '按边获取连接桩' },
+  { key: '20', name: 'getPortCountBySide(position)', params: 'position: top | right | bottom | left', return: 'number', description: '按边获取连接桩数量' },
+  { key: '21', name: 'getPortManager()', params: '-', return: 'PortManager', description: '获取连接桩管理器' },
+  { key: '22', name: 'clearPorts()', params: '-', return: 'void', description: '清除所有连接桩' },
+  { key: '23', name: 'toJSON()', params: '-', return: 'NodeData', description: '序列化为 JSON' },
+  { key: '24', name: 'clone(newId?)', params: 'newId?: string', return: 'Node', description: '克隆节点' },
 ];
 
 // 示例 1: 基础形状

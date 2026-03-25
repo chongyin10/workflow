@@ -1091,8 +1091,8 @@ export class Graph {
         // 绘制所有节点（在主画布上）
         this.renderNodes();
 
-        // 绘制所有边（在边线层上，位于 HTML 节点上方）
-        this.renderEdges();
+        // 绘制所有边和连接桩（在边线层上，按 zIndex 排序混合绘制）
+        this.renderEdgesAndPorts();
 
         // 绘制连接中的临时连线（在边线层上）
         this.renderConnectingEdge();
@@ -1549,7 +1549,10 @@ export class Graph {
             this.stopEdgeAnimation();
         }
 
-        this.edges.forEach((edge) => {
+        // 按 zIndex 排序后绘制（zIndex 小的先绘制，大的在上面）
+        const sortedEdges = Array.from(this.edges.values()).sort((a, b) => a.getZIndex() - b.getZIndex());
+
+        sortedEdges.forEach((edge) => {
             const sourceNode = this.nodes.get(edge.getSourceId());
             const targetNode = this.nodes.get(edge.getTargetId());
 
@@ -1604,6 +1607,114 @@ export class Graph {
     }
 
     /**
+     * 渲染所有边和连接桩（按 zIndex 混合排序绘制）
+     * @protected
+     */
+    protected renderEdgesAndPorts(): void {
+        // 检查是否有带动画的边
+        const hasAnimated = this.checkAnimatedEdges();
+        
+        // 如果有动画边但没有启动动画循环，启动它
+        if (hasAnimated && this.edgeAnimationId === null) {
+            this.startEdgeAnimation();
+        } else if (!hasAnimated && this.edgeAnimationId !== null) {
+            // 如果没有动画边但循环在运行，停止它
+            this.stopEdgeAnimation();
+        }
+
+        // 收集所有需要绘制的元素（边和连接桩）
+        interface DrawItem {
+            type: 'edge' | 'port';
+            zIndex: number;
+            draw: () => void;
+        }
+
+        const drawItems: DrawItem[] = [];
+
+        // 收集所有边
+        this.edges.forEach((edge) => {
+            const sourceNode = this.nodes.get(edge.getSourceId());
+            const targetNode = this.nodes.get(edge.getTargetId());
+
+            if (sourceNode && targetNode) {
+                const sourceAnchor = edge.getSourceAnchor();
+                const targetAnchor = edge.getTargetAnchor();
+
+                // 获取源连接点
+                let sourcePoint: { x: number; y: number };
+                if (sourceAnchor.portId) {
+                    const port = sourceNode.getPort(sourceAnchor.portId);
+                    if (port) {
+                        sourcePoint = port.getConnectionPoint(
+                            sourceNode.getPosition().x,
+                            sourceNode.getPosition().y,
+                            sourceNode.getStyle().width,
+                            sourceNode.getStyle().height
+                        );
+                    } else {
+                        sourcePoint = sourceNode.getAnchorPoint(sourceAnchor.position || 'center');
+                    }
+                } else {
+                    sourcePoint = sourceNode.getAnchorPoint(sourceAnchor.position || 'center');
+                }
+
+                // 获取目标连接点
+                let targetPoint: { x: number; y: number };
+                if (targetAnchor.portId) {
+                    const port = targetNode.getPort(targetAnchor.portId);
+                    if (port) {
+                        targetPoint = port.getConnectionPoint(
+                            targetNode.getPosition().x,
+                            targetNode.getPosition().y,
+                            targetNode.getStyle().width,
+                            targetNode.getStyle().height
+                        );
+                    } else {
+                        targetPoint = targetNode.getAnchorPoint(targetAnchor.position || 'center');
+                    }
+                } else {
+                    targetPoint = targetNode.getAnchorPoint(targetAnchor.position || 'center');
+                }
+
+                drawItems.push({
+                    type: 'edge',
+                    zIndex: edge.getZIndex(),
+                    draw: () => {
+                        edge.draw(this.edgeCtx, sourcePoint, targetPoint, this.animationTime);
+                    }
+                });
+            }
+        });
+
+        // 收集所有节点的连接桩
+        this.nodes.forEach((node) => {
+            const nodePos = node.getPosition();
+            const nodeStyle = node.getStyle();
+            
+            // 获取所有连接桩
+            const allPorts = [
+                ...(node as any).portManager?.getAllPorts() || [],
+                ...Array.from((node as any).ports?.values() || [])
+            ];
+
+            allPorts.forEach((port: any) => {
+                drawItems.push({
+                    type: 'port',
+                    zIndex: port.getZIndex(),
+                    draw: () => {
+                        port.draw(this.edgeCtx, nodePos.x, nodePos.y, nodeStyle.width, nodeStyle.height);
+                    }
+                });
+            });
+        });
+
+        // 按 zIndex 排序后绘制（zIndex 小的先绘制，大的在上面）
+        drawItems.sort((a, b) => a.zIndex - b.zIndex).forEach(item => {
+            item.draw();
+        });
+    }
+
+    /**
      * 清除所有节点和边
      */
     clear(): void {
@@ -1616,7 +1727,9 @@ export class Graph {
      * @protected
      */
     protected renderNodes(): void {
-        this.nodes.forEach((node) => {
+        // 按 zIndex 排序后绘制（zIndex 小的先绘制，大的在上面）
+        const sortedNodes = Array.from(this.nodes.values()).sort((a, b) => a.getZIndex() - b.getZIndex());
+        sortedNodes.forEach((node) => {
             node.draw(this.ctx);
         });
     }

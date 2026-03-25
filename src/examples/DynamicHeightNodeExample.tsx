@@ -58,10 +58,18 @@ const nodeMethodsData = [
   { name: 'getRows()', params: '-', return: 'RowConfig[]', description: '获取所有行配置' },
   { name: 'getRowCount()', params: '-', return: 'number', description: '获取行数' },
   { name: 'getRowData(rowId)', params: 'string', return: 'RowData | undefined', description: '获取行数据' },
+  { name: 'getRowPortId(rowId, side)', params: 'string, "left" | "right"', return: 'string | undefined', description: '获取行连接桩 ID' },
   { name: 'getRowPort(rowId, side)', params: 'string, "left" | "right"', return: 'Port | undefined', description: '获取行的连接桩' },
   { name: 'isLeftPort(portId)', params: 'string', return: 'boolean', description: '检查连接桩是否在左侧' },
   { name: 'isRightPort(portId)', params: 'string', return: 'boolean', description: '检查连接桩是否在右侧' },
+  { name: 'getRowIndexAtPoint(point)', params: 'point: { x, y }', return: 'number', description: '获取指定位置的行索引（-1表示不在行区域）' },
+  { name: 'getRowIdAtPoint(point)', params: 'point: { x, y }', return: 'string | undefined', description: '获取指定位置的行 ID' },
+  { name: 'setHoveredRow(index)', params: 'index: number', return: 'void', description: '设置悬停行索引' },
+  { name: 'getHoveredRow()', params: '-', return: 'number', description: '获取当前悬停行索引' },
+  { name: 'getExtendedStyle()', params: '-', return: 'DynamicHeightNodeStyle', description: '获取扩展样式' },
   { name: 'updateExtendedStyle(style)', params: 'Partial<DynamicHeightNodeStyle>', return: 'void', description: '更新扩展样式并重绘' },
+  { name: 'toJSON()', params: '-', return: 'DynamicHeightNodeData', description: '序列化为 JSON' },
+  { name: 'clone(newId?)', params: 'newId?: string', return: 'DynamicHeightNode', description: '克隆节点' },
 ];
 
 // 示例 1: 基础动态高度节点

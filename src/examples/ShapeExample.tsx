@@ -26,6 +26,23 @@ const shapeTypeData = [
   { name: 'Shape.HTML', description: '自定义 HTML 内容' },
 ];
 
+// ShapeConfig 配置表格
+const shapeConfigColumns = [
+  { title: '属性名', dataIndex: 'name', width: 150 },
+  { title: '类型', dataIndex: 'type', width: 180 },
+  { title: '适用形状', dataIndex: 'applies', width: 180 },
+  { title: '说明', dataIndex: 'description' },
+];
+
+const shapeConfigData = [
+  { name: 'type', type: 'Shape', applies: '全部', description: '形状类型（必填）' },
+  { name: 'borderRadius', type: 'number', applies: 'Rect', description: '圆角半径' },
+  { name: 'points', type: '{ x: number, y: number }[]', applies: 'Polygon, Polyline', description: '顶点坐标数组（相对于中心点）' },
+  { name: 'path', type: 'string', applies: 'Path', description: 'SVG 路径字符串' },
+  { name: 'src', type: 'string', applies: 'Image', description: '图片地址' },
+  { name: 'html', type: 'string', applies: 'HTML', description: 'HTML 内容字符串' },
+];
+
 // ShapeStyle 配置表格
 const shapeStyleColumns = [
   { title: '属性名', dataIndex: 'name', width: 180 },

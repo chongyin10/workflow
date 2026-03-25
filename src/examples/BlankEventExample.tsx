@@ -20,6 +20,30 @@ const eventData = [
   { name: 'blank:contextmenu', description: '在画布空白区域右键时触发' },
 ];
 
+// 事件对象属性表格数据
+const eventObjectColumns = [
+  { title: '属性名', dataIndex: 'name', width: 150 },
+  { title: '类型', dataIndex: 'type', width: 150 },
+  { title: '说明', dataIndex: 'description' },
+];
+
+const eventObjectData = [
+  { name: 'type', type: 'string', description: '事件类型' },
+  { name: 'target', type: 'Graph', description: '事件目标（Graph 实例）' },
+  { name: 'x', type: 'number', description: '鼠标 X 坐标（相对于画布世界坐标）' },
+  { name: 'y', type: 'number', description: '鼠标 Y 坐标（相对于画布世界坐标）' },
+  { name: 'clientX', type: 'number', description: '鼠标 X 坐标（相对于视口）' },
+  { name: 'clientY', type: 'number', description: '鼠标 Y 坐标（相对于视口）' },
+  { name: 'ctrlKey', type: 'boolean', description: '是否按下 Ctrl 键' },
+  { name: 'shiftKey', type: 'boolean', description: '是否按下 Shift 键' },
+  { name: 'altKey', type: 'boolean', description: '是否按下 Alt 键' },
+  { name: 'metaKey', type: 'boolean', description: '是否按下 Meta 键' },
+  { name: 'button', type: 'number', description: '鼠标按钮（0: 左键, 1: 中键, 2: 右键）' },
+  { name: 'originalEvent', type: 'MouseEvent', description: '原始 DOM 鼠标事件' },
+  { name: 'preventDefault()', type: 'function', description: '阻止默认行为' },
+  { name: 'stopPropagation()', type: 'function', description: '阻止事件冒泡' },
+];
+
 // 示例 1: 基础空白事件
 const EXAMPLE_1_CODE = `// 创建 Graph 画布
 const graph = new Graph({

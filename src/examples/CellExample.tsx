@@ -25,6 +25,7 @@ const cellOptionsData = [
   { name: 'visible', type: 'boolean', required: '否', default: 'true', description: '是否可见' },
   { name: 'locked', type: 'boolean', required: '否', default: 'false', description: '是否锁定（不可交互）' },
   { name: 'selected', type: 'boolean', required: '否', default: 'false', description: '是否选中' },
+  { name: 'zIndex', type: 'number', required: '否', default: '0', description: '层级索引，数值越高显示越在上层' },
 ];
 
 // Cell 类方法表格数据
@@ -43,9 +44,11 @@ const cellMethodsData = [
   { key: '5', name: 'getHovered() / setHovered(hovered)', params: 'hovered: boolean', return: 'boolean / void', description: '获取/设置悬停状态' },
   { key: '6', name: 'getVisible() / setVisible(visible)', params: 'visible: boolean', return: 'boolean / void', description: '获取/设置可见性' },
   { key: '7', name: 'getLocked() / setLocked(locked)', params: 'locked: boolean', return: 'boolean / void', description: '获取/设置锁定状态' },
-  { key: '8', name: 'toJSON()', params: '-', return: 'object', description: '序列化为 JSON' },
-  { key: '9', name: 'fromJSON(json)', params: 'json: object', return: 'void', description: '从 JSON 反序列化' },
-  { key: '10', name: 'clone()', params: '-', return: 'Cell', description: '克隆当前 Cell' },
+  { key: '8', name: 'getZIndex() / setZIndex(zIndex)', params: 'zIndex: number', return: 'number / void', description: '获取/设置层级索引' },
+  { key: '9', name: 'toggleSelected()', params: '-', return: 'void', description: '切换选中状态' },
+  { key: '10', name: 'toJSON()', params: '-', return: 'CellData', description: '序列化为 JSON（抽象方法，子类实现）' },
+  { key: '11', name: 'clone(newId?)', params: 'newId?: string', return: 'Cell', description: '克隆当前 Cell（抽象方法，子类实现）' },
+  { key: '12', name: 'getClassName()', params: '-', return: 'string', description: '获取 CSS 类名（包含状态类）' },
 ];
 
 // 继承关系说明

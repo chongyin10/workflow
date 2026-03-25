@@ -20,10 +20,15 @@ const portOptionsColumns = [
 
 const portOptionsData = [
   { name: 'id', type: 'string', required: '是', default: '-', description: '端口唯一标识符' },
+  { name: 'nodeId', type: 'string', required: '是', default: '-', description: '所属节点ID' },
   { name: 'position', type: 'PortPosition | Point', required: '是', default: '-', description: '端口位置（方位字符串或相对坐标）' },
   { name: 'label', type: 'string', required: '否', default: "''", description: '端口显示文本' },
+  { name: 'lable', type: 'string', required: '否', default: '-', description: '连接桩旁边显示的标签（位于连接桩外侧）' },
+  { name: 'lablePosition', type: "'inside' | 'outside' | 'top' | 'bottom'", required: '否', default: "'outside'", description: '连接桩标签的方位' },
   { name: 'visible', type: 'boolean', required: '否', default: 'true', description: '是否可见' },
   { name: 'style', type: 'PortStyle', required: '否', default: '{}', description: '端口样式配置' },
+  { name: 'shape', type: 'Shape | ShapeConfig', required: '否', default: 'Shape.Circle', description: '连接桩形状' },
+  { name: 'snapDistance', type: 'number', required: '否', default: '20', description: '吸附距离（像素），鼠标靠近时自动吸附' },
   { name: 'data', type: 'Record<string, any>', required: '否', default: '{}', description: '自定义业务数据' },
 ];
 
@@ -37,16 +42,21 @@ const portMethodsColumns = [
 
 const portMethodsData = [
   { key: '1', name: 'getId()', params: '-', return: 'string', description: '获取端口唯一 ID' },
-  { key: '2', name: 'getPosition() / setPosition(position)', params: 'position: PortPosition | Point', return: 'PortPosition / void', description: '获取/设置端口位置' },
-  { key: '3', name: 'getLabel() / setLabel(label)', params: 'label: string', return: 'string / void', description: '获取/设置端口标签' },
-  { key: '4', name: 'getStyle() / setStyle(style)', params: 'style: Partial<PortStyle>', return: 'PortStyle / void', description: '获取/设置端口样式' },
-  { key: '5', name: 'getVisible() / setVisible(visible)', params: 'visible: boolean', return: 'boolean / void', description: '获取/设置可见性' },
-  { key: '6', name: 'getConnectionPoint()', params: '-', return: 'Point', description: '获取端口的实际连接点坐标' },
-  { key: '7', name: 'getNode()', params: '-', return: 'Node | null', description: '获取端口所属的节点' },
-  { key: '8', name: 'isConnected()', params: '-', return: 'boolean', description: '检查端口是否已连接边' },
-  { key: '9', name: 'getEdges()', params: '-', return: 'Edge[]', description: '获取连接到此端口的所有边' },
-  { key: '10', name: 'on(event, handler)', params: 'event: string, handler: Function', return: 'void', description: '监听端口事件（click, dblclick等）' },
-  { key: '11', name: 'toJSON()', params: '-', return: 'object', description: '序列化为 JSON' },
+  { key: '2', name: 'getNodeId()', params: '-', return: 'string', description: '获取所属节点 ID' },
+  { key: '3', name: 'getPosition() / setPosition(position)', params: 'position: PortPosition | Point', return: 'PortPosition / void', description: '获取/设置端口位置' },
+  { key: '4', name: 'getLabel() / setLabel(label)', params: 'label: string', return: 'string / void', description: '获取/设置端口标签' },
+  { key: '5', name: 'getPortLabel() / setPortLabel(label)', params: 'label: string | undefined', return: 'string | undefined / void', description: '获取/设置连接桩标签（外侧标签）' },
+  { key: '6', name: 'getPortLabelPosition() / setPortLabelPosition(pos)', params: "pos: 'inside' | 'outside' | 'top' | 'bottom'", return: 'string / void', description: '获取/设置连接桩标签方位' },
+  { key: '7', name: 'getStyle() / setStyle(style)', params: 'style: Partial<PortStyle>', return: 'PortStyle / void', description: '获取/设置端口样式' },
+  { key: '8', name: 'updateStyle(style)', params: 'style: Partial<PortStyle>', return: 'void', description: '更新端口样式（合并现有样式）' },
+  { key: '9', name: 'getVisible() / setVisible(visible)', params: 'visible: boolean', return: 'boolean / void', description: '获取/设置可见性' },
+  { key: '10', name: 'isPortVisible()', params: '-', return: 'boolean', description: '检查端口是否可见（Port 特有）' },
+  { key: '11', name: 'getShapeConfig() / setShapeConfig(shape)', params: 'shape: Shape | ShapeConfig', return: 'ShapeConfig / void', description: '获取/设置形状配置' },
+  { key: '12', name: 'getSnapDistance() / setSnapDistance(distance)', params: 'distance: number', return: 'number / void', description: '获取/设置吸附距离' },
+  { key: '13', name: 'getConnectionPoint(nodeX, nodeY, width, height)', params: 'nodeX: number, nodeY: number, width: number, height: number', return: 'Point', description: '获取端口的实际连接点坐标' },
+  { key: '14', name: 'getDistanceToPoint(point, nodeX, nodeY, width, height)', params: 'point: Point, nodeX, nodeY, width, height', return: 'number', description: '计算点到端口的距离' },
+  { key: '15', name: 'toJSON()', params: '-', return: 'PortData', description: '序列化为 JSON' },
+  { key: '16', name: 'clone(newId?)', params: 'newId?: string', return: 'Port', description: '克隆端口' },
 ];
 
 // PortPosition 类型

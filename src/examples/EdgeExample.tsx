@@ -27,6 +27,7 @@ const edgeOptionsData = [
   { name: 'style', type: 'EdgeStyle', required: '否', default: '{}', description: '边的样式配置' },
   { name: 'data', type: 'Record<string, any>', required: '否', default: '{}', description: '自定义业务数据' },
   { name: 'visible', type: 'boolean', required: '否', default: 'true', description: '是否可见' },
+  { name: 'zIndex', type: 'number', required: '否', default: '0', description: '层级索引，数值越高显示越在上层' },
 ];
 
 // EdgeStyle 流动波浪配置
@@ -63,19 +64,24 @@ const edgeMethodsColumns = [
 
 const edgeMethodsData = [
   { key: '1', name: 'getId()', params: '-', return: 'string', description: '获取边唯一 ID' },
-  { key: '2', name: 'getSource() / setSource(source)', params: 'source: ConnectionPoint', return: 'ConnectionPoint / void', description: '获取/设置源连接点' },
-  { key: '3', name: 'getTarget() / setTarget(target)', params: 'target: ConnectionPoint', return: 'ConnectionPoint / void', description: '获取/设置目标连接点' },
-  { key: '4', name: 'getLabel() / setLabel(label)', params: 'label: string', return: 'string / void', description: '获取/设置边标签' },
-  { key: '5', name: 'getType() / setType(type)', params: 'type: EdgeType', return: 'EdgeType / void', description: '获取/设置边类型' },
-  { key: '6', name: 'getStyle() / setStyle(style)', params: 'style: Partial<EdgeStyle>', return: 'EdgeStyle / void', description: '获取/设置边样式' },
-  { key: '7', name: 'startAnimation(waveOptions?)', params: 'waveOptions?: WaveOptions', return: 'boolean', description: '启动流动波浪动画，可传入波浪配置' },
-  { key: '8', name: 'stopAnimation()', params: '-', return: 'boolean', description: '停止流动波浪动画' },
-  { key: '9', name: 'isAnimationPlaying()', params: '-', return: 'boolean', description: '检查是否正在播放流动动画' },
-  { key: '10', name: 'disconnect()', params: '-', return: 'boolean', description: '断开边连接（隐藏但不删除）' },
-  { key: '11', name: 'reconnect()', params: '-', return: 'boolean', description: '重新连接边' },
-  { key: '12', name: 'isConnected()', params: '-', return: 'boolean', description: '检查边是否已连接' },
-  { key: '13', name: 'toJSON()', params: '-', return: 'object', description: '序列化为 JSON' },
-  { key: '14', name: 'clone()', params: '-', return: 'Edge', description: '克隆边' },
+  { key: '2', name: 'getSourceId()', params: '-', return: 'string', description: '获取源节点 ID' },
+  { key: '3', name: 'getTargetId()', params: '-', return: 'string', description: '获取目标节点 ID' },
+  { key: '4', name: 'getSource() / getSourceAnchor()', params: '-', return: 'EdgeAnchor', description: '获取源连接点配置' },
+  { key: '5', name: 'getTarget() / getTargetAnchor()', params: '-', return: 'EdgeAnchor', description: '获取目标连接点配置' },
+  { key: '6', name: 'getLabel() / setLabel(label)', params: 'label: string', return: 'string / void', description: '获取/设置边标签' },
+  { key: '7', name: 'getType() / setType(type)', params: 'type: EdgeType', return: 'EdgeType / void', description: '获取/设置边类型' },
+  { key: '8', name: 'getStyle() / setStyle(style)', params: 'style: Partial<EdgeStyle>', return: 'EdgeStyle / void', description: '获取/设置边样式' },
+  { key: '9', name: 'updateStyle(style)', params: 'style: Partial<EdgeStyle>', return: 'void', description: '更新边样式（合并现有样式）' },
+  { key: '10', name: 'getZIndex() / setZIndex(zIndex)', params: 'zIndex: number', return: 'number / void', description: '获取/设置层级索引，数值越高显示越在上层' },
+  { key: '11', name: 'containsPoint(point, tolerance?)', params: 'point: { x, y }, tolerance?: number', return: 'boolean', description: '检测点是否在边上（可设置容差）' },
+  { key: '12', name: 'startAnimation(waveOptions?)', params: 'waveOptions?: WaveOptions', return: 'boolean', description: '启动流动波浪动画，可传入波浪配置' },
+  { key: '13', name: 'stopAnimation()', params: '-', return: 'boolean', description: '停止流动波浪动画' },
+  { key: '14', name: 'isAnimationPlaying()', params: '-', return: 'boolean', description: '检查是否正在播放流动动画' },
+  { key: '15', name: 'disconnect()', params: '-', return: 'boolean', description: '断开边连接（隐藏但不删除）' },
+  { key: '16', name: 'reconnect()', params: '-', return: 'boolean', description: '重新连接边' },
+  { key: '17', name: 'isConnected()', params: '-', return: 'boolean', description: '检查边是否已连接' },
+  { key: '18', name: 'toJSON()', params: '-', return: 'EdgeData', description: '序列化为 JSON' },
+  { key: '19', name: 'clone(newId?)', params: 'newId?: string', return: 'Edge', description: '克隆边' },
 ];
 
 // EdgeType 枚举
@@ -849,7 +855,154 @@ graph.on('edge:click', (e) => {
   addLog('点击边: ' + label + (edge.isAnimationPlaying() ? ' (动画播放中)' : ''));
 });
 
-addLog('流动波浪动画示例 - 动画将持续播放');`;
+addLog('流动波浪动画示例 - 动画将持续播放');`
+// 示例 8: 层级 zIndex（线条交叉时的层级控制）
+const EXAMPLE_8_CODE = `// 创建 Graph 画布
+const graph = new Graph({
+  container: container,
+  width: 600,
+  height: 300,
+  draggable: true,
+  scalable: true,
+  backgroundColor: '#f8fafc',
+  grid: { enabled: true, size: 20, color: '#e2e8f0' },
+});
+
+// 创建 4 个节点，排成矩形
+const node1 = graph.addNode({
+  id: 'node-1',
+  label: 'A',
+  x: 100,
+  y: 80,
+  shape: Shape.Circle,
+  style: {
+    width: 60,
+    height: 60,
+    backgroundColor: '#3b82f6',
+    borderColor: '#2563eb',
+    textColor: '#ffffff',
+  },
+});
+
+const node2 = graph.addNode({
+  id: 'node-2',
+  label: 'B',
+  x: 500,
+  y: 80,
+  shape: Shape.Circle,
+  style: {
+    width: 60,
+    height: 60,
+    backgroundColor: '#ef4444',
+    borderColor: '#dc2626',
+    textColor: '#ffffff',
+  },
+});
+
+const node3 = graph.addNode({
+  id: 'node-3',
+  label: 'C',
+  x: 100,
+  y: 220,
+  shape: Shape.Circle,
+  style: {
+    width: 60,
+    height: 60,
+    backgroundColor: '#22c55e',
+    borderColor: '#16a34a',
+    textColor: '#ffffff',
+  },
+});
+
+const node4 = graph.addNode({
+  id: 'node-4',
+  label: 'D',
+  x: 500,
+  y: 220,
+  shape: Shape.Circle,
+  style: {
+    width: 60,
+    height: 60,
+    backgroundColor: '#f59e0b',
+    borderColor: '#d97706',
+    textColor: '#ffffff',
+  },
+});
+
+// 添加端口
+node1.addPort({ id: 'p1', position: 'right', visible: true });
+node1.addPort({ id: 'p2', position: 'bottom', visible: true });
+node2.addPort({ id: 'p3', position: 'left', visible: true });
+node2.addPort({ id: 'p4', position: 'bottom', visible: true });
+node3.addPort({ id: 'p5', position: 'top', visible: true });
+node3.addPort({ id: 'p6', position: 'right', visible: true });
+node4.addPort({ id: 'p7', position: 'top', visible: true });
+node4.addPort({ id: 'p8', position: 'left', visible: true });
+
+// 创建交叉的边，演示 zIndex 层级效果
+// A -> D (红色，zIndex=0，在底层)
+graph.addEdge({
+  id: 'edge-ad',
+  source: { nodeId: 'node-1', portId: 'p2' },
+  target: { nodeId: 'node-4', portId: 'p7' },
+  label: 'zIndex=0',
+  type: EdgeType.Straight,
+  zIndex: 0,
+  style: {
+    stroke: '#ef4444',
+    strokeWidth: 4,
+    arrowSize: 10,
+  },
+});
+
+// C -> B (蓝色，zIndex=1，在上层)
+graph.addEdge({
+  id: 'edge-cb',
+  source: { nodeId: 'node-3', portId: 'p6' },
+  target: { nodeId: 'node-2', portId: 'p3' },
+  label: 'zIndex=1',
+  type: EdgeType.Straight,
+  zIndex: 1,
+  style: {
+    stroke: '#3b82f6',
+    strokeWidth: 4,
+    arrowSize: 10,
+  },
+});
+
+// 添加其他边形成复杂交叉
+// A -> B (绿色，zIndex=2)
+graph.addEdge({
+  id: 'edge-ab',
+  source: { nodeId: 'node-1', portId: 'p1' },
+  target: { nodeId: 'node-2', portId: 'p3' },
+  label: 'zIndex=2',
+  type: EdgeType.Straight,
+  zIndex: 2,
+  style: {
+    stroke: '#22c55e',
+    strokeWidth: 3,
+    arrowSize: 8,
+  },
+});
+
+// C -> D (紫色，zIndex=3，在最上层)
+graph.addEdge({
+  id: 'edge-cd',
+  source: { nodeId: 'node-3', portId: 'p6' },
+  target: { nodeId: 'node-4', portId: 'p8' },
+  label: 'zIndex=3',
+  type: EdgeType.Straight,
+  zIndex: 3,
+  style: {
+    stroke: '#a855f7',
+    strokeWidth: 4,
+    arrowSize: 10,
+  },
+});
+
+console.log('zIndex 层级示例：观察交叉线条，zIndex 越大的线条显示在上层');`;
+;
 
 // 所有示例
 const EXAMPLES = [
@@ -860,6 +1013,7 @@ const EXAMPLES = [
   { id: 'example-5', title: '多端口连接', code: EXAMPLE_5_CODE },
   { id: 'example-6', title: '边事件', code: EXAMPLE_6_CODE },
   { id: 'example-7', title: '流动波浪', code: EXAMPLE_7_CODE },
+  { id: 'example-8', title: '层级 zIndex', code: EXAMPLE_8_CODE },
 ];
 
 /**

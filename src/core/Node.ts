@@ -328,7 +328,7 @@ export class Node extends Cell {
         // HTML 节点在 Canvas 中绘制占位符，真实 DOM 元素由 Graph 管理
         if (this.isHtmlNode()) {
             this.drawHtmlPlaceholder(ctx);
-            this.drawAllPorts(ctx);
+            // 注意：连接桩不再在节点绘制时绘制，由 Graph 在边线层统一管理绘制
             return;
         }
 
@@ -393,9 +393,8 @@ export class Node extends Cell {
         ctx.fillText(displayLabel, this.position.x, this.position.y);
 
         ctx.restore();
-
-        // 绘制所有连接桩
-        this.drawAllPorts(ctx);
+        // 注意：连接桩不再在节点绘制时绘制，由 Graph 在边线层统一管理绘制
+        // 这样可以实现连接桩和边线的 zIndex 交互
     }
 
     /**
@@ -454,7 +453,7 @@ export class Node extends Cell {
             left: 0;
             top: 0;
             pointer-events: auto;
-            z-index: 1;
+            z-index: ${this.zIndex};
             transform-origin: center center;
             display: flex;
             align-items: center;
@@ -521,6 +520,17 @@ export class Node extends Cell {
         return this.htmlElement;
     }
 
+    /**
+     * 设置层级索引（重写父类方法，同步更新 HTML 元素）
+     * @param zIndex - 层级值，数值越高显示越在上层
+     */
+    setZIndex(zIndex: number): void {
+        super.setZIndex(zIndex);
+        // 同步更新 HTML 元素的 z-index
+        if (this.htmlElement) {
+            this.htmlElement.style.zIndex = String(zIndex);
+        }
+    }
 
     /**
      * 绘制节点连接点（锚点）
@@ -804,13 +814,14 @@ export class Node extends Cell {
      * @param ctx - Canvas 2D 上下文
      */
     drawAllPorts(ctx: CanvasRenderingContext2D): void {
-        // 绘制 PortManager 管理的连接桩
-        this.portManager.getAllPorts().forEach((port) => {
-            port.draw(ctx, this.position.x, this.position.y, this.style.width, this.style.height);
-        });
+        // 获取所有连接桩并合并
+        const allPorts = [
+            ...this.portManager.getAllPorts(),
+            ...Array.from(this.ports.values())
+        ];
         
-        // 绘制传统方式添加的连接桩
-        this.ports.forEach((port) => {
+        // 按 zIndex 排序后绘制（zIndex 小的先绘制，大的在上面）
+        allPorts.sort((a, b) => a.getZIndex() - b.getZIndex()).forEach((port) => {
             port.draw(ctx, this.position.x, this.position.y, this.style.width, this.style.height);
         });
     }

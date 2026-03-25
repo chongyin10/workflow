@@ -20,14 +20,20 @@ const dndOptionsColumns = [
 
 const dndOptionsData = [
   { name: 'enabled', type: 'boolean', required: '否', default: 'true', description: '是否启用拖拽功能' },
-  { name: 'onDragStart', type: '(e: DragEvent) => void', required: '否', default: '-', description: '拖拽开始回调' },
-  { name: 'onDrag', type: '(e: DragEvent) => void', required: '否', default: '-', description: '拖拽中回调' },
-  { name: 'onDragEnter', type: '(e: DragEvent) => void', required: '否', default: '-', description: '进入画布回调' },
-  { name: 'onDragLeave', type: '(e: DragEvent) => void', required: '否', default: '-', description: '离开画布回调' },
-  { name: 'onDrop', type: '(e: DragEvent) => boolean', required: '否', default: '-', description: '放置回调，返回 true 允许放置' },
-  { name: 'onDragEnd', type: '(e: DragEvent) => void', required: '否', default: '-', description: '拖拽结束回调' },
-  { name: 'validateDrop', type: '(position: Point) => boolean', required: '否', default: '-', description: '验证放置位置是否有效' },
+  { name: 'dragClassName', type: 'string', required: '否', default: "'dnd-drag-preview'", description: '拖拽预览元素类名' },
+  { name: 'dragStyle', type: 'Partial<CSSStyleDeclaration>', required: '否', default: '{...}', description: '拖拽预览元素样式' },
+  { name: 'useCanvasPreview', type: 'boolean', required: '否', default: 'false', description: '是否使用 Canvas 绘制拖拽预览' },
+  { name: 'previewNodeStyle', type: 'Partial<NodeStyle>', required: '否', default: '{...}', description: '拖拽预览节点样式（Canvas 模式）' },
   { name: 'allowOverlap', type: 'boolean', required: '否', default: 'true', description: '是否允许节点重叠放置' },
+  { name: 'onDragStart', type: '(e: DndEvent) => void', required: '否', default: '-', description: '拖拽开始回调' },
+  { name: 'onDrag', type: '(e: DndEvent) => void', required: '否', default: '-', description: '拖拽中回调' },
+  { name: 'onDragEnter', type: '(e: DndEvent) => void', required: '否', default: '-', description: '进入画布回调' },
+  { name: 'onDragOver', type: '(e: DndEvent) => void', required: '否', default: '-', description: '拖拽在画布上移动回调' },
+  { name: 'onDragLeave', type: '(e: DndEvent) => void', required: '否', default: '-', description: '离开画布回调' },
+  { name: 'onDrop', type: '(e: DndEvent) => boolean | void', required: '否', default: '-', description: '放置回调，返回 false 可阻止放置' },
+  { name: 'onDragEnd', type: '(e: DndEvent) => void', required: '否', default: '-', description: '拖拽结束回调' },
+  { name: 'validateDrop', type: '(position: Point, nodeOptions: NodeOptions) => boolean', required: '否', default: '-', description: '验证放置位置是否有效' },
+  { name: 'transformNodeOptions', type: '(position: Point, nodeOptions: NodeOptions) => NodeOptions', required: '否', default: '-', description: '放置节点前的转换函数' },
 ];
 
 // Dnd 类方法表格数据
@@ -39,11 +45,14 @@ const dndMethodsColumns = [
 ];
 
 const dndMethodsData = [
-  { key: '1', name: 'setEnabled(enabled)', params: 'enabled: boolean', return: 'void', description: '启用或禁用拖拽功能' },
-  { key: '2', name: 'isEnabled()', params: '-', return: 'boolean', description: '检查拖拽功能是否启用' },
-  { key: '3', name: 'registerSource(element, config)', params: 'element: HTMLElement, config: NodeOptions | (e: DragStartEvent) => NodeOptions', return: 'void', description: '注册拖拽源元素' },
-  { key: '4', name: 'unregisterSource(element)', params: 'element: HTMLElement', return: 'void', description: '注销拖拽源元素' },
-  { key: '5', name: 'setDragPreview(element)', params: 'element: HTMLElement | null', return: 'void', description: '设置拖拽预览元素' },
+  { key: '1', name: 'enable()', params: '-', return: 'void', description: '启用拖拽功能' },
+  { key: '2', name: 'disable()', params: '-', return: 'void', description: '禁用拖拽功能' },
+  { key: '3', name: 'isEnabled()', params: '-', return: 'boolean', description: '检查拖拽功能是否启用' },
+  { key: '4', name: 'registerSource(element, config)', params: 'element: HTMLElement, config: DndSourceConfig', return: '() => void', description: '注册拖拽源元素，返回注销函数' },
+  { key: '5', name: 'unregisterSource(element)', params: 'element: HTMLElement', return: 'void', description: '注销拖拽源元素' },
+  { key: '6', name: 'unregisterAllSources()', params: '-', return: 'void', description: '注销所有拖拽源元素' },
+  { key: '7', name: 'on(eventName, handler)', params: 'eventName: string, handler: EventHandler', return: '() => void', description: '注册事件监听器，返回注销函数' },
+  { key: '8', name: 'off(eventName, handler?)', params: 'eventName: string, handler?: EventHandler', return: 'void', description: '注销事件监听器' },
 ];
 
 // 节点模板配置

@@ -36,6 +36,7 @@ const graphOptionsData = [
   { name: 'grid.enabled', type: 'boolean', required: '否', default: 'true', description: '是否启用网格' },
   { name: 'grid.size', type: 'number', required: '否', default: '20', description: '网格大小' },
   { name: 'grid.color', type: 'string', required: '否', default: "'#e5e7eb'", description: '网格颜色' },
+  { name: 'validateConnection', type: 'ConnectionValidator', required: '否', default: '() => true', description: '连接验证函数，返回 true 允许连接，返回 false 阻止连接' },
 ];
 
 // Graph 类方法表格数据
@@ -85,6 +86,17 @@ const graphMethodsData = [
   { key: '36', name: 'off(eventName, handler?)', params: 'eventName: string, handler?: EventHandler', return: 'void', description: '注销事件监听器' },
   { key: '37', name: 'use(plugin)', params: 'plugin: Plugin', return: 'this', description: '注册插件' },
   { key: '38', name: 'unuse(pluginName)', params: 'pluginName: string', return: 'this', description: '注销插件' },
+  { key: '39', name: 'hasPlugin(pluginName)', params: 'pluginName: string', return: 'boolean', description: '检查是否已注册指定插件' },
+  { key: '40', name: 'getOverlay()', params: '-', return: 'HTMLDivElement', description: '获取 Overlay 层（用于放置 HTML 节点）' },
+  { key: '41', name: 'addHtmlNodeElement(nodeId, element)', params: 'nodeId: string, element: HTMLElement', return: 'void', description: '添加 HTML 节点元素到 Overlay 层' },
+  { key: '42', name: 'removeHtmlNodeElement(nodeId)', params: 'nodeId: string', return: 'void', description: '移除 HTML 节点元素' },
+  { key: '43', name: 'getHtmlNodeElement(nodeId)', params: 'nodeId: string', return: 'HTMLElement | undefined', description: '获取 HTML 节点元素' },
+  { key: '44', name: 'updateHtmlNodeTransform(node)', params: 'node: Node', return: 'void', description: '更新 HTML 节点的位置和变换' },
+  { key: '45', name: 'syncHtmlNodeTransforms()', params: '-', return: 'void', description: '同步所有 HTML 节点的位置和变换' },
+  { key: '46', name: 'setDraggable(enabled)', params: 'enabled: boolean', return: 'void', description: '设置是否启用画布拖拽' },
+  { key: '47', name: 'setScalable(enabled)', params: 'enabled: boolean', return: 'void', description: '设置是否启用缩放' },
+  { key: '48', name: 'startEdgeAnimation()', params: '-', return: 'void', description: '开始边动画循环' },
+  { key: '49', name: 'stopEdgeAnimation()', params: '-', return: 'void', description: '停止边动画循环' },
 ];
 
 // 示例 1: 基础 Graph 示例
@@ -566,12 +578,192 @@ console.log('重置到中心示例');
 console.log('- reset(): 重置到初始位置 (initialOffsetX, initialOffsetY)');
 console.log('- resetToCenter(): 重置到画布中心点 (0, 0) 在画布中心');`;
 
+// 示例 5: Port 和 Edge 的 zIndex 层级交互
+const EXAMPLE_5_CODE = `// 示例 5: Port 和 Edge 的 zIndex 层级交互
+const graph = new Graph({
+  container: container,
+  width: 600,
+  height: 400,
+  draggable: true,
+  scalable: true,
+  backgroundColor: '#f8fafc',
+  grid: { enabled: true, size: 20, color: '#e2e8f0' },
+});
+
+// 创建节点
+const node1 = graph.addNode({
+  id: 'node-1',
+  label: '节点 1',
+  x: 150,
+  y: 200,
+  shape: Shape.Rect,
+  style: {
+    width: 100,
+    height: 60,
+    backgroundColor: '#3b82f6',
+    borderColor: '#2563eb',
+    textColor: '#ffffff',
+    borderRadius: 8,
+  },
+});
+
+const node2 = graph.addNode({
+  id: 'node-2',
+  label: '节点 2',
+  x: 350,
+  y: 200,
+  shape: Shape.Rect,
+  style: {
+    width: 100,
+    height: 60,
+    backgroundColor: '#22c55e',
+    borderColor: '#16a34a',
+    textColor: '#ffffff',
+    borderRadius: 8,
+  },
+});
+
+// 添加连接桩（设置较高的zIndex）
+const port1 = node1.addPort({
+  id: 'port-1-right',
+  position: 'right',
+  visible: true,
+  style: {
+    width: 16,
+    height: 16,
+    fillColor: '#f59e0b',
+    strokeColor: '#d97706',
+    strokeWidth: 2,
+  },
+});
+
+const port2 = node2.addPort({
+  id: 'port-2-left',
+  position: 'left',
+  visible: true,
+  style: {
+    width: 16,
+    height: 16,
+    fillColor: '#f59e0b',
+    strokeColor: '#d97706',
+    strokeWidth: 2,
+  },
+});
+
+// 添加边（设置较低的zIndex）
+const edge = graph.addEdge({
+  id: 'edge-1',
+  source: { nodeId: 'node-1', portId: 'port-1-right' },
+  target: { nodeId: 'node-2', portId: 'port-2-left' },
+  type: EdgeType.Straight,
+  style: {
+    stroke: '#ef4444',
+    strokeWidth: 4,
+    arrowSize: 12,
+  },
+});
+
+// 控制面板
+const panel = document.createElement('div');
+panel.style.cssText = 'position:absolute;top:12px;right:12px;background:#1e293b;padding:16px;borderRadius:8px;boxShadow:0 2px 8px rgba(0,0,0,0.15);color:#e2e8f0;minWidth:220px;fontSize:13px;';
+
+panel.innerHTML = \`
+  <div style="font-weight:600;margin-bottom:12px;color:#fff;">🎯 zIndex 层级控制</div>
+  <div style="margin-bottom:16px;padding:8px;background:#334155;borderRadius:4px;fontSize:12px;lineHeight:1.6;">
+    <div style="color:#94a3b8;">层级规则：</div>
+    <div>• zIndex 值越大，显示越在上层</div>
+    <div>• Edge > Port → 边覆盖连接桩</div>
+    <div>• Edge ≤ Port → 连接桩覆盖边</div>
+  </div>
+\`;
+
+// Port zIndex 控制
+const portControl = document.createElement('div');
+portControl.style.cssText = 'margin-bottom:12px;';
+portControl.innerHTML = '<div style="margin-bottom:6px;color:#f59e0b;">连接桩 zIndex</div>';
+
+const portSlider = document.createElement('input');
+portSlider.type = 'range';
+portSlider.min = '0';
+portSlider.max = '20';
+portSlider.value = '0';
+portSlider.style.cssText = 'width:100%;cursor:pointer;';
+
+const portValue = document.createElement('span');
+portValue.style.cssText = 'margin-left:8px;color:#f59e0b;fontFamily:monospace;';
+portValue.textContent = '0';
+
+portSlider.oninput = (e) => {
+  const val = parseInt(e.target.value);
+  port1.setZIndex(val);
+  port2.setZIndex(val);
+  portValue.textContent = val;
+};
+
+portControl.appendChild(portSlider);
+portControl.appendChild(portValue);
+panel.appendChild(portControl);
+
+// Edge zIndex 控制
+const edgeControl = document.createElement('div');
+edgeControl.style.cssText = 'margin-bottom:12px;';
+edgeControl.innerHTML = '<div style="margin-bottom:6px;color:#ef4444;">边线 zIndex</div>';
+
+const edgeSlider = document.createElement('input');
+edgeSlider.type = 'range';
+edgeSlider.min = '0';
+edgeSlider.max = '20';
+edgeSlider.value = '0';
+edgeSlider.style.cssText = 'width:100%;cursor:pointer;';
+
+const edgeValue = document.createElement('span');
+edgeValue.style.cssText = 'margin-left:8px;color:#ef4444;fontFamily:monospace;';
+edgeValue.textContent = '0';
+
+edgeSlider.oninput = (e) => {
+  const val = parseInt(e.target.value);
+  edge.setZIndex(val);
+  edgeValue.textContent = val;
+};
+
+edgeControl.appendChild(edgeSlider);
+edgeControl.appendChild(edgeValue);
+panel.appendChild(edgeControl);
+
+// 结果显示
+const resultDisplay = document.createElement('div');
+resultDisplay.style.cssText = 'margin-top:12px;padding:8px;background:#334155;borderRadius:4px;textAlign:center;fontSize:12px;';
+
+function updateResult() {
+  const portZ = parseInt(portSlider.value);
+  const edgeZ = parseInt(edgeSlider.value);
+  if (edgeZ > portZ) {
+    resultDisplay.innerHTML = '<span style="color:#ef4444;">边线覆盖连接桩</span>';
+  } else {
+    resultDisplay.innerHTML = '<span style="color:#f59e0b;">连接桩覆盖边线</span>';
+  }
+}
+
+portSlider.addEventListener('input', updateResult);
+edgeSlider.addEventListener('input', updateResult);
+
+panel.appendChild(resultDisplay);
+container.appendChild(panel);
+
+// 初始化显示
+updateResult();
+
+console.log('Port 和 Edge zIndex 层级交互示例');
+console.log('- port.setZIndex(val): 设置连接桩层级');
+console.log('- edge.setZIndex(val): 设置边线层级');`;
+
 // 所有示例
 const EXAMPLES = [
   { id: 'example-1', title: '基础 Graph', code: EXAMPLE_1_CODE },
   { id: 'example-2', title: '缩放控制', code: EXAMPLE_2_CODE },
   { id: 'example-3', title: '网格配置', code: EXAMPLE_3_CODE },
   { id: 'example-4', title: '重置到中心', code: EXAMPLE_4_CODE },
+  { id: 'example-5', title: 'zIndex 层级', code: EXAMPLE_5_CODE },
 ];
 
 /**

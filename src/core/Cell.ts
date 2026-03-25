@@ -19,6 +19,8 @@ export interface CellOptions {
     data?: Record<string, any>;
     visible?: boolean;
     locked?: boolean;
+    /** 层级索引，数值越高显示越在上层，默认 0 */
+    zIndex?: number;
 }
 
 /**
@@ -66,6 +68,7 @@ export abstract class Cell extends Eventful {
     protected isHovered: boolean = false;
     protected isVisible: boolean = true;
     protected isLocked: boolean = false;
+    protected zIndex: number = 0;
 
     constructor(options: CellOptions) {
         super();
@@ -74,6 +77,7 @@ export abstract class Cell extends Eventful {
         this.data = options.data || {};
         this.isVisible = options.visible !== undefined ? options.visible : true;
         this.isLocked = options.locked !== undefined ? options.locked : false;
+        this.zIndex = options.zIndex !== undefined ? options.zIndex : 0;
     }
 
     /**
@@ -165,6 +169,21 @@ export abstract class Cell extends Eventful {
      */
     getLocked(): boolean {
         return this.isLocked;
+    }
+
+    /**
+     * 设置层级索引
+     * @param zIndex - 层级值，数值越高显示越在上层
+     */
+    setZIndex(zIndex: number): void {
+        this.zIndex = zIndex;
+    }
+
+    /**
+     * 获取层级索引
+     */
+    getZIndex(): number {
+        return this.zIndex;
     }
 
     /**
