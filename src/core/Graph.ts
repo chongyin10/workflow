@@ -1,4 +1,4 @@
-import { Node, NodeOptions, type NodeEvent } from './Node';
+import { Node, NodeOptions, type NodeEvent, type ResizeHandlePosition } from './Node';
 import { DynamicHeightNode } from './DynamicNode';
 import { Edge, EdgeOptions, EdgeType, type EdgeEvent } from './Edge';
 import { Port, type PortEvent } from './Port';
@@ -139,6 +139,13 @@ export class Graph {
     private connectTargetPort: Port | null = null;
     private connectCurrentPoint: Point = { x: 0, y: 0 };
     private rafId: number | null = null;
+
+    // Resize 状态
+    private isResizing: boolean = false;
+    private resizingNode: Node | null = null;
+    private resizingHandle: ResizeHandlePosition | null = null;
+    private resizeStartPoint: Point = { x: 0, y: 0 };
+    private resizeStartBounds: { x: number; y: number; width: number; height: number } | null = null;
 
     // HTML 节点元素管理
     private htmlNodeElements: Map<string, HTMLElement> = new Map();
@@ -547,9 +554,20 @@ export class Graph {
         const nodes = this.getAllNodes();
         let clickedNode: Node | null = null;
         let clickedPort: Port | null = null;
+        let clickedResizeHandle: ResizeHandlePosition | null = null;
         
         for (let i = nodes.length - 1; i >= 0; i--) {
-            // 先检查连接桩
+            // 先检查是否点击了 resize handle（只对选中的节点）
+            if (nodes[i].getSelected()) {
+                const resizeHandle = nodes[i].getResizeHandleAtPoint(worldPoint);
+                if (resizeHandle) {
+                    clickedNode = nodes[i];
+                    clickedResizeHandle = resizeHandle;
+                    break;
+                }
+            }
+            
+            // 再检查连接桩
             const port = nodes[i].getPortAtPoint(worldPoint);
             if (port) {
                 clickedPort = port;
@@ -566,6 +584,12 @@ export class Graph {
 
         // 分发 mousedown 事件（复用已检测的结果）
         this.dispatchMouseEventWithTarget('mousedown', e, worldPoint, clickedNode, clickedPort);
+
+        // 如果点击了 resize handle，开始 resize
+        if (clickedNode && clickedResizeHandle) {
+            this.startResize(clickedNode, clickedResizeHandle, worldPoint);
+            return;
+        }
 
         // 如果点击了连接桩，开始连接拖拽
         if (clickedPort && clickedNode) {
@@ -782,10 +806,118 @@ export class Graph {
         this.scheduleRender();
     }
 
+    // ==================== Resize 相关方法 ====================
+
+    /**
+     * 开始 resize
+     */
+    private startResize(node: Node, handle: ResizeHandlePosition, startPoint: Point): void {
+        this.isResizing = true;
+        this.resizingNode = node;
+        this.resizingHandle = handle;
+        this.resizeStartPoint = startPoint;
+        this.resizeStartBounds = node.getBounds();
+        
+        // 根据 handle 位置设置光标样式
+        const cursorMap: Record<ResizeHandlePosition, string> = {
+            'nw': 'nw-resize',
+            'n': 'n-resize',
+            'ne': 'ne-resize',
+            'e': 'e-resize',
+            'se': 'se-resize',
+            's': 's-resize',
+            'sw': 'sw-resize',
+            'w': 'w-resize',
+        };
+        this.canvas.style.cursor = cursorMap[handle];
+        
+        this.scheduleRender();
+    }
+
+    /**
+     * 更新 resize
+     */
+    private updateResize(worldPoint: Point): void {
+        if (!this.isResizing || !this.resizingNode || !this.resizingHandle || !this.resizeStartBounds) return;
+
+        // 计算鼠标移动的差值（世界坐标）
+        // worldPoint 和 resizeStartPoint 已经是世界坐标，直接相减得到世界坐标系的移动距离
+        // 这样节点在屏幕上的尺寸变化与鼠标移动的屏幕距离成正比
+        const deltaX = worldPoint.x - this.resizeStartPoint.x;
+        const deltaY = worldPoint.y - this.resizeStartPoint.y;
+
+        // 计算新的节点尺寸和位置，传入起始边界框以确保计算正确
+        const result = this.resizingNode.calculateResize(
+            this.resizingHandle,
+            deltaX,
+            deltaY,
+            50,  // minWidth
+            30,  // minHeight
+            this.resizeStartBounds  // 传入起始边界框，避免累积误差
+        );
+
+        if (result.changed) {
+            // 更新节点位置和尺寸
+            this.resizingNode.setPosition(result.x, result.y);
+            this.resizingNode.updateStyle({
+                width: result.width,
+                height: result.height,
+            });
+            
+            // 立即渲染，使 handles 跟随节点实时更新
+            this.render();
+        }
+    }
+
+    /**
+     * 完成 resize
+     */
+    private completeResize(): void {
+        if (this.isResizing && this.resizingNode) {
+            // 触发 resize 完成事件
+            const bounds = this.resizingNode.getBounds();
+            this.emit('node:resize', {
+                type: 'node',
+                target: this.resizingNode,
+                node: this.resizingNode,
+                bounds,
+            });
+        }
+        
+        this.resetResize();
+    }
+
+    /**
+     * 重置 resize 状态
+     */
+    private resetResize(): void {
+        this.isResizing = false;
+        this.resizingNode = null;
+        this.resizingHandle = null;
+        this.resizeStartPoint = { x: 0, y: 0 };
+        this.resizeStartBounds = null;
+        this.canvas.style.cursor = 'grab';
+        
+        this.scheduleRender();
+    }
+
     /**
      * 鼠标移动处理
      */
     private handleMouseMove(e: globalThis.MouseEvent): void {
+        // 处理 resize
+        if (this.isResizing) {
+            const rect = this.canvas.getBoundingClientRect();
+            const screenPoint: Point = {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top,
+            };
+            const worldPoint = this.screenToWorld(screenPoint);
+            
+            this.updateResize(worldPoint);
+            return;
+        }
+
         // 处理连接拖拽
         if (this.isConnecting) {
             const rect = this.canvas.getBoundingClientRect();
@@ -851,8 +983,49 @@ export class Graph {
         // 处理鼠标悬停状态（非拖拽状态下）
         this.handleMouseEnterLeave(e, true);
 
+        // 处理 resize handle 悬停时的光标变化
+        if (!this.isResizing && !this.isConnecting && !this.isDraggingNode && !this.state.isDragging) {
+            this.handleResizeHandleHover(e);
+        }
+
         // 处理 DynamicHeightNode 的行悬停状态
         this.handleDynamicNodeRowHover(e);
+    }
+
+    /**
+     * 处理 resize handle 悬停时的光标变化
+     */
+    private handleResizeHandleHover(e: globalThis.MouseEvent): void {
+        const rect = this.canvas.getBoundingClientRect();
+        const screenPoint: Point = {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
+        };
+        const worldPoint = this.screenToWorld(screenPoint);
+
+        // 检查是否悬停在选中节点的 resize handle 上
+        if (this.selectedNode && !this.selectedNode.isHtmlNode()) {
+            const resizeHandle = this.selectedNode.getResizeHandleAtPoint(worldPoint);
+            if (resizeHandle) {
+                const cursorMap: Record<ResizeHandlePosition, string> = {
+                    'nw': 'nw-resize',
+                    'n': 'n-resize',
+                    'ne': 'ne-resize',
+                    'e': 'e-resize',
+                    'se': 'se-resize',
+                    's': 's-resize',
+                    'sw': 'sw-resize',
+                    'w': 'w-resize',
+                };
+                this.canvas.style.cursor = cursorMap[resizeHandle];
+                return;
+            }
+        }
+
+        // 恢复默认光标
+        if (this.canvas.style.cursor !== 'grab' && this.canvas.style.cursor !== 'grabbing') {
+            this.canvas.style.cursor = 'grab';
+        }
     }
 
     /**
@@ -901,6 +1074,12 @@ export class Graph {
             y: e.clientY - rect.top,
         };
         const worldPoint = this.screenToWorld(screenPoint);
+
+        // 处理 resize 结束
+        if (this.isResizing) {
+            this.completeResize();
+            return;
+        }
 
         // 处理连接拖拽结束
         if (this.isConnecting) {
@@ -954,6 +1133,12 @@ export class Graph {
      * 鼠标离开处理
      */
     private handleMouseLeave(e: globalThis.MouseEvent): void {
+        // 如果正在 resize，取消 resize
+        if (this.isResizing) {
+            this.resetResize();
+            return;
+        }
+
         // 如果正在连接，取消连接
         if (this.isConnecting) {
             this.cancelConnection();
@@ -1753,6 +1938,11 @@ export class Graph {
         sortedNodes.forEach((node) => {
             node.draw(this.ctx);
         });
+
+        // 在选中的节点上绘制 resize handles
+        if (this.selectedNode && !this.selectedNode.isHtmlNode()) {
+            this.selectedNode.drawResizeHandles(this.ctx);
+        }
     }
 
     /**

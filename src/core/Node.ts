@@ -4,6 +4,38 @@ import { Port, PortOptions, PortPosition, PortManager, PortGroupOptions, PortLay
 import { EVENT_NAMES, type MouseEvent, type WheelEvent } from './EventManager';
 
 /**
+ * Resize handle 位置类型
+ */
+export type ResizeHandlePosition = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
+
+/**
+ * Resize handle 配置
+ */
+export interface ResizeHandleConfig {
+    /** handle 位置 */
+    position: ResizeHandlePosition;
+    /** handle 尺寸 */
+    size: number;
+    /** handle 颜色 */
+    fillColor: string;
+    /** handle 边框颜色 */
+    strokeColor: string;
+    /** handle 边框宽度 */
+    strokeWidth: number;
+}
+
+/**
+ * Resize handle 默认配置
+ */
+export const DEFAULT_RESIZE_HANDLE_CONFIG: ResizeHandleConfig = {
+    position: 'se',
+    size: 8,
+    fillColor: '#3b82f6',
+    strokeColor: '#ffffff',
+    strokeWidth: 2,
+};
+
+/**
  * Node 事件对象接口
  */
 export interface NodeEvent extends CellEvent {
@@ -1018,6 +1050,192 @@ export class Node extends Cell {
         }
 
         return { hit: false, target: null };
+    }
+
+    // ==================== Resize Handles 方法 ====================
+
+    /**
+     * 获取所有 resize handle 的位置
+     * @returns handle 位置数组
+     */
+    getResizeHandlePositions(): ResizeHandlePosition[] {
+        return ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+    }
+
+    /**
+     * 获取指定位置 resize handle 的坐标
+     * @param position - handle 位置
+     * @param handleSize - handle 尺寸
+     * @returns handle 中心坐标
+     */
+    getResizeHandlePoint(position: ResizeHandlePosition, handleSize: number = 8): { x: number; y: number } {
+        const bounds = this.getBounds();
+        const halfSize = handleSize / 2;
+
+        switch (position) {
+            case 'nw':
+                return { x: bounds.x - halfSize, y: bounds.y - halfSize };
+            case 'n':
+                return { x: bounds.x + bounds.width / 2 - halfSize, y: bounds.y - halfSize };
+            case 'ne':
+                return { x: bounds.x + bounds.width - halfSize, y: bounds.y - halfSize };
+            case 'e':
+                return { x: bounds.x + bounds.width - halfSize, y: bounds.y + bounds.height / 2 - halfSize };
+            case 'se':
+                return { x: bounds.x + bounds.width - halfSize, y: bounds.y + bounds.height - halfSize };
+            case 's':
+                return { x: bounds.x + bounds.width / 2 - halfSize, y: bounds.y + bounds.height - halfSize };
+            case 'sw':
+                return { x: bounds.x - halfSize, y: bounds.y + bounds.height - halfSize };
+            case 'w':
+                return { x: bounds.x - halfSize, y: bounds.y + bounds.height / 2 - halfSize };
+            default:
+                return { x: this.position.x, y: this.position.y };
+        }
+    }
+
+    /**
+     * 绘制 resize handles
+     * @param ctx - Canvas 2D 上下文
+     * @param config - handle 配置（可选）
+     */
+    drawResizeHandles(ctx: CanvasRenderingContext2D, config?: Partial<ResizeHandleConfig>): void {
+        if (!this.isSelected) return;
+
+        const handleConfig = { ...DEFAULT_RESIZE_HANDLE_CONFIG, ...config };
+        const positions = this.getResizeHandlePositions();
+
+        ctx.save();
+
+        positions.forEach((position) => {
+            const point = this.getResizeHandlePoint(position, handleConfig.size);
+
+            ctx.beginPath();
+            ctx.rect(point.x, point.y, handleConfig.size, handleConfig.size);
+
+            // 填充
+            ctx.fillStyle = handleConfig.fillColor;
+            ctx.fill();
+
+            // 边框
+            ctx.strokeStyle = handleConfig.strokeColor;
+            ctx.lineWidth = handleConfig.strokeWidth;
+            ctx.stroke();
+        });
+
+        ctx.restore();
+    }
+
+    /**
+     * 检查点是否在 resize handle 上
+     * @param point - 检查的点
+     * @param handleSize - handle 尺寸
+     * @returns handle 位置或 null
+     */
+    getResizeHandleAtPoint(
+        point: { x: number; y: number },
+        handleSize: number = 8
+    ): ResizeHandlePosition | null {
+        if (!this.isSelected) return null;
+
+        const positions = this.getResizeHandlePositions();
+        const hitSize = handleSize + 4; // 增加一点点击区域，更易命中
+
+        for (const position of positions) {
+            const handlePoint = this.getResizeHandlePoint(position, handleSize);
+
+            if (
+                point.x >= handlePoint.x &&
+                point.x <= handlePoint.x + hitSize &&
+                point.y >= handlePoint.y &&
+                point.y <= handlePoint.y + hitSize
+            ) {
+                return position;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * 根据 resize handle 位置和鼠标移动计算新的节点尺寸和位置
+     * @param handlePosition - 被拖拽的 handle 位置
+     * @param deltaX - X 方向移动距离
+     * @param deltaY - Y 方向移动距离
+     * @param minWidth - 最小宽度
+     * @param minHeight - 最小高度
+     * @param startBounds - 可选的起始边界框，如果不提供则使用当前边界框
+     * @returns 新的位置、尺寸和是否需要更新
+     */
+    calculateResize(
+        handlePosition: ResizeHandlePosition,
+        deltaX: number,
+        deltaY: number,
+        minWidth: number = 50,
+        minHeight: number = 30,
+        startBounds?: { x: number; y: number; width: number; height: number }
+    ): {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+        changed: boolean;
+    } {
+        // 使用传入的起始边界框，如果没有则使用当前边界框
+        const bounds = startBounds || this.getBounds();
+        let newX = bounds.x;
+        let newY = bounds.y;
+        let newWidth = bounds.width;
+        let newHeight = bounds.height;
+
+        switch (handlePosition) {
+            case 'se':
+                newWidth = Math.max(minWidth, bounds.width + deltaX);
+                newHeight = Math.max(minHeight, bounds.height + deltaY);
+                break;
+            case 'nw':
+                newWidth = Math.max(minWidth, bounds.width - deltaX);
+                newHeight = Math.max(minHeight, bounds.height - deltaY);
+                newX = bounds.x + bounds.width - newWidth;
+                newY = bounds.y + bounds.height - newHeight;
+                break;
+            case 'ne':
+                newWidth = Math.max(minWidth, bounds.width + deltaX);
+                newHeight = Math.max(minHeight, bounds.height - deltaY);
+                newY = bounds.y + bounds.height - newHeight;
+                break;
+            case 'sw':
+                newWidth = Math.max(minWidth, bounds.width - deltaX);
+                newHeight = Math.max(minHeight, bounds.height + deltaY);
+                newX = bounds.x + bounds.width - newWidth;
+                break;
+            case 'e':
+                newWidth = Math.max(minWidth, bounds.width + deltaX);
+                break;
+            case 'w':
+                newWidth = Math.max(minWidth, bounds.width - deltaX);
+                newX = bounds.x + bounds.width - newWidth;
+                break;
+            case 's':
+                newHeight = Math.max(minHeight, bounds.height + deltaY);
+                break;
+            case 'n':
+                newHeight = Math.max(minHeight, bounds.height - deltaY);
+                newY = bounds.y + bounds.height - newHeight;
+                break;
+        }
+
+        const changed = newWidth !== bounds.width || newHeight !== bounds.height ||
+                        newX !== bounds.x || newY !== bounds.y;
+
+        // 转换回中心点坐标
+        return {
+            x: newX + newWidth / 2,
+            y: newY + newHeight / 2,
+            width: newWidth,
+            height: newHeight,
+            changed,
+        };
     }
 }
 

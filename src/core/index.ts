@@ -22,6 +22,9 @@ export {
   type NodePosition,
   type NodeData,
   type NodeEvent,
+  type ResizeHandlePosition,
+  type ResizeHandleConfig,
+  DEFAULT_RESIZE_HANDLE_CONFIG,
 } from './Node';
 
 // 动态高度节点

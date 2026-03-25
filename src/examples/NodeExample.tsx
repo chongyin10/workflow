@@ -64,6 +64,11 @@ const nodeMethodsData = [
   { key: '22', name: 'clearPorts()', params: '-', return: 'void', description: '清除所有连接桩' },
   { key: '23', name: 'toJSON()', params: '-', return: 'NodeData', description: '序列化为 JSON' },
   { key: '24', name: 'clone(newId?)', params: 'newId?: string', return: 'Node', description: '克隆节点' },
+  { key: '25', name: 'getResizeHandlePositions()', params: '-', return: 'ResizeHandlePosition[]', description: '获取所有 resize handle 位置' },
+  { key: '26', name: 'getResizeHandlePoint(position, handleSize?)', params: 'position: ResizeHandlePosition, handleSize?: number', return: '{ x, y }', description: '获取指定位置 handle 的坐标' },
+  { key: '27', name: 'drawResizeHandles(ctx, config?)', params: 'ctx: CanvasRenderingContext2D, config?: Partial<ResizeHandleConfig>', return: 'void', description: '绘制 resize handles（节点选中时自动调用）' },
+  { key: '28', name: 'getResizeHandleAtPoint(point, handleSize?)', params: 'point: { x, y }, handleSize?: number', return: 'ResizeHandlePosition | null', description: '检测点是否在 resize handle 上' },
+  { key: '29', name: 'calculateResize(handlePosition, deltaX, deltaY, minWidth?, minHeight?)', params: 'handlePosition: ResizeHandlePosition, deltaX: number, deltaY: number, minWidth?: number, minHeight?: number', return: '{ x, y, width, height, changed }', description: '计算 resize 后的新尺寸和位置' },
 ];
 
 // 示例 1: 基础形状
@@ -198,7 +203,7 @@ const thinBorderNode = graph.addNode({
     borderColor: '#64748b',
     borderWidth: 1,
     borderRadius: 8,
-    textColor: '#64748b',
+    textColor: '#334155',
   },
 });`;
 
@@ -207,29 +212,21 @@ const EXAMPLE_3_CODE = `// 创建 Graph 画布
 const graph = new Graph({
   container: container,
   width: 600,
-  height: 250,
+  height: 280,
   draggable: true,
   scalable: true,
   backgroundColor: '#f8fafc',
   grid: { enabled: true, size: 20, color: '#e2e8f0' },
 });
 
-// 示例 3: 多边形形状
-// 菱形（四边形）
-const diamondNode = graph.addNode({
-  id: 'node-diamond',
-  label: '菱形',
-  x: 150,
+// 示例 3: 多边形展示
+// Triangle - 三角形
+const triangleNode = graph.addNode({
+  id: 'node-triangle',
+  label: '三角形',
+  x: 120,
   y: 100,
-  shape: {
-    type: Shape.Polygon,
-    points: [
-      { x: 0, y: -50 },
-      { x: 60, y: 0 },
-      { x: 0, y: 50 },
-      { x: -60, y: 0 },
-    ],
-  },
+  shape: Shape.Triangle,
   style: {
     width: 120,
     height: 100,
@@ -240,28 +237,35 @@ const diamondNode = graph.addNode({
   },
 });
 
-// 六边形
-const hexNode = graph.addNode({
-  id: 'node-hex',
-  label: '六边形',
-  x: 380,
+// Diamond - 菱形
+const diamondNode = graph.addNode({
+  id: 'node-diamond',
+  label: '菱形',
+  x: 300,
   y: 100,
-  shape: {
-    type: Shape.Polygon,
-    points: [
-      { x: -40, y: -35 },
-      { x: 40, y: -35 },
-      { x: 80, y: 0 },
-      { x: 40, y: 35 },
-      { x: -40, y: 35 },
-      { x: -80, y: 0 },
-    ],
-  },
+  shape: Shape.Diamond,
   style: {
-    width: 160,
-    height: 70,
-    backgroundColor: '#14b8a6',
-    borderColor: '#0d9488',
+    width: 100,
+    height: 100,
+    backgroundColor: '#ef4444',
+    borderColor: '#dc2626',
+    borderWidth: 2,
+    textColor: '#ffffff',
+  },
+});
+
+// Hexagon - 六边形
+const hexagonNode = graph.addNode({
+  id: 'node-hexagon',
+  label: '六边形',
+  x: 480,
+  y: 100,
+  shape: Shape.Hexagon,
+  style: {
+    width: 120,
+    height: 100,
+    backgroundColor: '#06b6d4',
+    borderColor: '#0891b2',
     borderWidth: 2,
     textColor: '#ffffff',
   },
@@ -272,7 +276,7 @@ const EXAMPLE_4_CODE = `// 创建 Graph 画布
 const graph = new Graph({
   container: container,
   width: 600,
-  height: 250,
+  height: 300,
   draggable: true,
   scalable: true,
   backgroundColor: '#f8fafc',
@@ -280,53 +284,61 @@ const graph = new Graph({
 });
 
 // 示例 4: 端口管理
-// 创建带端口的源节点
-const sourceNode = graph.addNode({
-  id: 'node-source',
-  label: '源节点',
-  x: 100,
-  y: 100,
+const portNode = graph.addNode({
+  id: 'node-ports',
+  label: '端口管理示例',
+  x: 300,
+  y: 140,
   shape: Shape.Rect,
   style: {
-    width: 120,
-    height: 80,
+    width: 180,
+    height: 100,
     backgroundColor: '#3b82f6',
     borderColor: '#2563eb',
+    borderWidth: 2,
+    borderRadius: 8,
     textColor: '#ffffff',
   },
 });
 
-// 添加多个端口
-sourceNode.addPort({ id: 'port-top', position: 'top', visible: true });
-sourceNode.addPort({ id: 'port-right', position: 'right', visible: true });
-sourceNode.addPort({ id: 'port-bottom', position: 'bottom', visible: true });
-sourceNode.addPort({ id: 'port-left', position: 'left', visible: true });
-
-// 创建目标节点
-const targetNode = graph.addNode({
-  id: 'node-target',
-  label: '目标节点',
-  x: 350,
-  y: 100,
-  shape: Shape.Circle,
-  style: {
-    width: 100,
-    height: 100,
-    backgroundColor: '#22c55e',
-    borderColor: '#16a34a',
-    textColor: '#ffffff',
-  },
+// 添加输入端口组（顶部）
+portNode.addPortGroup({
+  id: 'inputs',
+  position: 'top',
+  count: 3,
+  portConfig: (index) => ({
+    id: 'input-' + index,
+    label: '输入 ' + (index + 1),
+    style: { fillColor: '#22c55e' },
+  }),
 });
 
-targetNode.addPort({ id: 'port-in', position: 'left', visible: true });
+// 添加输出端口组（底部）
+portNode.addPortGroup({
+  id: 'outputs',
+  position: 'bottom',
+  count: 2,
+  portConfig: (index) => ({
+    id: 'output-' + index,
+    label: '输出 ' + (index + 1),
+    style: { fillColor: '#ef4444' },
+  }),
+});
 
-// 连接两个节点
-graph.addEdge({
-  id: 'edge-demo',
-  source: { nodeId: 'node-source', portId: 'port-right' },
-  target: { nodeId: 'node-target', portId: 'port-in' },
-  type: EdgeType.Bezier,
-  style: { stroke: '#64748b', strokeWidth: 2 },
+// 添加单个端口（左侧）
+portNode.addPort({
+  id: 'port-left',
+  position: 'left',
+  label: '左端口',
+  style: { fillColor: '#f59e0b' },
+});
+
+// 添加单个端口（右侧）
+portNode.addPort({
+  id: 'port-right',
+  position: 'right',
+  label: '右端口',
+  style: { fillColor: '#8b5cf6' },
 });`;
 
 // 示例 5: 动态交互
@@ -334,114 +346,81 @@ const EXAMPLE_5_CODE = `// 创建 Graph 画布
 const graph = new Graph({
   container: container,
   width: 600,
-  height: 250,
+  height: 300,
   draggable: true,
   scalable: true,
   backgroundColor: '#f8fafc',
   grid: { enabled: true, size: 20, color: '#e2e8f0' },
 });
 
-// 示例 5: 动态交互演示
-// 创建可交互节点
+// 示例 5: 动态交互
+let clickCount = 0;
+
 const interactiveNode = graph.addNode({
   id: 'node-interactive',
-  label: '点击我！',
-  x: 250,
-  y: 100,
+  label: '点击我!',
+  x: 300,
+  y: 130,
   shape: Shape.Rect,
   style: {
-    width: 140,
+    width: 160,
     height: 80,
-    backgroundColor: '#8b5cf6',
-    borderColor: '#7c3aed',
+    backgroundColor: '#3b82f6',
+    borderColor: '#2563eb',
     borderWidth: 2,
     borderRadius: 8,
     textColor: '#ffffff',
-    hoverBackgroundColor: '#a78bfa',
   },
   data: { clickCount: 0 },
 });
 
-// 添加监听事件
+// 添加端口
+interactiveNode.addPort({
+  id: 'port-top',
+  position: 'top',
+  label: '输入',
+  style: { fillColor: '#22c55e' },
+});
+
+interactiveNode.addPort({
+  id: 'port-bottom',
+  position: 'bottom',
+  label: '输出',
+  style: { fillColor: '#ef4444' },
+});
+
+// 点击事件 - 改变颜色和标签
 graph.on('node:click', (e) => {
   if (e.node.getId() === 'node-interactive') {
-    const data = e.node.getData();
-    const newCount = (data.clickCount || 0) + 1;
-    e.node.setData({ ...data, clickCount: newCount });
-    e.node.setLabel(\`点击了 \${newCount} 次\`);
-    console.log('节点被点击！当前计数:', newCount);
+    clickCount++;
+    e.node.setLabel('点击次数: ' + clickCount);
+    
+    // 随机颜色
+    const colors = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+    
+    e.node.updateStyle({
+      backgroundColor: randomColor,
+      borderColor: randomColor,
+    });
+    
+    // 更新数据
+    e.node.setData({ clickCount: clickCount });
   }
 });
 
-// 状态指示器节点
-const statusNode = graph.addNode({
-  id: 'node-status',
-  label: '状态: 正常',
-  x: 100,
-  y: 180,
-  shape: Shape.Circle,
-  style: {
-    width: 70,
-    height: 70,
-    backgroundColor: '#22c55e',
-    borderColor: '#16a34a',
-    textColor: '#ffffff',
-  },
+// 鼠标悬停效果
+graph.on('node:mouseenter', (e) => {
+  if (e.node.getId() === 'node-interactive') {
+    e.node.updateStyle({ borderWidth: 4 });
+  }
 });
 
-const errorNode = graph.addNode({
-  id: 'node-error',
-  label: '状态: 错误',
-  x: 200,
-  y: 180,
-  shape: Shape.Circle,
-  style: {
-    width: 70,
-    height: 70,
-    backgroundColor: '#ef4444',
-    borderColor: '#dc2626',
-    textColor: '#ffffff',
-  },
-});
-
-const warningNode = graph.addNode({
-  id: 'node-warning',
-  label: '状态: 警告',
-  x: 300,
-  y: 180,
-  shape: Shape.Circle,
-  style: {
-    width: 70,
-    height: 70,
-    backgroundColor: '#f59e0b',
-    borderColor: '#d97706',
-    textColor: '#ffffff',
-  },
+graph.on('node:mouseleave', (e) => {
+  if (e.node.getId() === 'node-interactive') {
+    e.node.updateStyle({ borderWidth: 2 });
+  }
 });`;
-
-// Node 事件表格数据
-const nodeEventColumns = [
-  { title: '事件名称', dataIndex: 'name', width: 220 },
-  { title: '触发时机', dataIndex: 'trigger', width: 200 },
-  { title: '事件参数', dataIndex: 'params', width: 200 },
-  { title: '说明', dataIndex: 'description' },
-];
-
-const nodeEventData = [
-  { name: 'node:click', trigger: '点击节点', params: '{ node, originalEvent }', description: '鼠标左键点击节点时触发' },
-  { name: 'node:dblclick', trigger: '双击节点', params: '{ node, originalEvent }', description: '鼠标双击节点时触发' },
-  { name: 'node:mousedown', trigger: '鼠标按下', params: '{ node, originalEvent }', description: '在节点上按下鼠标按钮时触发' },
-  { name: 'node:mouseup', trigger: '鼠标释放', params: '{ node, originalEvent }', description: '在节点上释放鼠标按钮时触发' },
-  { name: 'node:mouseenter', trigger: '鼠标进入', params: '{ node, originalEvent }', description: '鼠标移入节点区域时触发' },
-  { name: 'node:mouseleave', trigger: '鼠标离开', params: '{ node, originalEvent }', description: '鼠标移出节点区域时触发' },
-  { name: 'node:dragstart', trigger: '开始拖拽', params: '{ node, originalEvent }', description: '开始拖拽节点时触发' },
-  { name: 'node:drag', trigger: '拖拽中', params: '{ node, originalEvent }', description: '节点拖拽过程中持续触发' },
-  { name: 'node:dragend', trigger: '拖拽结束', params: '{ node, originalEvent }', description: '节点拖拽结束时触发' },
-  { name: 'node:selected', trigger: '节点选中', params: '{ node }', description: '节点被选中时触发' },
-  { name: 'node:unselected', trigger: '取消选中', params: '{ node }', description: '节点取消选中时触发' },
-  { name: 'node:contextmenu', trigger: '右键菜单', params: '{ node, originalEvent }', description: '在节点上右键点击时触发' },
-  { name: 'node:port:click', trigger: '点击连接桩', params: '{ node, port, originalEvent }', description: '点击节点上的连接桩时触发' },
-];
 
 // 示例 6: 节点事件
 const EXAMPLE_6_CODE = `// 创建 Graph 画布
@@ -462,7 +441,7 @@ container.appendChild(logContainer);
 
 const addLog = (msg) => {
   const line = document.createElement('div');
-  line.textContent = \`[\${new Date().toLocaleTimeString()}] \${msg}\`;
+  line.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
   logContainer.appendChild(line);
   logContainer.scrollTop = logContainer.scrollHeight;
 };
@@ -490,59 +469,122 @@ const eventNode = graph.addNode({
 
 // 绑定各种节点事件
 graph.on('node:mouseenter', (e) => {
-  addLog(\`🖱️ 鼠标进入节点: \${e.node.getLabel()}\`);
+  addLog('🖱️ 鼠标进入节点: ' + e.node.getLabel());
   e.node.setStyle({ borderWidth: 4 });
 });
 
 graph.on('node:mouseleave', (e) => {
-  addLog(\`🖱️ 鼠标离开节点: \${e.node.getLabel()}\`);
+  addLog('🖱️ 鼠标离开节点: ' + e.node.getLabel());
   e.node.setStyle({ borderWidth: 2 });
 });
 
 graph.on('node:mousedown', (e) => {
-  addLog(\`🖱️ 鼠标按下节点: \${e.node.getLabel()}\`);
+  addLog('🖱️ 鼠标按下节点: ' + e.node.getLabel());
 });
 
 graph.on('node:mouseup', (e) => {
-  addLog(\`🖱️ 鼠标释放节点: \${e.node.getLabel()}\`);
+  addLog('🖱️ 鼠标释放节点: ' + e.node.getLabel());
 });
 
 graph.on('node:click', (e) => {
-  addLog(\`👆 点击节点: \${e.node.getLabel()}\`);
+  addLog('👆 点击节点: ' + e.node.getLabel());
 });
 
 graph.on('node:dblclick', (e) => {
-  addLog(\`👆👆 双击节点: \${e.node.getLabel()}\`);
+  addLog('👆👆 双击节点: ' + e.node.getLabel());
   const data = e.node.getData();
-  addLog(\`   节点数据: \${JSON.stringify(data)}\`);
+  addLog('   节点数据: ' + JSON.stringify(data));
 });
 
 graph.on('node:dragstart', (e) => {
-  addLog(\`✋ 开始拖拽节点: \${e.node.getLabel()}\`);
+  addLog('✋ 开始拖拽节点: ' + e.node.getLabel());
 });
 
 graph.on('node:drag', (e) => {
   const pos = e.node.getPosition();
   // 限制日志频率，每10次更新一次
   if (Math.floor(Date.now() / 100) % 10 === 0) {
-    addLog(\`🔄 拖拽中... 位置: (\${Math.round(pos.x)}, \${Math.round(pos.y)})\`);
+    addLog('🔄 拖拽中... 位置: (' + Math.round(pos.x) + ', ' + Math.round(pos.y) + ')');
   }
 });
 
 graph.on('node:dragend', (e) => {
   const pos = e.node.getPosition();
-  addLog(\`✅ 拖拽结束: \${e.node.getLabel()} 最终位置: (\${Math.round(pos.x)}, \${Math.round(pos.y)})\`);
+  addLog('✅ 拖拽结束: ' + e.node.getLabel() + ' 最终位置: (' + Math.round(pos.x) + ', ' + Math.round(pos.y) + ')');
 });
 
 graph.on('node:selected', (e) => {
-  addLog(\`☑️ 节点被选中: \${e.node.getLabel()}\`);
+  addLog('☑️ 节点被选中: ' + e.node.getLabel());
 });
 
 graph.on('node:unselected', (e) => {
-  addLog(\`⬜ 节点取消选中: \${e.node.getLabel()}\`);
+  addLog('⬜ 节点取消选中: ' + e.node.getLabel());
+});
+
+graph.on('node:resize', (e) => {
+  const bounds = e.bounds;
+  addLog('📐 节点调整大小: ' + e.node.getLabel() + ' 新尺寸: ' + Math.round(bounds.width) + 'x' + Math.round(bounds.height));
 });
 
 addLog('事件监听已启动，请与节点交互...');`;
+
+// 示例 7: Resize 调整大小
+const EXAMPLE_7_CODE = `// 创建 Graph 画布
+const graph = new Graph({
+  container: container,
+  width: 600,
+  height: 320,
+  draggable: true,
+  scalable: true,
+  backgroundColor: '#f8fafc',
+  grid: { enabled: true, size: 20, color: '#e2e8f0' },
+});
+
+// 创建日志显示区域
+const logContainer = document.createElement('div');
+logContainer.style.cssText = 'position:absolute;bottom:8px;left:8px;right:8px;height:80px;background:#1e293b;color:#e2e8f0;padding:8px;borderRadius:6px;overflow:auto;fontSize:12px;fontFamily:monospace;';
+container.appendChild(logContainer);
+
+const addLog = (msg) => {
+  const line = document.createElement('div');
+  line.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+  logContainer.appendChild(line);
+  logContainer.scrollTop = logContainer.scrollHeight;
+};
+
+// 创建可调整大小的节点
+const resizableNode = graph.addNode({
+  id: 'node-resizable',
+  label: '拖拽四周方块调整大小',
+  x: 300,
+  y: 140,
+  shape: Shape.Rect,
+  style: {
+    width: 180,
+    height: 100,
+    backgroundColor: '#3b82f6',
+    borderColor: '#2563eb',
+    borderWidth: 2,
+    borderRadius: 8,
+    textColor: '#ffffff',
+  },
+});
+
+// 监听 resize 事件
+graph.on('node:resize', (e) => {
+  const bounds = e.bounds;
+  addLog('📐 调整完成: ' + Math.round(bounds.width) + 'x' + Math.round(bounds.height));
+});
+
+graph.on('node:selected', (e) => {
+  addLog('☑️ 选中节点，显示 resize handles');
+});
+
+graph.on('node:unselected', (e) => {
+  addLog('⬜ 取消选中，隐藏 resize handles');
+});
+
+addLog('💡 提示：点击节点选中，然后拖拽四周的蓝色方块调整大小');`;
 
 // 所有示例
 const EXAMPLES = [
@@ -552,6 +594,32 @@ const EXAMPLES = [
   { id: 'example-4', title: '端口管理', code: EXAMPLE_4_CODE },
   { id: 'example-5', title: '动态交互', code: EXAMPLE_5_CODE },
   { id: 'example-6', title: '节点事件', code: EXAMPLE_6_CODE },
+  { id: 'example-7', title: '调整大小', code: EXAMPLE_7_CODE },
+];
+
+// Node 事件表格数据
+const nodeEventColumns = [
+  { title: '事件名称', dataIndex: 'name', width: 220 },
+  { title: '触发时机', dataIndex: 'trigger', width: 200 },
+  { title: '事件参数', dataIndex: 'params', width: 200 },
+  { title: '说明', dataIndex: 'description' },
+];
+
+const nodeEventData = [
+  { name: 'node:click', trigger: '点击节点', params: '{ node, originalEvent }', description: '鼠标左键点击节点时触发' },
+  { name: 'node:dblclick', trigger: '双击节点', params: '{ node, originalEvent }', description: '鼠标双击节点时触发' },
+  { name: 'node:mousedown', trigger: '鼠标按下', params: '{ node, originalEvent }', description: '在节点上按下鼠标按钮时触发' },
+  { name: 'node:mouseup', trigger: '鼠标释放', params: '{ node, originalEvent }', description: '在节点上释放鼠标按钮时触发' },
+  { name: 'node:mouseenter', trigger: '鼠标进入', params: '{ node, originalEvent }', description: '鼠标移入节点区域时触发' },
+  { name: 'node:mouseleave', trigger: '鼠标离开', params: '{ node, originalEvent }', description: '鼠标移出节点区域时触发' },
+  { name: 'node:dragstart', trigger: '开始拖拽', params: '{ node, originalEvent }', description: '开始拖拽节点时触发' },
+  { name: 'node:drag', trigger: '拖拽中', params: '{ node, originalEvent }', description: '节点拖拽过程中持续触发' },
+  { name: 'node:dragend', trigger: '拖拽结束', params: '{ node, originalEvent }', description: '节点拖拽结束时触发' },
+  { name: 'node:selected', trigger: '节点选中', params: '{ node }', description: '节点被选中时触发' },
+  { name: 'node:unselected', trigger: '取消选中', params: '{ node }', description: '节点取消选中时触发' },
+  { name: 'node:contextmenu', trigger: '右键菜单', params: '{ node, originalEvent }', description: '在节点上右键点击时触发' },
+  { name: 'node:port:click', trigger: '点击连接桩', params: '{ node, port, originalEvent }', description: '点击节点上的连接桩时触发' },
+  { name: 'node:resize', trigger: '节点调整大小', params: '{ node, bounds }', description: '拖拽 resize handle 调整节点大小时触发' },
 ];
 
 /**
@@ -701,49 +769,52 @@ export const NodeExample: React.FC = () => {
               key={ex.id}
               onClick={() => switchExample(index)}
               style={{
-                padding: '6px 16px',
-                background: currentExample === index ? '#3b82f6' : '#ffffff',
-                color: currentExample === index ? '#ffffff' : '#64748b',
-                border: '1px solid #e2e8f0',
+                padding: '6px 12px',
+                border: 'none',
                 borderRadius: '4px',
                 cursor: 'pointer',
+                background: currentExample === index ? '#3b82f6' : '#ffffff',
+                color: currentExample === index ? '#ffffff' : '#64748b',
                 fontSize: '13px',
                 fontWeight: 500,
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                transition: 'all 0.2s',
               }}
             >
-              示例 {index + 1}: {ex.title}
+              {ex.title}
             </button>
           ))}
         </div>
-        <Splitter style={{ height: '100%' }}>
+        <Splitter
+          layout="horizontal"
+          style={{ height: 'calc(100% - 100px)' }}
+          minSize={200}
+          maxSize={800}
+          defaultSize={400}
+        >
           {LeftPanel}
           {RightPanel}
         </Splitter>
       </div>
-      {BottomPanel}
-      {/* 浮动锚点 */}
-      <div
+
+      <Anchor
+        container={mainContainerRef}
+        selector="#node-example-title"
+        direction="vertical"
+        items={[
+          { key: 'node-options', title: '配置选项', href: '#node-options-section' },
+          { key: 'node-methods', title: '类方法', href: '#node-methods-section' },
+          { key: 'node-events', title: '事件', href: '#node-events-section' },
+        ]}
         style={{
-          position: 'fixed',
-          right: '16px',
-          top: '20%',
-          transform: 'translateY(-50%)',
-          zIndex: 1000,
-          background: '#fff',
-          borderRadius: '8px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+          position: 'absolute',
+          top: 8,
+          right: 16,
+          zIndex: 100,
         }}
-      >
-        <Anchor affix={false} getContainer={() => document.body}>
-          <Anchor.Link href="#node-example-title" title="Node 节点示例" />
-          {EXAMPLES.map((ex, index) => (
-            <Anchor.Link key={ex.id} href={`#${ex.id}`} title={`示例 ${index + 1}: ${ex.title}`} />
-          ))}
-          <Anchor.Link href="#node-options-section" title="NodeOptions" />
-          <Anchor.Link href="#node-methods-section" title="Node 类方法" />
-          <Anchor.Link href="#node-events-section" title="Node 事件" />
-        </Anchor>
-      </div>
+      />
+
+      <div style={{ height: '500px', marginTop: '16px' }}>{BottomPanel}</div>
     </div>
   );
 };
