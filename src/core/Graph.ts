@@ -1709,6 +1709,85 @@ export class Graph {
     }
 
     /**
+     * 添加 React 节点
+     * @param options - React 节点配置
+     * @returns React 节点实例或 null
+     *
+     * @example
+     * ```typescript
+     * // 需要先安装 ReactShape 插件
+     * const reactShapePlugin = new ReactShape();
+     * graph.use(reactShapePlugin);
+     *
+     * // 注册 React 形状
+     * reactShapePlugin.register({
+     *     shape: 'user-card',
+     *     width: 200,
+     *     height: 80,
+     *     component: UserCard,
+     * });
+     *
+     * // 添加 React 节点
+     * graph.addReactNode({
+     *     shape: 'user-card',
+     *     id: 'user-1',
+     *     x: 150,
+     *     y: 120,
+     *     data: { name: '张三', role: '前端工程师' },
+     * });
+     * ```
+     *
+     * @note 需要先安装 ReactShape 插件才能使用此方法。
+     */
+    addReactNode(options: {
+        shape: string;
+        x: number;
+        y: number;
+        id?: string;
+        label?: string;
+        data?: Record<string, any>;
+        style?: any;
+    }): any {
+        // 动态导入 ReactShape 相关类型，避免循环依赖
+        const plugin = this.getPlugin<any>('react-shape');
+        
+        if (!plugin) {
+            console.error('ReactShape plugin is not installed. Please use graph.use(new ReactShape()) first.');
+            return null;
+        }
+
+        // 检查插件是否有 hasShape 和 createNode 方法
+        if (typeof plugin.hasShape !== 'function' || typeof plugin.createNode !== 'function') {
+            console.error('Invalid ReactShape plugin. Missing required methods.');
+            return null;
+        }
+
+        // 检查是否是插件内注册的形状
+        let node: any = null;
+        
+        if (plugin.hasShape(options.shape)) {
+            node = plugin.createNode(options);
+        } else {
+            // 检查全局注册的形状
+            const hasGlobalShape = (Graph as any)._globalReactShapes?.has(options.shape);
+            if (hasGlobalShape) {
+                const config = (Graph as any)._globalReactShapes.get(options.shape);
+                plugin.register(config);
+                node = plugin.createNode(options);
+            } else {
+                console.warn(`Shape "${options.shape}" is not registered.`);
+                return null;
+            }
+        }
+
+        if (node) {
+            this.addNode(node);
+        }
+
+        return node;
+    }
+
+    /**
      * 移除节点
      * @param nodeId - 节点 ID
      * @returns 是否成功移除

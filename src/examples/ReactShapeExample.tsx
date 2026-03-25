@@ -60,7 +60,7 @@ const methodsData = [
   { name: 'Graph.unregister(shapeName)', params: 'shapeName: string', description: '静态方法，注销形状' },
   { name: 'Graph.hasRegisteredShape(shapeName)', params: 'shapeName: string', description: '检查形状是否已注册' },
   { name: 'reactShapePlugin.register(config)', params: 'config: ReactShapeConfig', description: '插件实例方法，注册形状' },
-  { name: 'addReactNode(graph, options)', params: 'graph: Graph, options', description: '辅助函数，添加 React 节点' },
+  { name: 'graph.addReactNode(options)', params: 'options: { shape, x, y, ... }', description: '添加 React 节点（推荐使用）' },
   { name: 'graph.addNode(options)', params: 'options: { shape, x, y, ... }', description: '添加节点（支持 React 形状，自动识别）' },
 ];
 
@@ -123,7 +123,7 @@ reactShapePlugin.register({
 });
 
 // 添加 React 节点
-addReactNode(graph, {
+graph.addReactNode({
   shape: 'user-card',
   id: 'user-1',
   x: 150,
@@ -131,7 +131,7 @@ addReactNode(graph, {
   data: { name: '张三', role: '前端工程师' },
 });
 
-addReactNode(graph, {
+graph.addReactNode({
   shape: 'user-card',
   id: 'user-2',
   x: 150,
@@ -190,22 +190,22 @@ reactShapePlugin.register({
 });
 
 // 添加不同状态的节点
-addReactNode(graph, {
+graph.addReactNode({
   shape: 'status-node', id: 'status-1', x: 150, y: 120,
   data: { status: 'success', label: '已完成', icon: '✅' },
 });
 
-addReactNode(graph, {
+graph.addReactNode({
   shape: 'status-node', id: 'status-2', x: 320, y: 120,
   data: { status: 'warning', label: '进行中', icon: '⏳' },
 });
 
-addReactNode(graph, {
+graph.addReactNode({
   shape: 'status-node', id: 'status-3', x: 490, y: 120,
   data: { status: 'error', label: '失败', icon: '❌' },
 });
 
-addReactNode(graph, {
+graph.addReactNode({
   shape: 'status-node', id: 'status-4', x: 150, y: 260,
   data: { status: 'info', label: '待处理', icon: 'ℹ️' },
 });`;
@@ -263,22 +263,22 @@ reactShapePlugin.register({
 });
 
 // 添加不同进度的节点
-addReactNode(graph, {
+graph.addReactNode({
   shape: 'progress-node', id: 'progress-1', x: 150, y: 100,
   data: { title: '任务 A', progress: 25 },
 });
 
-addReactNode(graph, {
+graph.addReactNode({
   shape: 'progress-node', id: 'progress-2', x: 380, y: 100,
   data: { title: '任务 B', progress: 60 },
 });
 
-addReactNode(graph, {
+graph.addReactNode({
   shape: 'progress-node', id: 'progress-3', x: 150, y: 220,
   data: { title: '任务 C', progress: 85 },
 });
 
-addReactNode(graph, {
+graph.addReactNode({
   shape: 'progress-node', id: 'progress-4', x: 380, y: 220,
   data: { title: '任务 D', progress: 100 },
 });`;
@@ -329,17 +329,17 @@ reactShapePlugin.register({
 });
 
 // 添加节点
-addReactNode(graph, {
+graph.addReactNode({
   shape: 'process-node', id: 'node-1', x: 150, y: 150,
   data: { label: '输入处理', icon: '📥' },
 });
 
-addReactNode(graph, {
+graph.addReactNode({
   shape: 'process-node', id: 'node-2', x: 350, y: 150,
   data: { label: '数据转换', icon: '🔄' },
 });
 
-addReactNode(graph, {
+graph.addReactNode({
   shape: 'process-node', id: 'node-3', x: 550, y: 150,
   data: { label: '输出处理', icon: '📤' },
 });
@@ -518,7 +518,7 @@ export const ReactShapeExample: React.FC = () => {
 
     try {
       const { Graph } = await import('../core/Graph');
-      const { ReactShape, addReactNode } = await import('../plugins/ReactShape');
+      const { ReactShape } = await import('../plugins/ReactShape');
       const React = await import('react');
 
       // 创建容器样式
@@ -535,11 +535,10 @@ export const ReactShapeExample: React.FC = () => {
         Graph,
         React: React.default,
         ReactShape,
-        addReactNode,
       };
 
       const executableCode = `'use strict';
-        const { container, console, Graph, React, ReactShape, addReactNode } = sandbox;
+        const { container, console, Graph, React, ReactShape } = sandbox;
         ${codeToExecute}
       `;
 
