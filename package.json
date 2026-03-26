@@ -2,14 +2,63 @@
   "name": "zjpcy-workflow",
   "version": "1.0.0",
   "description": "React component library with Next.js for development and Rollup for publishing",
-  "main": "dist/index.js",
-  "module": "dist/index.esm.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/cjs/lib/index.js",
+  "module": "dist/esm/lib/index.mjs",
+  "types": "dist/esm/lib/index.d.ts",
+  "unpkg": "dist/umd/zjpcy-workflow.min.js",
+  "jsdelivr": "dist/umd/zjpcy-workflow.min.js",
   "files": [
     "dist",
     "README.md",
     "LICENSE"
   ],
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/esm/lib/index.d.ts",
+        "default": "./dist/esm/lib/index.mjs"
+      },
+      "require": {
+        "types": "./dist/cjs/lib/index.d.ts",
+        "default": "./dist/cjs/lib/index.js"
+      }
+    },
+    "./core/*": {
+      "import": {
+        "types": "./dist/esm/core/*.d.ts",
+        "default": "./dist/esm/core/*.mjs"
+      },
+      "require": {
+        "types": "./dist/cjs/core/*.d.ts",
+        "default": "./dist/cjs/core/*.js"
+      }
+    },
+    "./plugins/*": {
+      "import": {
+        "types": "./dist/esm/plugins/*.d.ts",
+        "default": "./dist/esm/plugins/*.mjs"
+      },
+      "require": {
+        "types": "./dist/cjs/plugins/*.d.ts",
+        "default": "./dist/cjs/plugins/*.js"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "sideEffects": [
+    "*.css"
+  ],
+  "homepage": "https://github.com/zjpcy/zjpcy-workflow",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zjpcy/zjpcy-workflow.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zjpcy/zjpcy-workflow/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "dev:next": "next dev",
     "build": "next build",
@@ -20,7 +69,12 @@
     "dev": "webpack serve --config webpack.config.js",
     "build:webpack": "webpack --config webpack.config.js --mode=production",
     "dev:examples": "webpack serve --config webpack.examples.config.js",
-    "build:examples": "webpack --config webpack.examples.config.js --mode=production"
+    "build:examples": "webpack --config webpack.examples.config.js --mode=production",
+    "prepublishOnly": "npm run build:lib",
+    "pack:check": "npm pack --dry-run",
+    "version:patch": "npm version patch",
+    "version:minor": "npm version minor",
+    "version:major": "npm version major"
   },
   "keywords": [
     "react",
