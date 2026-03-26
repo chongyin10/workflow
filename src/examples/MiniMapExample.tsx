@@ -286,7 +286,7 @@ const miniMap = new MiniMap({
   enabled: true,
   width: 160,
   height: 120,
-  position: positions[currentPosition] as any,
+  position: positions[currentPosition],
   backgroundColor: '#ffffff',
   borderColor: '#3b82f6',
   borderWidth: 2,
@@ -303,7 +303,7 @@ graph.use(miniMap);
 // 切换位置的函数
 window._toggleMiniMapPosition = () => {
   currentPosition = (currentPosition + 1) % positions.length;
-  miniMap.setOptions({ position: positions[currentPosition] as any });
+  miniMap.setOptions({ position: positions[currentPosition] });
   console.log('📍 小地图位置:', positions[currentPosition]);
 };
 

@@ -2,7 +2,7 @@ import { Graph, Point } from '../core/Graph';
 import { Node } from '../core/Node';
 import { Edge } from '../core/Edge';
 import { Plugin } from './Snapline';
-import { EventManager, type EventHandler } from '../core/EventManager';
+import { EventManager, EventHandler } from '../core/EventManager';
 
 /**
  * 小地图位置配置
@@ -247,21 +247,21 @@ export class MiniMap implements Plugin {
 
         switch (position) {
             case 'top-left':
-                this.container.style.left = typeof left === 'number' ? `${left}px` : left as string || `${gap}px`;
-                this.container.style.top = typeof top === 'number' ? `${top}px` : top as string || `${gap}px`;
+                this.container.style.left = typeof left === 'number' ? `${left}px` : String(left || `${gap}px`);
+                this.container.style.top = typeof top === 'number' ? `${top}px` : String(top || `${gap}px`);
                 break;
             case 'top-right':
-                this.container.style.right = typeof right === 'number' ? `${right}px` : right as string || `${gap}px`;
-                this.container.style.top = typeof top === 'number' ? `${top}px` : top as string || `${gap}px`;
+                this.container.style.right = typeof right === 'number' ? `${right}px` : String(right || `${gap}px`);
+                this.container.style.top = typeof top === 'number' ? `${top}px` : String(top || `${gap}px`);
                 break;
             case 'bottom-left':
-                this.container.style.left = typeof left === 'number' ? `${left}px` : left as string || `${gap}px`;
-                this.container.style.bottom = typeof bottom === 'number' ? `${bottom}px` : bottom as string || `${gap}px`;
+                this.container.style.left = typeof left === 'number' ? `${left}px` : String(left || `${gap}px`);
+                this.container.style.bottom = typeof bottom === 'number' ? `${bottom}px` : String(bottom || `${gap}px`);
                 break;
             case 'bottom-right':
             default:
-                this.container.style.right = typeof right === 'number' ? `${right}px` : right as string || `${gap}px`;
-                this.container.style.bottom = typeof bottom === 'number' ? `${bottom}px` : bottom as string || `${gap}px`;
+                this.container.style.right = typeof right === 'number' ? `${right}px` : String(right || `${gap}px`);
+                this.container.style.bottom = typeof bottom === 'number' ? `${bottom}px` : String(bottom || `${gap}px`);
                 break;
         }
     }
@@ -278,7 +278,7 @@ export class MiniMap implements Plugin {
         };
 
         // 注册事件监听 - 使用 Graph 中实际存在的事件
-        const eventManager = (this.graph as any).eventManager as EventManager;
+        const eventManager = (this.graph as any).eventManager;
         if (eventManager) {
             // 节点相关事件
             eventManager.on('node:drag', this.eventHandler);
@@ -320,7 +320,7 @@ export class MiniMap implements Plugin {
         if (!this.graph) return;
 
         // 移除事件监听
-        const eventManager = (this.graph as any).eventManager as EventManager;
+        const eventManager = (this.graph as any).eventManager;
         if (eventManager && this.eventHandler) {
             eventManager.off('node:drag', this.eventHandler);
             eventManager.off('node:dragend', this.eventHandler);
