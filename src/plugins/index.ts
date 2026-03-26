@@ -47,3 +47,9 @@ export {
     type MiniMapOptions,
     type MiniMapPosition,
 } from './MiniMap';
+
+// 侧边栏插件
+export {
+    SiderPane,
+    type SiderPaneOptions,
+} from './SiderPane';

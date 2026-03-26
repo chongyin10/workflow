@@ -15,6 +15,7 @@ import {
     SnaplineExample,
     ClipboardExample,
     MiniMapExample,
+    SiderPaneExample,
 } from './index';
 
 /**
@@ -22,7 +23,7 @@ import {
  *
  * 提供所有核心组件示例的导航和展示
  */
-type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'connectionValidation' | 'dnd' | 'dynamicHeightNode' | 'blankEvent' | 'grid' | 'reactShape' | 'snapline' | 'clipboard' | 'miniMap';
+type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'connectionValidation' | 'dnd' | 'dynamicHeightNode' | 'blankEvent' | 'grid' | 'reactShape' | 'snapline' | 'clipboard' | 'miniMap' | 'siderPane';
 
 interface ExampleItem {
     key: ExampleKey;
@@ -121,6 +122,12 @@ const examples: ExampleItem[] = [
         title: '🗺️ MiniMap 小地图示例',
         description: '在画布上显示小地图，支持拖拽视口移动画布、自定义位置',
         component: MiniMapExample,
+    },
+    {
+        key: 'siderPane',
+        title: '📐 SiderPane 侧边栏示例',
+        description: '在画布左侧提供可伸缩的侧边栏 UI 组件，支持自定义内容',
+        component: SiderPaneExample,
     },
 ];
 

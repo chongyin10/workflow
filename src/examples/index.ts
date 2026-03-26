@@ -54,3 +54,7 @@ export { default as ClipboardExampleComponent } from './ClipboardExample';
 // MiniMap 小地图示例
 export { MiniMapExample } from './MiniMapExample';
 export { default as MiniMapExampleComponent } from './MiniMapExample';
+
+// SiderPane 侧边栏示例
+export { SiderPaneExample } from './SiderPaneExample';
+export { default as SiderPaneExampleComponent } from './SiderPaneExample';
