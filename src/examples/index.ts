@@ -58,3 +58,7 @@ export { default as MiniMapExampleComponent } from './MiniMapExample';
 // SiderPane 侧边栏示例
 export { SiderPaneExample } from './SiderPaneExample';
 export { default as SiderPaneExampleComponent } from './SiderPaneExample';
+
+// ContextMenu 右键菜单示例
+export { ContextMenuExample } from './ContextMenuExample';
+export { default as ContextMenuExampleComponent } from './ContextMenuExample';

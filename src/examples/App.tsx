@@ -16,6 +16,7 @@ import {
     ClipboardExample,
     MiniMapExample,
     SiderPaneExample,
+    ContextMenuExample,
 } from './index';
 
 /**
@@ -23,7 +24,7 @@ import {
  *
  * 提供所有核心组件示例的导航和展示
  */
-type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'connectionValidation' | 'dnd' | 'dynamicHeightNode' | 'blankEvent' | 'grid' | 'reactShape' | 'snapline' | 'clipboard' | 'miniMap' | 'siderPane';
+type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'connectionValidation' | 'dnd' | 'dynamicHeightNode' | 'blankEvent' | 'grid' | 'reactShape' | 'snapline' | 'clipboard' | 'miniMap' | 'siderPane' | 'contextMenu';
 
 interface ExampleItem {
     key: ExampleKey;
@@ -128,6 +129,12 @@ const examples: ExampleItem[] = [
         title: '📐 SiderPane 侧边栏示例',
         description: '在画布左侧提供可伸缩的侧边栏 UI 组件，支持自定义内容',
         component: SiderPaneExample,
+    },
+    {
+        key: 'contextMenu',
+        title: '🖱️ ContextMenu 右键菜单示例',
+        description: '节点、边、单元格和空白区域的右键菜单事件演示',
+        component: ContextMenuExample,
     },
 ];
 
