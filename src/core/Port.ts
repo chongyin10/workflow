@@ -149,8 +149,8 @@ export class Port extends Cell {
 
     // 默认样式
     private static readonly DEFAULT_STYLE: PortStyle = {
-        width: 12,
-        height: 12,
+        width: 8,
+        height: 8,
         fillColor: '#ffffff',
         strokeColor: '#64748b',
         strokeWidth: 2,

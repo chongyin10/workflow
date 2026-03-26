@@ -48,10 +48,10 @@ const edgeStyleData = [
   { name: 'cornerRadius', type: 'number', default: '10', description: '圆角半径（用于折线）' },
   { name: 'animated', type: 'boolean', default: 'false', description: '是否启用流动波浪效果' },
   { name: 'waveColor', type: 'string', default: "'#3b82f6'", description: '波浪颜色' },
-  { name: 'waveWidth', type: 'number', default: '4', description: '波浪线条宽度' },
-  { name: 'waveLength', type: 'number', default: '20', description: '单个波浪长度（像素）' },
-  { name: 'waveSpeed', type: 'number', default: '2', description: '波浪流动速度（像素/帧）' },
-  { name: 'waveOpacity', type: 'number', default: '0.8', description: '波浪透明度（0-1）' },
+  { name: 'waveWidth', type: 'number', default: '2', description: '波浪线条宽度' },
+  { name: 'waveLength', type: 'number', default: '15', description: '单个波浪长度（像素）' },
+  { name: 'waveSpeed', type: 'number', default: '1.5', description: '波浪流动速度（像素/帧）' },
+  { name: 'waveOpacity', type: 'number', default: '0.6', description: '波浪透明度（0-1）' },
 ];
 
 // Edge 事件表格数据
@@ -847,28 +847,28 @@ edge1.startAnimation();
 // 启动 edge2 的流动动画（自定义波浪配置）
 edge2.startAnimation({
   waveColor: '#a78bfa',
-  waveWidth: 5,
-  waveLength: 25,
-  waveSpeed: 2,
-  waveOpacity: 0.8,
+  waveWidth: 2,
+  waveLength: 12,
+  waveSpeed: 1.5,
+  waveOpacity: 0.6,
 });
 
 // 启动 edge3 的流动动画
 edge3.startAnimation({
   waveColor: '#34d399',
-  waveWidth: 5,
-  waveLength: 20,
-  waveSpeed: 4,
-  waveOpacity: 0.85,
+  waveWidth: 2,
+  waveLength: 10,
+  waveSpeed: 2,
+  waveOpacity: 0.65,
 });
 
 // 启动 edge4 的流动动画
 edge4.startAnimation({
   waveColor: '#fbbf24',
-  waveWidth: 5,
-  waveLength: 22,
-  waveSpeed: 3.5,
-  waveOpacity: 0.85,
+  waveWidth: 2,
+  waveLength: 11,
+  waveSpeed: 1.8,
+  waveOpacity: 0.65,
 });
 
 // 监听边点击事件 - 点击边时保持动画继续播放

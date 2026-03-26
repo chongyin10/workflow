@@ -833,6 +833,235 @@ console.log('Port 和 Edge zIndex 层级交互示例');
 console.log('- port.setZIndex(val): 设置连接桩层级');
 console.log('- edge.setZIndex(val): 设置边线层级');`;
 
+// 示例 6: 工作流图（ReactShape 自定义 HTML 节点）
+const EXAMPLE_6_CODE = `// 示例 6: 工作流图 - 使用 ReactShape 自定义 HTML 节点
+const graph = new Graph({
+  container: container,
+  width: 600,
+  height: 400,
+  draggable: true,
+  scalable: true,
+  backgroundColor: '#ffffff',
+  grid: { enabled: true, size: 20, color: '#e2e8f0' },
+});
+
+// 安装 ReactShape 插件
+const reactShapePlugin = new ReactShape();
+graph.use(reactShapePlugin);
+
+// 工作流节点组件 - 完全自定义 HTML
+const WorkflowNode = ({ data, selected }) => {
+  const { label, status = 'default', showStatusIcon = false } = data || {};
+  
+  // 状态颜色映射
+  const statusColors = {
+    success: '#22c55e',  // 绿色 - 已完成
+    error: '#ef4444',    // 红色 - 失败
+    default: '#e5e7eb',  // 默认边框色
+  };
+  
+  const borderColor = statusColors[status] || statusColors.default;
+  
+  // 状态图标
+  const renderStatusIcon = () => {
+    if (!showStatusIcon) return null;
+    
+    if (status === 'success') {
+      // 绿色勾选
+      return React.createElement('svg', {
+        width: 16, height: 16, viewBox: '0 0 24 24',
+        fill: 'none', stroke: '#22c55e', strokeWidth: 2.5
+      }, React.createElement('polyline', { points: '20 6 9 17 4 12' }));
+    }
+    if (status === 'error') {
+      // 红色叉号
+      return React.createElement('svg', {
+        width: 16, height: 16, viewBox: '0 0 24 24',
+        fill: 'none', stroke: '#ef4444', strokeWidth: 2.5
+      }, [
+        React.createElement('path', { key: 'x1', d: 'M18 6L6 18' }),
+        React.createElement('path', { key: 'x2', d: 'M6 6l12 12' })
+      ]);
+    }
+    return null;
+  };
+  
+  // 齿轮图标
+  const GearIcon = React.createElement('svg', {
+    width: 16, height: 16, viewBox: '0 0 24 24',
+    fill: 'none', stroke: '#9ca3af', strokeWidth: 1.5
+  }, [
+    React.createElement('circle', { key: 'c1', cx: 12, cy: 12, r: 3 }),
+    React.createElement('path', { key: 'p1', d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z' })
+  ]);
+  
+  return React.createElement('div', {
+    style: {
+      width: '100%',
+      height: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      background: '#ffffff',
+      border: '1px solid #e5e7eb',
+      borderRadius: 6,
+      boxShadow: selected ? '0 0 0 2px #3b82f6' : '0 1px 3px rgba(0,0,0,0.1)',
+      overflow: 'hidden',
+      cursor: 'grab',
+    }
+  }, [
+    // 左侧彩色边框条
+    React.createElement('div', {
+      key: 'border',
+      style: {
+        width: 4,
+        height: '100%',
+        background: borderColor,
+        flexShrink: 0,
+      }
+    }),
+    // 内容区
+    React.createElement('div', {
+      key: 'content',
+      style: {
+        flex: 1,
+        display: 'flex',
+        alignItems: 'center',
+        padding: '0 12px',
+        gap: 8,
+        height: '100%',
+      }
+    }, [
+      // 齿轮图标
+      React.createElement('span', { key: 'gear', style: { display: 'flex', alignItems: 'center' } }, GearIcon),
+      // 标签文字
+      React.createElement('span', {
+        key: 'label',
+        style: {
+          flex: 1,
+          fontSize: 14,
+          color: '#374151',
+          fontWeight: 500,
+        }
+      }, label || '节点'),
+      // 状态图标
+      showStatusIcon ? React.createElement('span', { key: 'status', style: { display: 'flex', alignItems: 'center' } }, renderStatusIcon()) : null,
+    ])
+  ]);
+};
+
+// 注册工作流节点形状 - 只配置实际使用的连接桩
+reactShapePlugin.register({
+  shape: 'workflow-node',
+  width: 160,
+  height: 48,
+  component: WorkflowNode,
+  ports: [
+    { id: 'port-top', position: 'top' },
+    { id: 'port-bottom', position: 'bottom' },
+  ],
+});
+
+// 创建节点 - 按照图2布局
+// 第一行：读数据
+graph.addReactNode({
+  shape: 'workflow-node',
+  id: 'node-read',
+  x: 300,
+  y: 60,
+  data: {
+    label: '读数据',
+    status: 'success',
+    showStatusIcon: true,
+  },
+});
+
+// 第二行：逻辑回归
+graph.addReactNode({
+  shape: 'workflow-node',
+  id: 'node-logic',
+  x: 300,
+  y: 180,
+  data: {
+    label: '逻辑回归',
+    status: 'success',
+    showStatusIcon: true,
+  },
+});
+
+// 第三行左侧：模型预测
+graph.addReactNode({
+  shape: 'workflow-node',
+  id: 'node-predict',
+  x: 160,
+  y: 320,
+  data: {
+    label: '模型预测',
+    status: 'success',
+    showStatusIcon: true,
+  },
+});
+
+// 第三行右侧：读取参数（错误状态）
+graph.addReactNode({
+  shape: 'workflow-node',
+  id: 'node-params',
+  x: 440,
+  y: 320,
+  data: {
+    label: '读取参数',
+    status: 'error',
+    showStatusIcon: true,
+  },
+});
+
+// 添加连接线 - 使用贝塞尔曲线（平滑线）
+// 读数据 → 逻辑回归（实线）
+graph.addEdge({
+  id: 'edge-1',
+  source: { nodeId: 'node-read', portId: 'port-bottom' },
+  target: { nodeId: 'node-logic', portId: 'port-top' },
+  type: EdgeType.Bezier,
+  style: {
+    stroke: '#9ca3af',
+    strokeWidth: 1,
+    arrowSize: 0,
+  },
+});
+
+// 逻辑回归 → 模型预测（平滑曲线，左侧）
+graph.addEdge({
+  id: 'edge-2',
+  source: { nodeId: 'node-logic', portId: 'port-bottom' },
+  target: { nodeId: 'node-predict', portId: 'port-top' },
+  type: EdgeType.Bezier,
+  style: {
+    stroke: '#9ca3af',
+    strokeWidth: 1,
+    arrowSize: 0,
+  },
+});
+
+// 逻辑回归 → 读取参数（平滑曲线，右侧）
+graph.addEdge({
+  id: 'edge-3',
+  source: { nodeId: 'node-logic', portId: 'port-bottom' },
+  target: { nodeId: 'node-params', portId: 'port-top' },
+  type: EdgeType.Bezier,
+  style: {
+    stroke: '#9ca3af',
+    strokeWidth: 1,
+    arrowSize: 0,
+  },
+});
+
+// 标题
+const title = document.createElement('div');
+title.style.cssText = 'position:absolute;top:12px;left:16px;font-size:14px;font-weight:600;color:#374151;';
+title.textContent = '机器学习工作流';
+container.appendChild(title);
+
+console.log('工作流图示例已加载（ReactShape 自定义节点）');`;
+
 // 所有示例
 const EXAMPLES = [
   { id: 'example-1', title: '基础 Graph', code: EXAMPLE_1_CODE },
@@ -840,6 +1069,7 @@ const EXAMPLES = [
   { id: 'example-3', title: '网格配置', code: EXAMPLE_3_CODE },
   { id: 'example-4', title: '重置到中心', code: EXAMPLE_4_CODE },
   { id: 'example-5', title: 'zIndex 层级', code: EXAMPLE_5_CODE },
+  { id: 'example-6', title: '工作流图', code: EXAMPLE_6_CODE },
 ];
 
 /**
@@ -860,6 +1090,7 @@ export const GraphExample: React.FC = () => {
 
     try {
       const { Graph, Shape, EdgeType } = await import('../core');
+      const { ReactShape } = await import('../plugins');
 
       const sandbox = {
         container: graphContainerRef.current,
@@ -867,10 +1098,12 @@ export const GraphExample: React.FC = () => {
         Graph,
         Shape,
         EdgeType,
+        ReactShape,
+        React,
       };
 
       const executableCode = `'use strict';
-        const { container, console, Graph, Shape, EdgeType } = sandbox;
+        const { container, console, Graph, Shape, EdgeType, ReactShape, React } = sandbox;
         ${codeToExecute}
       `;
 

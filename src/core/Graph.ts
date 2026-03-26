@@ -1981,9 +1981,43 @@ export class Graph {
     /**
      * 添加边
      * @param options - 边配置
-     * @returns 创建的边实例
+     * @returns 创建的边实例，如果连接已存在则返回已存在的边
      */
     addEdge(options: EdgeOptions): Edge {
+        // 解析 source 和 target，获取 nodeId 和 portId
+        const getAnchorKey = (anchor: string | { nodeId: string; portId?: string }): { nodeId: string; portId?: string } => {
+            if (typeof anchor === 'string') {
+                return { nodeId: anchor };
+            }
+            return { nodeId: anchor.nodeId, portId: anchor.portId };
+        };
+        
+        const sourceAnchor = getAnchorKey(options.source);
+        const targetAnchor = getAnchorKey(options.target);
+        
+        // 检查是否已存在相同的连接
+        for (const existingEdge of this.edges.values()) {
+            const existingSource = existingEdge.getSourceAnchor();
+            const existingTarget = existingEdge.getTargetAnchor();
+            
+            // 检查是否是相同的连接
+            const sourceMatch = existingSource.nodeId === sourceAnchor.nodeId &&
+                existingSource.portId === sourceAnchor.portId;
+            const targetMatch = existingTarget.nodeId === targetAnchor.nodeId &&
+                existingTarget.portId === targetAnchor.portId;
+            
+            // 也检查反向连接
+            const reverseSourceMatch = existingSource.nodeId === targetAnchor.nodeId &&
+                existingSource.portId === targetAnchor.portId;
+            const reverseTargetMatch = existingTarget.nodeId === sourceAnchor.nodeId &&
+                existingTarget.portId === sourceAnchor.portId;
+            
+            if ((sourceMatch && targetMatch) || (reverseSourceMatch && reverseTargetMatch)) {
+                // 连接已存在，返回已存在的边
+                return existingEdge;
+            }
+        }
+        
         const edge = new Edge(options);
         this.edges.set(edge.getId(), edge);
         this.scheduleRender();

@@ -148,10 +148,10 @@ export class Edge extends Cell {
         cornerRadius: 10,
         animated: false,
         waveColor: '#3b82f6',
-        waveWidth: 4,
-        waveLength: 20,
-        waveSpeed: 2,
-        waveOpacity: 0.8,
+        waveWidth: 2,
+        waveLength: 15,
+        waveSpeed: 1.5,
+        waveOpacity: 0.6,
     };
 
     // 动画状态
@@ -508,11 +508,16 @@ export class Edge extends Cell {
         // 控制点距离
         const controlDist = dist * 0.5;
 
-        // 根据连接点位置确定控制点方向
-        const cp1x = source.x + this.getDirectionX(this.source.position) * controlDist;
-        const cp1y = source.y + this.getDirectionY(this.source.position) * controlDist;
-        const cp2x = target.x + this.getDirectionX(this.target.position) * controlDist;
-        const cp2y = target.y + this.getDirectionY(this.target.position) * controlDist;
+        // 根据连接点位置确定控制点方向，如果没有指定位置，则根据两点的相对位置自动计算
+        const sourceDirX = this.getDirectionX(this.source.position) ?? (Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : -1) : 0);
+        const sourceDirY = this.getDirectionY(this.source.position) ?? (Math.abs(dy) >= Math.abs(dx) ? (dy > 0 ? 1 : -1) : 0);
+        const targetDirX = this.getDirectionX(this.target.position) ?? (Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? -1 : 1) : 0);
+        const targetDirY = this.getDirectionY(this.target.position) ?? (Math.abs(dy) >= Math.abs(dx) ? (dy > 0 ? -1 : 1) : 0);
+
+        const cp1x = source.x + sourceDirX * controlDist;
+        const cp1y = source.y + sourceDirY * controlDist;
+        const cp2x = target.x + targetDirX * controlDist;
+        const cp2y = target.y + targetDirY * controlDist;
 
         // 保存路径点（用于波浪动画）- 贝塞尔曲线使用采样点
         this.pathPoints = this.sampleBezierCurve(source, { x: cp1x, y: cp1y }, { x: cp2x, y: cp2y }, target, 20);
@@ -833,10 +838,16 @@ export class Edge extends Cell {
             const dist = Math.sqrt(dx * dx + dy * dy);
             const controlDist = dist * 0.5;
 
-            const cp1x = source.x + this.getDirectionX(this.source.position) * controlDist;
-            const cp1y = source.y + this.getDirectionY(this.source.position) * controlDist;
-            const cp2x = target.x + this.getDirectionX(this.target.position) * controlDist;
-            const cp2y = target.y + this.getDirectionY(this.target.position) * controlDist;
+            // 根据连接点位置确定控制点方向，如果没有指定位置，则根据两点的相对位置自动计算
+            const sourceDirX = this.getDirectionX(this.source.position) ?? (Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : -1) : 0);
+            const sourceDirY = this.getDirectionY(this.source.position) ?? (Math.abs(dy) >= Math.abs(dx) ? (dy > 0 ? 1 : -1) : 0);
+            const targetDirX = this.getDirectionX(this.target.position) ?? (Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? -1 : 1) : 0);
+            const targetDirY = this.getDirectionY(this.target.position) ?? (Math.abs(dy) >= Math.abs(dx) ? (dy > 0 ? -1 : 1) : 0);
+
+            const cp1x = source.x + sourceDirX * controlDist;
+            const cp1y = source.y + sourceDirY * controlDist;
+            const cp2x = target.x + targetDirX * controlDist;
+            const cp2y = target.y + targetDirY * controlDist;
 
             // 三次贝塞尔曲线公式
             const t = ratio;
@@ -961,29 +972,31 @@ export class Edge extends Cell {
 
     /**
      * 获取方向 X 分量
+     * @returns 返回 -1（左）、1（右）或 null（未指定方向）
      */
-    private getDirectionX(position: string | undefined): number {
+    private getDirectionX(position: string | undefined): number | null {
         switch (position) {
             case 'left':
                 return -1;
             case 'right':
                 return 1;
             default:
-                return 0;
+                return null;
         }
     }
 
     /**
      * 获取方向 Y 分量
+     * @returns 返回 -1（上）、1（下）或 null（未指定方向）
      */
-    private getDirectionY(position: string | undefined): number {
+    private getDirectionY(position: string | undefined): number | null {
         switch (position) {
             case 'top':
                 return -1;
             case 'bottom':
                 return 1;
             default:
-                return 0;
+                return null;
         }
     }
 
