@@ -1209,7 +1209,7 @@ export class Edge extends Cell {
      * @param tolerance - 容差（默认 5 像素）
      * @returns 是否在线上
      */
-    containsPoint(point: Point, tolerance: number = 5): boolean {
+    containsPoint(point: Point, tolerance: number = 1): boolean {
         if (!this.connected) {
             return false;
         }
