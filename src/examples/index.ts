@@ -46,3 +46,7 @@ export { default as ReactShapeExample } from './ReactShapeExample';
 // Snapline 对齐线示例
 export { SnaplineExample } from './SnaplineExample';
 export { default as SnaplineExampleComponent } from './SnaplineExample';
+
+// Clipboard 剪贴板示例
+export { ClipboardExample } from './ClipboardExample';
+export { default as ClipboardExampleComponent } from './ClipboardExample';

@@ -13,6 +13,7 @@ import {
     GridExample,
     ReactShapeExample,
     SnaplineExample,
+    ClipboardExample,
 } from './index';
 
 /**
@@ -20,7 +21,7 @@ import {
  *
  * 提供所有核心组件示例的导航和展示
  */
-type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'connectionValidation' | 'dnd' | 'dynamicHeightNode' | 'blankEvent' | 'grid' | 'reactShape' | 'snapline';
+type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'connectionValidation' | 'dnd' | 'dynamicHeightNode' | 'blankEvent' | 'grid' | 'reactShape' | 'snapline' | 'clipboard';
 
 interface ExampleItem {
     key: ExampleKey;
@@ -107,6 +108,12 @@ const examples: ExampleItem[] = [
         title: '📏 Snapline 对齐线示例',
         description: '移动节点时的对齐辅助线插件',
         component: SnaplineExample,
+    },
+    {
+        key: 'clipboard',
+        title: '📋 Clipboard 剪贴板示例',
+        description: '节点和边的复制、粘贴、剪切、删除功能',
+        component: ClipboardExample,
     },
 ];
 

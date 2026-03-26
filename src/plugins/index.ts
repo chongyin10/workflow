@@ -31,3 +31,12 @@ export {
     type SnaplineData,
     type SnapPoint,
 } from './Snapline';
+
+// 剪贴板插件
+export {
+    Clipboard,
+    type ClipboardOptions,
+    type ClipboardData,
+    type NodeClipboardData,
+    type EdgeClipboardData,
+} from './Clipboard';
