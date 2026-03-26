@@ -48,7 +48,7 @@ const eventObjectData = [
 ];
 
 // 示例 1: node:contextmenu 事件
-const EXAMPLE_1_CODE = `// 创建 Graph 画布
+const EXAMPLE_1_CODE = `// 创建 Graph 画布，直接在配置中启用右键菜单
 const graph = new Graph({
   container: container,
   width: 600,
@@ -57,16 +57,54 @@ const graph = new Graph({
   scalable: true,
   backgroundColor: '#f8fafc',
   grid: { enabled: true, size: 20, color: '#e2e8f0' },
+  dropdown: {
+    nodeMenu: [
+      { label: '复制节点', icon: '📋', action: (node) => console.log('复制节点:', node.getLabel()) },
+      { label: '删除节点', icon: '🗑️', danger: true, action: (node) => graph.removeNode(node.getId()) },
+      { label: '编辑标签', icon: '✏️', action: (node) => console.log('编辑标签:', node.getLabel()) },
+    ],
+  },
 });
 
-// 使用 Dropdown 插件创建右键菜单
-new plugins.Dropdown(graph, {
-  nodeMenu: [
-    { label: '复制节点', icon: '📋', action: (node) => console.log('复制节点:', node.getLabel()) },
-    { label: '删除节点', icon: '🗑️', danger: true, action: (node) => graph.removeNode(node.getId()) },
-    { label: '编辑标签', icon: '✏️', action: (node) => console.log('编辑标签:', node.getLabel()) },
-  ],
-});
+// ====== 或者在创建后手动注册 ======
+//
+// // 方式1：先创建插件实例，再注册
+// const dropdown = new plugins.Dropdown({
+//   nodeMenu: [
+//     { label: '复制节点', icon: '📋', action: (node) => console.log('复制节点:', node.getLabel()) },
+//     { label: '删除节点', icon: '🗑️', danger: true, action: (node) => graph.removeNode(node.getId()) },
+//     { label: '编辑标签', icon: '✏️', action: (node) => console.log('编辑标签:', node.getLabel()) },
+//   ],
+//   edgeMenu: [
+//     { label: '删除边', icon: '🗑️', danger: true, action: (edge) => graph.removeEdge(edge.getId()) },
+//   ],
+//   blankMenu: [
+//     { label: '添加节点', icon: '➕', action: (e) => graph.addNode({ x: e.x, y: e.y, label: '新节点' }) },
+//   ],
+// });
+//
+// // 注册插件
+// graph.use(dropdown);
+//
+// // 方式2：使用 createDropdown 便捷函数
+// graph.use(plugins.createDropdown({
+//   nodeMenu: [
+//     { label: '删除节点', icon: '🗑️', danger: true, action: (node) => graph.removeNode(node.getId()) },
+//   ],
+// }));
+//
+// // 方式3：链式调用
+// graph.use(new plugins.Dropdown({
+//   nodeMenu: [
+//     { label: '复制节点', icon: '📋', action: (node) => console.log('复制', node.getId()) },
+//   ],
+// })).use(new plugins.MiniMap()); // 可以同时注册其他插件
+//
+// // 获取已注册的插件
+// const dropdownInstance = graph.getPlugin('dropdown');
+//
+// // 注销插件
+// graph.unuse('dropdown');
 
 // 创建示例节点
 const node1 = graph.addNode({
@@ -114,25 +152,23 @@ const graph = new Graph({
   scalable: true,
   backgroundColor: '#f8fafc',
   grid: { enabled: true, size: 20, color: '#e2e8f0' },
-});
-
-// 使用 Dropdown 插件创建右键菜单
-new plugins.Dropdown(graph, {
-  cellMenu: (cell) => {
-    // 判断是节点还是边，返回不同的菜单
-    const isNode = cell.constructor.name === 'Node';
-    
-    if (isNode) {
-      return [
-        { label: '复制节点', icon: '📋', action: () => console.log('复制节点:', cell.getLabel()) },
-        { label: '删除节点', icon: '🗑️', danger: true, action: () => graph.removeNode(cell.getId()) },
-        { label: '编辑标签', icon: '✏️', action: () => console.log('编辑标签:', cell.getLabel()) },
-      ];
-    } else {
-      return [
-        { label: '删除边', icon: '🗑️', danger: true, action: () => graph.removeEdge(cell.getId()) },
-      ];
-    }
+  dropdown: {
+    cellMenu: (cell) => {
+      // 判断是节点还是边，返回不同的菜单
+      const isNode = cell.constructor.name === 'Node';
+      
+      if (isNode) {
+        return [
+          { label: '复制节点', icon: '📋', action: () => console.log('复制节点:', cell.getLabel()) },
+          { label: '删除节点', icon: '🗑️', danger: true, action: () => graph.removeNode(cell.getId()) },
+          { label: '编辑标签', icon: '✏️', action: () => console.log('编辑标签:', cell.getLabel()) },
+        ];
+      } else {
+        return [
+          { label: '删除边', icon: '🗑️', danger: true, action: () => graph.removeEdge(cell.getId()) },
+        ];
+      }
+    },
   },
 });
 
@@ -189,13 +225,11 @@ const graph = new Graph({
   scalable: true,
   backgroundColor: '#f8fafc',
   grid: { enabled: true, size: 20, color: '#e2e8f0' },
-});
-
-// 使用 Dropdown 插件创建右键菜单
-new plugins.Dropdown(graph, {
-  edgeMenu: [
-    { label: '删除边', icon: '🗑️', danger: true, action: (edge) => graph.removeEdge(edge.getId()) },
-  ],
+  dropdown: {
+    edgeMenu: [
+      { label: '删除边', icon: '🗑️', danger: true, action: (edge) => graph.removeEdge(edge.getId()) },
+    ],
+  },
 });
 
 // 创建连接的节点
@@ -275,38 +309,36 @@ const graph = new Graph({
   scalable: true,
   backgroundColor: '#f8fafc',
   grid: { enabled: true, size: 20, color: '#e2e8f0' },
-});
-
-// 使用 Dropdown 插件创建右键菜单
-new plugins.Dropdown(graph, {
-  blankMenu: (e) => [
-    { label: '添加节点', icon: '➕', action: () => {
-      const { x, y } = e;
-      const newNode = graph.addNode({
-        id: \`node-\${Date.now()}\`,
-        label: '新节点',
-        x: x - 50,
-        y: y - 30,
-        style: {
-          width: 100,
-          height: 60,
-          backgroundColor: '#3b82f6',
-          borderColor: '#2563eb',
-          textColor: '#ffffff',
-          borderRadius: 8,
-        },
-      });
-      console.log('添加新节点:', newNode.getId());
-    }},
-    { label: '清空画布', icon: '🗑️', action: () => {
-      graph.clear();
-      console.log('清空画布');
-    }},
-    { label: '适应画布', icon: '📐', action: () => {
-      graph.fitView();
-      console.log('适应画布');
-    }},
-  ],
+  dropdown: {
+    blankMenu: (e) => [
+      { label: '添加节点', icon: '➕', action: (target, event) => {
+        const { x, y } = event || e;
+        const newNode = graph.addNode({
+          id: \`node-\${Date.now()}\`,
+          label: '新节点',
+          x: x - 50,
+          y: y - 30,
+          style: {
+            width: 100,
+            height: 60,
+            backgroundColor: '#3b82f6',
+            borderColor: '#2563eb',
+            textColor: '#ffffff',
+            borderRadius: 8,
+          },
+        });
+        console.log('添加新节点:', newNode.getId());
+      }},
+      { label: '清空画布', icon: '🗑️', action: () => {
+        graph.clear();
+        console.log('清空画布');
+      }},
+      { label: '适应画布', icon: '📐', action: () => {
+        graph.fitView();
+        console.log('适应画布');
+      }},
+    ],
+  },
 });
 
 // 创建几个节点
@@ -350,12 +382,142 @@ console.log('blank:contextmenu 事件监听已启动...');
 console.log('在空白区域点击右键查看效果');
 console.log('在节点上点击右键会触发 node:contextmenu');`;
 
+// 示例 5: 手动注册 Dropdown 插件
+const EXAMPLE_5_CODE = `// 创建 Graph 画布（不配置 dropdown 选项）
+const graph = new Graph({
+  container: container,
+  width: 600,
+  height: 400,
+  draggable: true,
+  scalable: true,
+  backgroundColor: '#f8fafc',
+  grid: { enabled: true, size: 20, color: '#e2e8f0' },
+});
+
+// ====== 方式 1: 创建插件实例后注册 ======
+const dropdown = new plugins.Dropdown({
+  nodeMenu: [
+    { label: '复制节点', icon: '📋', action: (node) => console.log('复制节点:', node.getLabel()) },
+    { label: '删除节点', icon: '🗑️', danger: true, action: (node) => graph.removeNode(node.getId()) },
+    { label: '编辑标签', icon: '✏️', action: (node) => console.log('编辑标签:', node.getLabel()) },
+  ],
+  edgeMenu: [
+    { label: '删除边', icon: '🗑️', danger: true, action: (edge) => graph.removeEdge(edge.getId()) },
+  ],
+  blankMenu: [
+    { label: '添加节点', icon: '➕', action: (target, event) => {
+      const newNode = graph.addNode({
+        id: \`node-\${Date.now()}\`,
+        label: '新节点',
+        x: event.x - 50,
+        y: event.y - 30,
+        style: {
+          width: 100,
+          height: 60,
+          backgroundColor: '#3b82f6',
+          borderColor: '#2563eb',
+          textColor: '#ffffff',
+          borderRadius: 8,
+        },
+      });
+      console.log('添加新节点:', newNode.getId());
+    }},
+    { label: '清空画布', icon: '🗑️', danger: true, action: () => {
+      graph.clear();
+      console.log('清空画布');
+    }},
+  ],
+});
+
+// 注册插件
+graph.use(dropdown);
+
+// ====== 方式 2: 使用 createDropdown 便捷函数 ======
+// graph.use(plugins.createDropdown({
+//   nodeMenu: [
+//     { label: '删除节点', icon: '🗑️', danger: true, action: (node) => graph.removeNode(node.getId()) },
+//   ],
+// }));
+
+// ====== 方式 3: 链式调用注册多个插件 ======
+// graph.use(new plugins.Dropdown({
+//   nodeMenu: [{ label: '复制节点', icon: '📋', action: (node) => console.log('复制', node.getId()) }],
+// })).use(new plugins.MiniMap({ width: 150, height: 120 }));
+
+// ====== 插件管理方法 ======
+
+// 检查插件是否已注册
+console.log('Dropdown 插件已注册:', graph.hasPlugin('dropdown'));
+
+// 获取已注册的插件实例
+const dropdownPlugin = graph.getPlugin('dropdown');
+console.log('获取到的插件:', dropdownPlugin);
+
+// 更新插件配置
+dropdown.updateOptions({
+  menuWidth: 160,
+  backgroundColor: '#f8fafc',
+});
+
+// 动态显示/隐藏菜单的方法
+// dropdown.show(node, event, menuItems); // 显示菜单
+// dropdown.close(); // 关闭菜单
+// dropdown.isOpen(); // 检查菜单是否打开
+
+// 创建示例节点
+const node1 = graph.addNode({
+  id: 'node-1',
+  label: '右键点击我',
+  x: 150,
+  y: 150,
+  style: {
+    width: 120,
+    height: 60,
+    backgroundColor: '#8b5cf6',
+    borderColor: '#7c3aed',
+    textColor: '#ffffff',
+    borderRadius: 8,
+  },
+});
+
+const node2 = graph.addNode({
+  id: 'node-2',
+  label: '或右键点击我',
+  x: 380,
+  y: 150,
+  style: {
+    width: 120,
+    height: 60,
+    backgroundColor: '#ec4899',
+    borderColor: '#db2777',
+    textColor: '#ffffff',
+    borderRadius: 8,
+  },
+});
+
+// 添加边
+graph.addEdge({
+  id: 'edge-1',
+  source: 'node-1',
+  target: 'node-2',
+  type: EdgeType.Straight,
+  style: { stroke: '#64748b', strokeWidth: 2, arrowSize: 8 },
+});
+
+console.log('手动注册 Dropdown 插件示例');
+console.log('支持的注册方式:');
+console.log('1. 创建实例后注册: graph.use(dropdown)');
+console.log('2. 便捷函数: graph.use(createDropdown(options))');
+console.log('3. 链式调用: graph.use(plugin1).use(plugin2)');
+console.log('在节点、边、空白区域点击右键查看效果');`;
+
 // 所有示例
 const EXAMPLES = [
   { id: 'example-1', title: 'node:contextmenu', code: EXAMPLE_1_CODE },
   { id: 'example-2', title: 'cell:contextmenu', code: EXAMPLE_2_CODE },
   { id: 'example-3', title: 'edge:contextmenu', code: EXAMPLE_3_CODE },
   { id: 'example-4', title: 'blank:contextmenu', code: EXAMPLE_4_CODE },
+  { id: 'example-5', title: '手动注册插件', code: EXAMPLE_5_CODE },
 ];
 
 /**

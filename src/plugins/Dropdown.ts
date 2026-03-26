@@ -2,6 +2,7 @@ import { Graph } from '../core/Graph';
 import { Node } from '../core/Node';
 import { Edge } from '../core/Edge';
 import { Cell } from '../core/Cell';
+import type { Plugin } from './Dnd';
 
 /**
  * 菜单项配置
@@ -56,32 +57,40 @@ export interface DropdownOptions {
 /**
  * Dropdown 插件 - 右键菜单功能
  *
- * 为 Graph 提供统一的右键菜单支持
+ * 为 Graph 提供统一的右键菜单支持。
+ *
+ * 使用方式：
+ * 1. 在 Graph 配置中直接设置 dropdown 选项（推荐）
+ * 2. 通过 `graph.use(new Dropdown(options))` 手动注册
  *
  * @example
  * ```typescript
- * const dropdown = new Dropdown(graph, {
- *   nodeMenu: [
- *     { label: '复制节点', icon: '📋', action: (node) => console.log('复制', node.getId()) },
- *     { label: '删除节点', icon: '🗑️', danger: true, action: (node) => graph.removeNode(node.getId()) },
- *   ],
- *   edgeMenu: [
- *     { label: '删除边', icon: '🗑️', danger: true, action: (edge) => graph.removeEdge(edge.getId()) },
- *   ],
- *   blankMenu: [
- *     { label: '添加节点', icon: '➕', action: (e) => graph.addNode({ x: e.x, y: e.y, label: '新节点' }) },
- *   ],
+ * // 方式1：在 Graph 配置中直接设置
+ * const graph = new Graph({
+ *   container: container,
+ *   dropdown: {
+ *     nodeMenu: [
+ *       { label: '复制节点', icon: '📋', action: (node) => console.log('复制', node.getId()) },
+ *       { label: '删除节点', icon: '🗑️', danger: true, action: (node) => graph.removeNode(node.getId()) },
+ *     ],
+ *   },
  * });
+ *
+ * // 方式2：手动注册插件
+ * graph.use(new Dropdown({
+ *   nodeMenu: [...],
+ * }));
  * ```
  */
-export class Dropdown {
-    private graph: Graph;
+export class Dropdown implements Plugin {
+    readonly name = 'dropdown';
+
+    private graph: Graph | null = null;
     private options: Required<DropdownOptions>;
     private currentPopup: HTMLDivElement | null = null;
     private container: HTMLElement | null = null;
 
-    constructor(graph: Graph, options: DropdownOptions = {}) {
-        this.graph = graph;
+    constructor(options: DropdownOptions = {}) {
         this.options = {
             nodeMenu: options.nodeMenu || [],
             edgeMenu: options.edgeMenu || [],
@@ -98,8 +107,32 @@ export class Dropdown {
             closeOnClickOutside: options.closeOnClickOutside !== false,
             closeOnDrag: options.closeOnDrag !== false,
         };
+    }
 
+    /**
+     * 安装插件
+     */
+    install(graph: Graph): void {
+        this.graph = graph;
         this.init();
+    }
+
+    /**
+     * 卸载插件
+     */
+    uninstall(): void {
+        this.destroy();
+        this.graph = null;
+        this.container = null;
+    }
+
+    /**
+     * 从 Graph 配置选项创建 Dropdown 插件
+     * 由 Graph 内部调用
+     * @internal
+     */
+    static fromOptions(options: DropdownOptions): Dropdown {
+        return new Dropdown(options);
     }
 
     /**
@@ -121,6 +154,8 @@ export class Dropdown {
      * 绑定事件监听
      */
     private bindEvents(): void {
+        if (!this.graph) return;
+
         // 节点右键菜单
         if (this.options.nodeMenu.length > 0 || typeof this.options.nodeMenu === 'function') {
             this.graph.on('node:contextmenu', (e: any) => {
@@ -209,6 +244,12 @@ export class Dropdown {
 
         const menuItems = items || [];
         if (menuItems.length === 0) return;
+
+        // 检查事件对象是否有效
+        if (!event || typeof event.clientX !== 'number' || typeof event.clientY !== 'number') {
+            console.warn('Dropdown.show: 无效的事件对象，无法显示菜单');
+            return;
+        }
 
         // 获取容器边界
         const containerRect = this.container!.getBoundingClientRect();
@@ -319,9 +360,20 @@ export class Dropdown {
 
 /**
  * 创建 Dropdown 插件的便捷函数
+ * @param options - 菜单配置选项
+ * @returns Dropdown 实例
+ * @example
+ * ```typescript
+ * const dropdown = createDropdown({
+ *   nodeMenu: [
+ *     { label: '删除节点', icon: '🗑️', danger: true, action: (node) => graph.removeNode(node.getId()) },
+ *   ],
+ * });
+ * graph.use(dropdown);
+ * ```
  */
-export function createDropdown(graph: Graph, options: DropdownOptions): Dropdown {
-    return new Dropdown(graph, options);
+export function createDropdown(options: DropdownOptions): Dropdown {
+    return new Dropdown(options);
 }
 
 export default Dropdown;

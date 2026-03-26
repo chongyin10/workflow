@@ -32,6 +32,8 @@ export interface ConnectionValidateContext {
  */
 export type ConnectionValidator = (context: ConnectionValidateContext) => boolean;
 
+import type { DropdownOptions } from '../plugins/Dropdown';
+
 export interface GraphOptions {
     /** 容器元素 */
     container: HTMLElement;
@@ -93,6 +95,25 @@ export interface GraphOptions {
      * ```
      */
     validateConnection?: ConnectionValidator;
+    /**
+     * 右键菜单配置
+     * 配置后将自动创建并注册 Dropdown 插件
+     * @example
+     * ```typescript
+     * const graph = new Graph({
+     *     container: document.getElementById('canvas'),
+     *     dropdown: {
+     *         nodeMenu: [
+     *             { label: '删除节点', icon: '🗑️', danger: true, action: (node) => graph.removeNode(node.getId()) },
+     *         ],
+     *         blankMenu: [
+     *             { label: '添加节点', icon: '➕', action: (e) => graph.addNode({ x: e.x, y: e.y, label: '新节点' }) },
+     *         ],
+     *     },
+     * });
+     * ```
+     */
+    dropdown?: DropdownOptions;
 }
 
 export interface GraphState {
@@ -131,7 +152,7 @@ export class Graph {
     private overlay: HTMLDivElement;
     private edgeCanvas: HTMLCanvasElement;
     private edgeCtx: CanvasRenderingContext2D;
-    private options: Required<GraphOptions>;
+    private options: Omit<Required<GraphOptions>, 'dropdown'> & { dropdown?: DropdownOptions };
     private state: GraphState;
     private nodes: Map<string, Node> = new Map();
     private edges: Map<string, Edge> = new Map();
@@ -347,7 +368,7 @@ export class Graph {
     // 默认配置
     private static readonly DEFAULT_OPTIONS: Omit<
         Required<GraphOptions>,
-        'container'
+        'container' | 'dropdown'
     > = {
             width: 800,
             height: 600,
@@ -559,7 +580,7 @@ export class Graph {
 
         // 添加画布到容器（底层：网格和节点）
         this.container.appendChild(this.canvas);
-        
+
         // 添加 overlay 层到容器（中层：HTML 节点）
         this.container.appendChild(this.overlay);
 
@@ -574,6 +595,14 @@ export class Graph {
 
         // 初始渲染
         this.render();
+
+        // 自动注册 Dropdown 插件（如果配置了 dropdown 选项）
+        if (this.options.dropdown) {
+            // 动态导入以避免循环依赖
+            import('../plugins/Dropdown').then(({ Dropdown }) => {
+                this.use(new Dropdown(this.options.dropdown!));
+            });
+        }
     }
 
     /**
