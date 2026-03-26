@@ -62,7 +62,7 @@ const graph = new Graph({
 // 创建对齐线插件
 const snapline = new Snapline({
   enabled: true,
-  tolerance: 10,
+  tolerance: 5,      // 减小容差，需要更接近才触发对齐线
   lineColor: '#34d399',
   lineWidth: 2,
   lineDash: [6, 4],
@@ -134,7 +134,8 @@ graph.addEdge({
 });
 
 console.log('✅ 基础对齐线示例');
-console.log('   拖动 "Drag Me" 节点，观察对齐线效果');`;
+console.log('   拖动 "Drag Me" 节点，观察对齐线效果');
+console.log('   容差值: 5px（需要更接近才触发）');`;
 
 // 示例 2: 吸附功能
 const EXAMPLE_2_CODE = `// 创建 Graph 画布

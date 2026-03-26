@@ -348,33 +348,27 @@ export class Snapline implements Plugin {
         const snapPoints: SnapPoint[] = [];
         const tolerance = this.options.tolerance;
         
-        // 记录是否有中心对齐（用于优先级判断）
-        let hasCenterXAlignment = false;
-        let hasCenterYAlignment = false;
-        
-        // 第一遍遍历：检测中心对齐
+        // 遍历所有其他节点，计算对齐线
         for (const node of allNodes) {
             const nodeInfo = this.getNodeAlignmentInfo(node);
             
-            if (this.options.showCenter) {
+            // 检测当前节点对的中心对齐状态
+            const centerXAligned = this.options.showCenter && Math.abs(dragInfo.centerX - nodeInfo.centerX) <= tolerance;
+            const centerYAligned = this.options.showCenter && Math.abs(dragInfo.centerY - nodeInfo.centerY) <= tolerance;
+            
+            // 垂直对齐线（水平方向）
+            if (centerXAligned) {
+                // 中心对齐优先：显示垂直居中对齐线
                 const centerXOffset = dragInfo.centerX - nodeInfo.centerX;
-                if (Math.abs(centerXOffset) <= tolerance) {
-                    hasCenterXAlignment = true;
-                }
-                
-                const centerYOffset = dragInfo.centerY - nodeInfo.centerY;
-                if (Math.abs(centerYOffset) <= tolerance) {
-                    hasCenterYAlignment = true;
-                }
-            }
-        }
-        
-        // 第二遍遍历：生成对齐线
-        for (const node of allNodes) {
-            const nodeInfo = this.getNodeAlignmentInfo(node);
-            
-            // 垂直对齐线（水平方向）- 只在无中心对齐时显示边缘对齐
-            if (this.options.showEdge && !hasCenterXAlignment) {
+                snaplines.push({
+                    type: 'vertical',
+                    position: nodeInfo.centerX,
+                    start: Math.min(dragInfo.top, nodeInfo.top),
+                    end: Math.max(dragInfo.bottom, nodeInfo.bottom),
+                });
+                snapPoints.push({ type: 'vertical', position: nodeInfo.centerX, offset: centerXOffset });
+            } else if (this.options.showEdge) {
+                // 无中心对齐：检查边缘对齐
                 // 左边缘对齐
                 const leftOffset = dragInfo.left - nodeInfo.left;
                 if (Math.abs(leftOffset) <= tolerance) {
@@ -400,8 +394,19 @@ export class Snapline implements Plugin {
                 }
             }
             
-            // 水平对齐线（垂直方向）- 只在无中心对齐时显示边缘对齐
-            if (this.options.showEdge && !hasCenterYAlignment) {
+            // 水平对齐线（垂直方向）
+            if (centerYAligned) {
+                // 中心对齐优先：显示水平居中对齐线
+                const centerYOffset = dragInfo.centerY - nodeInfo.centerY;
+                snaplines.push({
+                    type: 'horizontal',
+                    position: nodeInfo.centerY,
+                    start: Math.min(dragInfo.left, nodeInfo.left),
+                    end: Math.max(dragInfo.right, nodeInfo.right),
+                });
+                snapPoints.push({ type: 'horizontal', position: nodeInfo.centerY, offset: centerYOffset });
+            } else if (this.options.showEdge) {
+                // 无中心对齐：检查边缘对齐
                 // 上边缘对齐
                 const topOffset = dragInfo.top - nodeInfo.top;
                 if (Math.abs(topOffset) <= tolerance) {
@@ -424,33 +429,6 @@ export class Snapline implements Plugin {
                         end: Math.max(dragInfo.right, nodeInfo.right),
                     });
                     snapPoints.push({ type: 'horizontal', position: nodeInfo.bottom, offset: bottomOffset });
-                }
-            }
-            
-            // 居中对齐线
-            if (this.options.showCenter) {
-                // 垂直居中对齐（水平方向的中心）
-                const centerXOffset = dragInfo.centerX - nodeInfo.centerX;
-                if (Math.abs(centerXOffset) <= tolerance) {
-                    snaplines.push({
-                        type: 'vertical',
-                        position: nodeInfo.centerX,
-                        start: Math.min(dragInfo.top, nodeInfo.top),
-                        end: Math.max(dragInfo.bottom, nodeInfo.bottom),
-                    });
-                    snapPoints.push({ type: 'vertical', position: nodeInfo.centerX, offset: centerXOffset });
-                }
-                
-                // 水平居中对齐（垂直方向的中心）
-                const centerYOffset = dragInfo.centerY - nodeInfo.centerY;
-                if (Math.abs(centerYOffset) <= tolerance) {
-                    snaplines.push({
-                        type: 'horizontal',
-                        position: nodeInfo.centerY,
-                        start: Math.min(dragInfo.left, nodeInfo.left),
-                        end: Math.max(dragInfo.right, nodeInfo.right),
-                    });
-                    snapPoints.push({ type: 'horizontal', position: nodeInfo.centerY, offset: centerYOffset });
                 }
             }
         }
