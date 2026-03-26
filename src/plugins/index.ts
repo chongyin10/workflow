@@ -53,3 +53,11 @@ export {
     SiderPane,
     type SiderPaneOptions,
 } from './SiderPane';
+
+// 下拉菜单插件
+export {
+    Dropdown,
+    createDropdown,
+    type DropdownOptions,
+    type MenuItem,
+} from './Dropdown';

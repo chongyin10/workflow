@@ -59,98 +59,13 @@ const graph = new Graph({
   grid: { enabled: true, size: 20, color: '#e2e8f0' },
 });
 
-// 存储当前弹出层
-let currentPopup = null;
-
-// 关闭弹出层
-const closePopup = () => {
-  if (currentPopup) {
-    currentPopup.remove();
-    currentPopup = null;
-  }
-};
-
-// 创建弹出层
-const createPopup = (node, e) => {
-  // 关闭已有的弹出层
-  closePopup();
-  
-  // 获取画布容器的边界
-  const containerRect = container.getBoundingClientRect();
-  
-  // 使用鼠标点击的视口坐标，转换为相对于容器的坐标
-  const popupX = e.clientX - containerRect.left + 10;
-  const popupY = e.clientY - containerRect.top;
-  
-  // 创建弹出层
-  const popup = document.createElement('div');
-  popup.style.cssText = \`
-    position: absolute;
-    left: \${popupX}px;
-    top: \${popupY}px;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    padding: 8px 0;
-    min-width: 120px;
-    z-index: 1000;
-  \`;
-  
-  // 菜单项
-  const menuItems = [
-    { label: '复制节点', icon: '📋', action: () => { closePopup(); console.log('复制节点:', node.getLabel()); } },
-    { label: '删除节点', icon: '🗑️', action: () => { closePopup(); graph.removeNode(node.getId()); } },
-    { label: '编辑标签', icon: '✏️', action: () => { closePopup(); console.log('编辑标签:', node.getLabel()); } },
-  ];
-  
-  menuItems.forEach(item => {
-    const menuItem = document.createElement('div');
-    menuItem.style.cssText = \`
-      padding: 8px 16px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 13px;
-      color: #334155;
-      transition: background 0.2s;
-    \`;
-    menuItem.innerHTML = \`\${item.icon} \${item.label}\`;
-    menuItem.onmouseenter = () => menuItem.style.background = '#f1f5f9';
-    menuItem.onmouseleave = () => menuItem.style.background = 'transparent';
-    menuItem.onclick = item.action;
-    popup.appendChild(menuItem);
-  });
-  
-  container.appendChild(popup);
-  currentPopup = popup;
-  
-  // 阻止弹出层上的点击事件冒泡，避免点击弹出层时关闭自己
-  popup.addEventListener('mousedown', (ev) => {
-    ev.stopPropagation();
-  });
-  popup.addEventListener('click', (ev) => {
-    ev.stopPropagation();
-  });
-};
-
-// 点击空白处关闭弹出层
-graph.on('blank:mousedown', () => {
-  closePopup();
-});
-
-// 开始拖拽节点时关闭弹出层
-graph.on('node:dragstart', () => {
-  closePopup();
-});
-
-// 点击画布容器时关闭弹出层（处理点击非节点非空白区域）
-container.addEventListener('mousedown', (e) => {
-  // 如果点击的是弹出层或其子元素，不关闭（由弹出层自己的事件处理）
-  if (currentPopup && !currentPopup.contains(e.target)) {
-    closePopup();
-  }
+// 使用 Dropdown 插件创建右键菜单
+new plugins.Dropdown(graph, {
+  nodeMenu: [
+    { label: '复制节点', icon: '📋', action: (node) => console.log('复制节点:', node.getLabel()) },
+    { label: '删除节点', icon: '🗑️', danger: true, action: (node) => graph.removeNode(node.getId()) },
+    { label: '编辑标签', icon: '✏️', action: (node) => console.log('编辑标签:', node.getLabel()) },
+  ],
 });
 
 // 创建示例节点
@@ -186,12 +101,6 @@ const node2 = graph.addNode({
   },
 });
 
-// 监听 node:contextmenu 事件
-graph.on('node:contextmenu', (e) => {
-  e.preventDefault?.();
-  createPopup(e.node, e);
-});
-
 console.log('node:contextmenu 事件监听已启动...');
 console.log('在节点上点击鼠标右键查看效果');`;
 
@@ -207,120 +116,24 @@ const graph = new Graph({
   grid: { enabled: true, size: 20, color: '#e2e8f0' },
 });
 
-// 存储当前弹出层
-let currentPopup = null;
-
-// 关闭弹出层
-const closePopup = () => {
-  if (currentPopup) {
-    currentPopup.remove();
-    currentPopup = null;
-  }
-};
-
-// 创建弹出层
-const createPopup = (cell, e) => {
-  // 关闭已有的弹出层
-  closePopup();
-  
-  // 获取画布容器的边界
-  const containerRect = container.getBoundingClientRect();
-  
-  // 使用鼠标点击的视口坐标，转换为相对于容器的坐标
-  const popupX = e.clientX - containerRect.left + 10;
-  const popupY = e.clientY - containerRect.top;
-  
-  // 创建弹出层
-  const popup = document.createElement('div');
-  popup.style.cssText = \`
-    position: absolute;
-    left: \${popupX}px;
-    top: \${popupY}px;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    padding: 8px 0;
-    min-width: 120px;
-    z-index: 1000;
-  \`;
-  
-  // 判断是节点还是边，显示不同的菜单
-  const isNode = cell.constructor.name === 'Node';
-  const cellId = cell.getId();
-  
-  if (isNode) {
-    // 节点菜单项
-    const menuItems = [
-      { label: '复制节点', icon: '📋', action: () => { closePopup(); console.log('复制节点:', cell.getLabel()); } },
-      { label: '删除节点', icon: '🗑️', action: () => { closePopup(); graph.removeNode(cellId); } },
-      { label: '编辑标签', icon: '✏️', action: () => { closePopup(); console.log('编辑标签:', cell.getLabel()); } },
-    ];
+// 使用 Dropdown 插件创建右键菜单
+new plugins.Dropdown(graph, {
+  cellMenu: (cell) => {
+    // 判断是节点还是边，返回不同的菜单
+    const isNode = cell.constructor.name === 'Node';
     
-    menuItems.forEach(item => {
-      const menuItem = document.createElement('div');
-      menuItem.style.cssText = \`
-        padding: 8px 16px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 13px;
-        color: #334155;
-        transition: background 0.2s;
-      \`;
-      menuItem.innerHTML = \`\${item.icon} \${item.label}\`;
-      menuItem.onmouseenter = () => menuItem.style.background = '#f1f5f9';
-      menuItem.onmouseleave = () => menuItem.style.background = 'transparent';
-      menuItem.onclick = item.action;
-      popup.appendChild(menuItem);
-    });
-  } else {
-    // 边菜单项 - 只有删除
-    const menuItem = document.createElement('div');
-    menuItem.style.cssText = \`
-      padding: 8px 16px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 13px;
-      color: #dc2626;
-      transition: background 0.2s;
-    \`;
-    menuItem.innerHTML = '🗑️ 删除边';
-    menuItem.onmouseenter = () => menuItem.style.background = '#fef2f2';
-    menuItem.onmouseleave = () => menuItem.style.background = 'transparent';
-    menuItem.onclick = () => {
-      closePopup();
-      graph.removeEdge(cellId);
-      console.log('删除边:', cellId);
-    };
-    popup.appendChild(menuItem);
-  }
-  
-  container.appendChild(popup);
-  currentPopup = popup;
-  
-  // 阻止弹出层上的点击事件冒泡
-  popup.addEventListener('mousedown', (ev) => {
-    ev.stopPropagation();
-  });
-  popup.addEventListener('click', (ev) => {
-    ev.stopPropagation();
-  });
-};
-
-// 点击空白处关闭弹出层
-graph.on('blank:mousedown', () => {
-  closePopup();
-});
-
-// 点击画布容器时关闭弹出层
-container.addEventListener('mousedown', (e) => {
-  if (currentPopup && !currentPopup.contains(e.target)) {
-    closePopup();
-  }
+    if (isNode) {
+      return [
+        { label: '复制节点', icon: '📋', action: () => console.log('复制节点:', cell.getLabel()) },
+        { label: '删除节点', icon: '🗑️', danger: true, action: () => graph.removeNode(cell.getId()) },
+        { label: '编辑标签', icon: '✏️', action: () => console.log('编辑标签:', cell.getLabel()) },
+      ];
+    } else {
+      return [
+        { label: '删除边', icon: '🗑️', danger: true, action: () => graph.removeEdge(cell.getId()) },
+      ];
+    }
+  },
 });
 
 // 创建节点和边
@@ -363,12 +176,6 @@ graph.addEdge({
   style: { stroke: '#64748b', strokeWidth: 2.5, arrowSize: 8 },
 });
 
-// 监听 cell:contextmenu 事件（适用于节点和边）
-graph.on('cell:contextmenu', (e) => {
-  e.preventDefault?.();
-  createPopup(e.cell, e);
-});
-
 console.log('cell:contextmenu 事件监听已启动...');
 console.log('此事件对节点和边都有效');`;
 
@@ -384,88 +191,11 @@ const graph = new Graph({
   grid: { enabled: true, size: 20, color: '#e2e8f0' },
 });
 
-// 存储当前弹出层
-let currentPopup = null;
-
-// 关闭弹出层
-const closePopup = () => {
-  if (currentPopup) {
-    currentPopup.remove();
-    currentPopup = null;
-  }
-};
-
-// 创建弹出层
-const createPopup = (edge, e) => {
-  // 关闭已有的弹出层
-  closePopup();
-  
-  // 获取画布容器的边界
-  const containerRect = container.getBoundingClientRect();
-  
-  // 使用鼠标点击的视口坐标，转换为相对于容器的坐标
-  const popupX = e.clientX - containerRect.left + 10;
-  const popupY = e.clientY - containerRect.top;
-  
-  // 创建弹出层
-  const popup = document.createElement('div');
-  popup.style.cssText = \`
-    position: absolute;
-    left: \${popupX}px;
-    top: \${popupY}px;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    padding: 8px 0;
-    min-width: 120px;
-    z-index: 1000;
-  \`;
-  
-  // 删除边菜单项
-  const menuItem = document.createElement('div');
-  menuItem.style.cssText = \`
-    padding: 8px 16px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    color: #dc2626;
-    transition: background 0.2s;
-  \`;
-  menuItem.innerHTML = '🗑️ 删除边';
-  menuItem.onmouseenter = () => menuItem.style.background = '#fef2f2';
-  menuItem.onmouseleave = () => menuItem.style.background = 'transparent';
-  menuItem.onclick = () => {
-    closePopup();
-    graph.removeEdge(edge.getId());
-    console.log('删除边:', edge.getId());
-  };
-  popup.appendChild(menuItem);
-  
-  container.appendChild(popup);
-  currentPopup = popup;
-  
-  // 阻止弹出层上的点击事件冒泡
-  popup.addEventListener('mousedown', (ev) => {
-    ev.stopPropagation();
-  });
-  popup.addEventListener('click', (ev) => {
-    ev.stopPropagation();
-  });
-};
-
-// 点击空白处关闭弹出层
-graph.on('blank:mousedown', () => {
-  closePopup();
-});
-
-// 点击画布容器时关闭弹出层
-container.addEventListener('mousedown', (e) => {
-  if (currentPopup && !currentPopup.contains(e.target)) {
-    closePopup();
-  }
+// 使用 Dropdown 插件创建右键菜单
+new plugins.Dropdown(graph, {
+  edgeMenu: [
+    { label: '删除边', icon: '🗑️', danger: true, action: (edge) => graph.removeEdge(edge.getId()) },
+  ],
 });
 
 // 创建连接的节点
@@ -532,12 +262,6 @@ graph.addEdge({
   style: { stroke: '#64748b', strokeWidth: 2, arrowSize: 10 },
 });
 
-// 监听 edge:contextmenu 事件
-graph.on('edge:contextmenu', (e) => {
-  e.preventDefault?.();
-  createPopup(e.edge, e);
-});
-
 console.log('edge:contextmenu 事件监听已启动...');
 console.log('在边上点击鼠标右键查看效果');`;
 
@@ -553,48 +277,10 @@ const graph = new Graph({
   grid: { enabled: true, size: 20, color: '#e2e8f0' },
 });
 
-// 存储当前弹出层
-let currentPopup = null;
-
-// 关闭弹出层
-const closePopup = () => {
-  if (currentPopup) {
-    currentPopup.remove();
-    currentPopup = null;
-  }
-};
-
-// 创建弹出层
-const createPopup = (e) => {
-  // 关闭已有的弹出层
-  closePopup();
-  
-  // 获取画布容器的边界
-  const containerRect = container.getBoundingClientRect();
-  
-  // 使用鼠标点击的视口坐标，转换为相对于容器的坐标
-  const popupX = e.clientX - containerRect.left + 10;
-  const popupY = e.clientY - containerRect.top;
-  
-  // 创建弹出层
-  const popup = document.createElement('div');
-  popup.style.cssText = \`
-    position: absolute;
-    left: \${popupX}px;
-    top: \${popupY}px;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    padding: 8px 0;
-    min-width: 140px;
-    z-index: 1000;
-  \`;
-  
-  // 空白区域菜单项
-  const menuItems = [
+// 使用 Dropdown 插件创建右键菜单
+new plugins.Dropdown(graph, {
+  blankMenu: (e) => [
     { label: '添加节点', icon: '➕', action: () => {
-      closePopup();
       const { x, y } = e;
       const newNode = graph.addNode({
         id: \`node-\${Date.now()}\`,
@@ -613,53 +299,14 @@ const createPopup = (e) => {
       console.log('添加新节点:', newNode.getId());
     }},
     { label: '清空画布', icon: '🗑️', action: () => {
-      closePopup();
       graph.clear();
       console.log('清空画布');
     }},
     { label: '适应画布', icon: '📐', action: () => {
-      closePopup();
       graph.fitView();
       console.log('适应画布');
     }},
-  ];
-  
-  menuItems.forEach(item => {
-    const menuItem = document.createElement('div');
-    menuItem.style.cssText = \`
-      padding: 8px 16px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 13px;
-      color: #334155;
-      transition: background 0.2s;
-    \`;
-    menuItem.innerHTML = \`\${item.icon} \${item.label}\`;
-    menuItem.onmouseenter = () => menuItem.style.background = '#f1f5f9';
-    menuItem.onmouseleave = () => menuItem.style.background = 'transparent';
-    menuItem.onclick = item.action;
-    popup.appendChild(menuItem);
-  });
-  
-  container.appendChild(popup);
-  currentPopup = popup;
-  
-  // 阻止弹出层上的点击事件冒泡
-  popup.addEventListener('mousedown', (ev) => {
-    ev.stopPropagation();
-  });
-  popup.addEventListener('click', (ev) => {
-    ev.stopPropagation();
-  });
-};
-
-// 点击画布容器时关闭弹出层
-container.addEventListener('mousedown', (e) => {
-  if (currentPopup && !currentPopup.contains(e.target)) {
-    closePopup();
-  }
+  ],
 });
 
 // 创建几个节点
@@ -693,16 +340,9 @@ const node2 = graph.addNode({
   },
 });
 
-// 监听 blank:contextmenu 事件（画布空白区域右键）
-graph.on('blank:contextmenu', (e) => {
-  e.preventDefault?.();
-  createPopup(e);
-});
-
 // 监听 node:contextmenu 事件（点击节点时也关闭空白区域弹出层）
 graph.on('node:contextmenu', (e) => {
   e.preventDefault?.();
-  closePopup();
   console.log('📦 节点右键菜单:', e.node.getLabel());
 });
 
@@ -738,6 +378,7 @@ export const ContextMenuExample: React.FC = () => {
 
     try {
       const { Graph, Shape, EdgeType } = await import('../core');
+      const plugins = await import('../plugins');
 
       const sandbox = {
         container: graphContainerRef.current,
@@ -745,10 +386,11 @@ export const ContextMenuExample: React.FC = () => {
         Graph,
         Shape,
         EdgeType,
+        plugins,
       };
 
       const executableCode = `'use strict';
-        const { container, console, Graph, Shape, EdgeType } = sandbox;
+        const { container, console, Graph, Shape, EdgeType, plugins } = sandbox;
         ${codeToExecute}
       `;
 
