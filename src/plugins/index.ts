@@ -40,3 +40,10 @@ export {
     type NodeClipboardData,
     type EdgeClipboardData,
 } from './Clipboard';
+
+// 小地图插件
+export {
+    MiniMap,
+    type MiniMapOptions,
+    type MiniMapPosition,
+} from './MiniMap';

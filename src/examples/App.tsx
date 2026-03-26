@@ -14,6 +14,7 @@ import {
     ReactShapeExample,
     SnaplineExample,
     ClipboardExample,
+    MiniMapExample,
 } from './index';
 
 /**
@@ -21,7 +22,7 @@ import {
  *
  * 提供所有核心组件示例的导航和展示
  */
-type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'connectionValidation' | 'dnd' | 'dynamicHeightNode' | 'blankEvent' | 'grid' | 'reactShape' | 'snapline' | 'clipboard';
+type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'connectionValidation' | 'dnd' | 'dynamicHeightNode' | 'blankEvent' | 'grid' | 'reactShape' | 'snapline' | 'clipboard' | 'miniMap';
 
 interface ExampleItem {
     key: ExampleKey;
@@ -114,6 +115,12 @@ const examples: ExampleItem[] = [
         title: '📋 Clipboard 剪贴板示例',
         description: '节点和边的复制、粘贴、剪切、删除功能',
         component: ClipboardExample,
+    },
+    {
+        key: 'miniMap',
+        title: '🗺️ MiniMap 小地图示例',
+        description: '在画布上显示小地图，支持拖拽视口移动画布、自定义位置',
+        component: MiniMapExample,
     },
 ];
 

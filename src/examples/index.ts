@@ -50,3 +50,7 @@ export { default as SnaplineExampleComponent } from './SnaplineExample';
 // Clipboard 剪贴板示例
 export { ClipboardExample } from './ClipboardExample';
 export { default as ClipboardExampleComponent } from './ClipboardExample';
+
+// MiniMap 小地图示例
+export { MiniMapExample } from './MiniMapExample';
+export { default as MiniMapExampleComponent } from './MiniMapExample';
