@@ -207,7 +207,7 @@ export class MiniMap implements Plugin {
             opacity: ${this.options.opacity};
             z-index: ${this.options.zIndex};
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            cursor: grab;
+            cursor: default;
             user-select: none;
         `;
 
@@ -593,10 +593,10 @@ export class MiniMap implements Plugin {
     }
 
     /**
-     * 检查点是否在视口内
+     * 获取视口在小地图中的矩形区域
      */
-    private isPointInViewport(point: Point): boolean {
-        if (!this.graph) return false;
+    private getViewportRect(): { x: number; y: number; width: number; height: number } | null {
+        if (!this.graph) return null;
 
         const { width: canvasWidth, height: canvasHeight } = this.graph.getCanvas().getBoundingClientRect();
         const viewportWorldTopLeft = this.graph.screenToWorld({ x: 0, y: 0 });
@@ -605,11 +605,26 @@ export class MiniMap implements Plugin {
         const viewportTopLeft = this.worldToMiniMap(viewportWorldTopLeft);
         const viewportBottomRight = this.worldToMiniMap(viewportWorldBottomRight);
 
+        return {
+            x: viewportTopLeft.x,
+            y: viewportTopLeft.y,
+            width: viewportBottomRight.x - viewportTopLeft.x,
+            height: viewportBottomRight.y - viewportTopLeft.y,
+        };
+    }
+
+    /**
+     * 检查点是否在视口内
+     */
+    private isPointInViewport(point: Point): boolean {
+        const rect = this.getViewportRect();
+        if (!rect) return false;
+
         return (
-            point.x >= viewportTopLeft.x &&
-            point.x <= viewportBottomRight.x &&
-            point.y >= viewportTopLeft.y &&
-            point.y <= viewportBottomRight.y
+            point.x >= rect.x &&
+            point.x <= rect.x + rect.width &&
+            point.y >= rect.y &&
+            point.y <= rect.y + rect.height
         );
     }
 
@@ -621,15 +636,15 @@ export class MiniMap implements Plugin {
 
         const point = this.getMousePosition(e);
 
-        // 检查是否在视口内
-        if (this.isPointInViewport(point)) {
-            this.isDraggingViewport = true;
-            this.dragStartPoint = point;
-            this.dragStartOffset = { ...this.graph.getTransform().offset };
+        // 任何位置都可以开始拖动，不限于视口内
+        this.isDraggingViewport = true;
+        this.dragStartPoint = point;
+        
+        // 记录当前画布的偏移量
+        this.dragStartOffset = { ...this.graph.getTransform().offset };
 
-            if (this.container) {
-                this.container.style.cursor = 'grabbing';
-            }
+        if (this.container) {
+            this.container.style.cursor = 'grabbing';
         }
     };
 
@@ -643,14 +658,24 @@ export class MiniMap implements Plugin {
 
         // 如果正在拖拽，更新画布位置
         if (this.isDraggingViewport) {
-            const deltaX = point.x - this.dragStartPoint.x;
-            const deltaY = point.y - this.dragStartPoint.y;
+            // 计算鼠标在小地图上的移动距离
+            const deltaMiniMapX = point.x - this.dragStartPoint.x;
+            const deltaMiniMapY = point.y - this.dragStartPoint.y;
 
-            // 将小地图的移动转换为主画布的偏移变化
+            // 将小地图移动距离转换为主画布的移动距离
+            // 小地图的 miniMapScale 是世界坐标到小地图的缩放比例
+            // 所以要先将小地图像素转换回世界坐标，再乘以主画布缩放得到屏幕偏移
             const transform = this.graph.getTransform();
+            
+            // 小地图移动距离 / miniMapScale = 世界坐标移动距离
+            // 世界坐标移动距离 * 主画布scale = 屏幕像素移动距离
+            const deltaScreenX = (deltaMiniMapX / this.miniMapScale) * transform.scale;
+            const deltaScreenY = (deltaMiniMapY / this.miniMapScale) * transform.scale;
+
+            // 计算新的偏移量
             const newOffset = {
-                x: this.dragStartOffset.x - deltaX / this.miniMapScale * transform.scale,
-                y: this.dragStartOffset.y - deltaY / this.miniMapScale * transform.scale,
+                x: this.dragStartOffset.x - deltaScreenX,
+                y: this.dragStartOffset.y - deltaScreenY,
             };
 
             this.graph.setOffset(newOffset);
@@ -660,30 +685,39 @@ export class MiniMap implements Plugin {
                 offset: newOffset,
                 scale: transform.scale,
             });
+
+            // 实时重新渲染小地图，更新视口位置
+            this.render();
         } else {
-            // 根据是否在视口内改变鼠标样式
+            // 根据是否在视口内改变鼠标样式（仅当鼠标在视口内时才改变为 grab）
             const isInViewport = this.isPointInViewport(point);
-            this.container.style.cursor = isInViewport ? 'grab' : 'crosshair';
+            this.container.style.cursor = isInViewport ? 'grab' : 'default';
         }
     };
 
     /**
      * 处理鼠标松开事件
      */
-    private handleMouseUp = (): void => {
+    private handleMouseUp = (e: MouseEvent): void => {
         this.isDraggingViewport = false;
 
-        if (this.container) {
-            this.container.style.cursor = 'grab';
+        if (this.container && this.graph) {
+            // 恢复鼠标样式，根据是否在视口内
+            const point = this.getMousePosition(e);
+            const isInViewport = this.isPointInViewport(point);
+            this.container.style.cursor = isInViewport ? 'grab' : 'default';
         }
     };
 
     /**
      * 处理鼠标进入事件
      */
-    private handleMouseEnter = (): void => {
+    private handleMouseEnter = (e: MouseEvent): void => {
         if (this.container) {
-            this.container.style.cursor = 'grab';
+            // 根据是否在视口内设置鼠标样式
+            const point = this.getMousePosition(e);
+            const isInViewport = this.isPointInViewport(point);
+            this.container.style.cursor = isInViewport ? 'grab' : 'default';
         }
     };
 
@@ -693,7 +727,7 @@ export class MiniMap implements Plugin {
     private handleMouseLeave = (): void => {
         this.isDraggingViewport = false;
         if (this.container) {
-            this.container.style.cursor = 'grab';
+            this.container.style.cursor = 'default';
         }
     };
 
