@@ -71,3 +71,10 @@ export {
     type HistoryState,
     type BatchHistoryAction,
 } from './History';
+
+// 框选插件
+export {
+    Selection,
+    type SelectionOptions,
+    type SelectionEvent,
+} from './Selection';

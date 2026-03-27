@@ -813,6 +813,10 @@ export class Graph {
             
             this.canvas.style.cursor = 'grabbing';
         } else {
+            // 如果按住 Alt键，不启动画布拖拽（留给 Selection插件处理框选）
+            if (e.altKey) {
+                return;
+            }
             // 拖拽画布
             this.state.isDragging = true;
             this.state.lastMousePosition = {
@@ -3142,6 +3146,9 @@ export class Graph {
         const map: Record<string, string> = {
             click: EVENT_NAMES.BLANK_CLICK,
             contextmenu: EVENT_NAMES.BLANK_CONTEXTMENU,
+            mousedown: EVENT_NAMES.BLANK_MOUSEDOWN,
+            mousemove: EVENT_NAMES.BLANK_MOUSEMOVE,
+            mouseup: EVENT_NAMES.BLANK_MOUSEUP,
         };
         return map[eventType] || null;
     }

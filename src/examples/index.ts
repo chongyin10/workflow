@@ -66,3 +66,7 @@ export { default as ContextMenuExampleComponent } from './ContextMenuExample';
 // History 撤销重做示例
 export { HistoryExample } from './HistoryExample';
 export { default as HistoryExampleComponent } from './HistoryExample';
+
+// Selection 框选示例
+export { SelectionExample } from './SelectionExample';
+export { default as SelectionExampleComponent } from './SelectionExample';

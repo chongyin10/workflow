@@ -18,6 +18,7 @@ import {
     SiderPaneExample,
     ContextMenuExample,
     HistoryExample,
+    SelectionExample,
 } from './index';
 
 /**
@@ -25,7 +26,7 @@ import {
  *
  * 提供所有核心组件示例的导航和展示
  */
-type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'connectionValidation' | 'dnd' | 'dynamicHeightNode' | 'blankEvent' | 'grid' | 'reactShape' | 'snapline' | 'clipboard' | 'miniMap' | 'siderPane' | 'contextMenu' | 'history';
+type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'connectionValidation' | 'dnd' | 'dynamicHeightNode' | 'blankEvent' | 'grid' | 'reactShape' | 'snapline' | 'clipboard' | 'miniMap' | 'siderPane' | 'contextMenu' | 'history' | 'selection';
 
 interface ExampleItem {
     key: ExampleKey;
@@ -142,6 +143,12 @@ const examples: ExampleItem[] = [
         title: '⏪ History 撤销重做示例',
         description: '提供撤销和重做功能，支持批量操作和键盘快捷键',
         component: HistoryExample,
+    },
+    {
+        key: 'selection',
+        title: '🖱️ Selection 框选示例',
+        description: '在画布空白处拖动进行框选，支持多选和自定义样式',
+        component: SelectionExample,
     },
 ];
 
