@@ -441,39 +441,9 @@ export class Node extends Cell {
 
         // 绘制边框
         ctx.shadowColor = 'transparent';
-        ctx.lineWidth = this.isSelected ? style.selectedBorderWidth : style.borderWidth;
-        ctx.strokeStyle = this.isSelected ? style.selectedBorderColor : style.borderColor;
+        ctx.lineWidth = style.borderWidth;
+        ctx.strokeStyle = style.borderColor;
         ctx.stroke();
-
-        // 选中状态绘制外部虚线边框
-        if (this.isSelected) {
-            ctx.save();
-            ctx.strokeStyle = style.selectedBorderColor;
-            ctx.lineWidth = 1;
-            ctx.setLineDash([4, 3]);
-            
-            // 在外部绘制虚线框（与节点保持 2px 间距）
-            const padding = 3;
-            ctx.beginPath();
-            if (this.shapeConfig.type === Shape.Circle) {
-                ctx.arc(
-                    this.position.x,
-                    this.position.y,
-                    style.width / 2 + padding,
-                    0,
-                    Math.PI * 2
-                );
-            } else {
-                const left = this.position.x - style.width / 2 - padding;
-                const top = this.position.y - style.height / 2 - padding;
-                const outerWidth = style.width + padding * 2;
-                const outerHeight = style.height + padding * 2;
-                const radius = (this.shapeConfig.borderRadius || style.borderRadius || 0) + padding;
-                ctx.roundRect(left, top, outerWidth, outerHeight, radius);
-            }
-            ctx.stroke();
-            ctx.restore();
-        }
 
         // 绘制文字
         ctx.fillStyle = style.textColor;
