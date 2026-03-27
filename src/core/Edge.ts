@@ -211,6 +211,11 @@ export class Edge extends Cell {
         // 解析 source 和 target
         this.source = this.parseAnchor(options.source);
         this.target = this.parseAnchor(options.target);
+
+        // 如果样式中设置了 animated: true，自动启动动画
+        if (this.style.animated) {
+            this.isAnimating = true;
+        }
     }
 
     /**
@@ -376,15 +381,23 @@ export class Edge extends Cell {
                 break;
         }
 
-        // 如果启用了波浪动画，只绘制波浪效果，不绘制实线轨道
+        // 如果启用了波浪动画，先绘制虚线轨道，再绘制波浪效果
         // 使用 isAnimating 判断，确保动画状态一致
         // 当 time 未定义时使用 performance.now() 获取当前时间，确保动画持续播放
         if (this.isAnimating) {
-            // 不绘制实线轨道，只绘制波浪
+            // 先绘制虚线轨道（保留虚线样式）
+            ctx.save();
+            if (this.style.dashed) {
+                ctx.setLineDash(this.style.dashPattern);
+            }
+            ctx.stroke();
+            ctx.restore();
+            
+            // 再绘制流动波浪动画
             const animationTime = time !== undefined ? time : performance.now();
             this.drawFlowingWave(ctx, sourcePoint, targetPoint, animationTime);
         } else {
-            // 没有波浪动画时，绘制实线轨道
+            // 没有波浪动画时，绘制实线/虚线轨道
             ctx.stroke();
         }
 
@@ -505,19 +518,36 @@ export class Edge extends Cell {
         const dy = target.y - source.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
-        // 控制点距离
-        const controlDist = dist * 0.5;
+        // 控制点距离 - 增加最小距离确保曲线效果
+        const minControlDist = Math.max(dist * 0.5, 50); // 最小控制点距离为50像素
 
-        // 根据连接点位置确定控制点方向，如果没有指定位置，则根据两点的相对位置自动计算
-        const sourceDirX = this.getDirectionX(this.source.position) ?? (Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : -1) : 0);
-        const sourceDirY = this.getDirectionY(this.source.position) ?? (Math.abs(dy) >= Math.abs(dx) ? (dy > 0 ? 1 : -1) : 0);
-        const targetDirX = this.getDirectionX(this.target.position) ?? (Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? -1 : 1) : 0);
-        const targetDirY = this.getDirectionY(this.target.position) ?? (Math.abs(dy) >= Math.abs(dx) ? (dy > 0 ? -1 : 1) : 0);
+        // 根据连接点位置确定控制点方向
+        // 对于垂直排列的节点（x 坐标接近），使用固定的水平偏移来产生曲线效果
+        const isVertical = Math.abs(dx) < 20; // x 坐标差小于20视为垂直排列
+        
+        let sourceDirX: number;
+        let sourceDirY: number;
+        let targetDirX: number;
+        let targetDirY: number;
+        
+        if (isVertical) {
+            // 垂直排列时，使用固定的水平偏移产生S形曲线
+            sourceDirX = 0.5;  // 向右偏移
+            sourceDirY = 0.866; // 向下约60度
+            targetDirX = -0.5; // 向左偏移
+            targetDirY = -0.866; // 向上约60度
+        } else {
+            // 正常情况：根据相对位置自动计算
+            sourceDirX = this.getDirectionX(this.source.position) ?? (Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : -1) : 0);
+            sourceDirY = this.getDirectionY(this.source.position) ?? (Math.abs(dy) >= Math.abs(dx) ? (dy > 0 ? 1 : -1) : 0);
+            targetDirX = this.getDirectionX(this.target.position) ?? (Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? -1 : 1) : 0);
+            targetDirY = this.getDirectionY(this.target.position) ?? (Math.abs(dy) >= Math.abs(dx) ? (dy > 0 ? -1 : 1) : 0);
+        }
 
-        const cp1x = source.x + sourceDirX * controlDist;
-        const cp1y = source.y + sourceDirY * controlDist;
-        const cp2x = target.x + targetDirX * controlDist;
-        const cp2y = target.y + targetDirY * controlDist;
+        const cp1x = source.x + sourceDirX * minControlDist;
+        const cp1y = source.y + sourceDirY * minControlDist;
+        const cp2x = target.x + targetDirX * minControlDist;
+        const cp2y = target.y + targetDirY * minControlDist;
 
         // 保存路径点（用于波浪动画）- 贝塞尔曲线使用采样点
         this.pathPoints = this.sampleBezierCurve(source, { x: cp1x, y: cp1y }, { x: cp2x, y: cp2y }, target, 20);

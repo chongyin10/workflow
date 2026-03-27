@@ -857,6 +857,7 @@ const WorkflowNode = ({ data, selected }) => {
   const statusColors = {
     success: '#22c55e',  // 绿色 - 已完成
     error: '#ef4444',    // 红色 - 失败
+    running: '#3b82f6',  // 蓝色 - 运行中
     default: '#e5e7eb',  // 默认边框色
   };
   
@@ -882,6 +883,16 @@ const WorkflowNode = ({ data, selected }) => {
         React.createElement('path', { key: 'x1', d: 'M18 6L6 18' }),
         React.createElement('path', { key: 'x2', d: 'M6 6l12 12' })
       ]);
+    }
+    if (status === 'running') {
+      // 蓝色旋转加载图标
+      return React.createElement('svg', {
+        width: 16, height: 16, viewBox: '0 0 24 24',
+        fill: 'none', stroke: '#3b82f6', strokeWidth: 2.5,
+        style: { animation: 'spin 1s linear infinite' }
+      }, React.createElement('path', {
+        d: 'M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83'
+      }));
     }
     return null;
   };
@@ -975,7 +986,7 @@ graph.addReactNode({
   },
 });
 
-// 第二行：逻辑回归
+// 第二行：逻辑回归（运行中状态）
 graph.addReactNode({
   shape: 'workflow-node',
   id: 'node-logic',
@@ -983,7 +994,7 @@ graph.addReactNode({
   y: 180,
   data: {
     label: '逻辑回归',
-    status: 'success',
+    status: 'running',
     showStatusIcon: true,
   },
 });
@@ -1015,7 +1026,7 @@ graph.addReactNode({
 });
 
 // 添加连接线 - 使用贝塞尔曲线（平滑线）
-// 读数据 → 逻辑回归（实线）
+// 读数据 → 逻辑回归（波浪动画线 - 表示数据正在流入）
 graph.addEdge({
   id: 'edge-1',
   source: { nodeId: 'node-read', portId: 'port-bottom' },
@@ -1025,8 +1036,20 @@ graph.addEdge({
     stroke: '#9ca3af',
     strokeWidth: 1,
     arrowSize: 0,
+    dashed: true,
+    dashPattern: [6, 4],
+    // 波浪动画配置
+    animated: true,
+    waveColor: '#3b82f6',
+    waveWidth: 2,
+    waveLength: 15,
+    waveSpeed: 2,
+    waveOpacity: 0.8,
   },
 });
+
+// 启动边动画
+graph.startEdgeAnimation();
 
 // 逻辑回归 → 模型预测（平滑曲线，左侧）
 graph.addEdge({
@@ -1054,13 +1077,23 @@ graph.addEdge({
   },
 });
 
+// 添加旋转动画样式
+const style = document.createElement('style');
+style.textContent = \`
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+\`;
+document.head.appendChild(style);
+
 // 标题
 const title = document.createElement('div');
 title.style.cssText = 'position:absolute;top:12px;left:16px;font-size:14px;font-weight:600;color:#374151;';
 title.textContent = '机器学习工作流';
 container.appendChild(title);
 
-console.log('工作流图示例已加载（ReactShape 自定义节点）');`;
+console.log('工作流图示例已加载（ReactShape 自定义节点 - 运行中状态带波浪线）');`;
 
 // 所有示例
 const EXAMPLES = [
