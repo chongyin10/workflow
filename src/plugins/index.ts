@@ -61,3 +61,13 @@ export {
     type DropdownOptions,
     type MenuItem,
 } from './Dropdown';
+
+// 历史记录插件
+export {
+    History,
+    type HistoryOptions,
+    type HistoryAction,
+    type HistoryActionType,
+    type HistoryState,
+    type BatchHistoryAction,
+} from './History';

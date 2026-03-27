@@ -62,3 +62,7 @@ export { default as SiderPaneExampleComponent } from './SiderPaneExample';
 // ContextMenu 右键菜单示例
 export { ContextMenuExample } from './ContextMenuExample';
 export { default as ContextMenuExampleComponent } from './ContextMenuExample';
+
+// History 撤销重做示例
+export { HistoryExample } from './HistoryExample';
+export { default as HistoryExampleComponent } from './HistoryExample';

@@ -1281,6 +1281,8 @@ export class Graph {
         if (this.isDraggingNode && this.draggedNode) {
             // 触发 node:dragend 事件
             const finalPosition = this.draggedNode.getPosition();
+            const oldPosition = { ...this.dragNodeStartPosition };
+            console.log('[Graph] node:dragend - oldPosition:', oldPosition, 'finalPosition:', finalPosition);
             this.draggedNode.triggerNodeEvent('dragend', e, { x: finalPosition.x, y: finalPosition.y });
             this.emit(EVENT_NAMES.NODE_DRAGEND, {
                 type: 'node',
@@ -1289,6 +1291,8 @@ export class Graph {
                 originalEvent: e,
                 x: finalPosition.x,
                 y: finalPosition.y,
+                oldPosition: oldPosition,
+                newPosition: finalPosition,
             });
 
             // 触发延迟的 node:unselected 事件（如果有）
@@ -1683,6 +1687,13 @@ export class Graph {
             this.updateHtmlNodeTransform(node);
         }
         
+        // 触发节点添加事件
+        this.emit('node:add', {
+            type: 'node',
+            target: node,
+            node: node,
+        });
+        
         this.scheduleRender();
         return node;
     }
@@ -1824,6 +1835,16 @@ export class Graph {
     removeNode(nodeId: string): boolean {
         const node = this.nodes.get(nodeId);
         if (node) {
+            // 收集与该节点相关的边
+            const connectedEdges: Edge[] = [];
+            this.edges.forEach(edge => {
+                const source = edge.getSourceAnchor();
+                const target = edge.getTargetAnchor();
+                if (source.nodeId === nodeId || target.nodeId === nodeId) {
+                    connectedEdges.push(edge);
+                }
+            });
+
             // 如果移除的是选中的节点，触发 unselected 事件并取消选中
             if (this.selectedNode === node) {
                 // 触发 node:unselected 事件
@@ -1845,6 +1866,15 @@ export class Graph {
                 this.removeHtmlNodeElement(nodeId);
             }
             this.nodes.delete(nodeId);
+            
+            // 触发节点移除事件
+            this.emit('node:remove', {
+                type: 'node',
+                target: node,
+                node: node,
+                connectedEdges: connectedEdges,
+            });
+            
             this.scheduleRender();
             return true;
         }
@@ -2020,6 +2050,14 @@ export class Graph {
         
         const edge = new Edge(options);
         this.edges.set(edge.getId(), edge);
+        
+        // 触发边添加事件
+        this.emit('edge:add', {
+            type: 'edge',
+            target: edge,
+            edge: edge,
+        });
+        
         this.scheduleRender();
         return edge;
     }
@@ -2036,6 +2074,14 @@ export class Graph {
                 this.selectedEdge = null;
             }
             this.edges.delete(edgeId);
+            
+            // 触发边移除事件
+            this.emit('edge:remove', {
+                type: 'edge',
+                target: edge,
+                edge: edge,
+            });
+            
             this.scheduleRender();
             return true;
         }

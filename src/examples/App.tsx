@@ -17,6 +17,7 @@ import {
     MiniMapExample,
     SiderPaneExample,
     ContextMenuExample,
+    HistoryExample,
 } from './index';
 
 /**
@@ -24,7 +25,7 @@ import {
  *
  * 提供所有核心组件示例的导航和展示
  */
-type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'connectionValidation' | 'dnd' | 'dynamicHeightNode' | 'blankEvent' | 'grid' | 'reactShape' | 'snapline' | 'clipboard' | 'miniMap' | 'siderPane' | 'contextMenu';
+type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'connectionValidation' | 'dnd' | 'dynamicHeightNode' | 'blankEvent' | 'grid' | 'reactShape' | 'snapline' | 'clipboard' | 'miniMap' | 'siderPane' | 'contextMenu' | 'history';
 
 interface ExampleItem {
     key: ExampleKey;
@@ -135,6 +136,12 @@ const examples: ExampleItem[] = [
         title: '🖱️ ContextMenu 右键菜单示例',
         description: '节点、边、单元格和空白区域的右键菜单事件演示',
         component: ContextMenuExample,
+    },
+    {
+        key: 'history',
+        title: '⏪ History 撤销重做示例',
+        description: '提供撤销和重做功能，支持批量操作和键盘快捷键',
+        component: HistoryExample,
     },
 ];
 
