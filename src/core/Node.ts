@@ -111,6 +111,12 @@ export interface NodeOptions extends CellOptions {
     style?: Partial<NodeStyle>;
     /** 是否允许拉伸缩小，默认为 false */
     resizable?: boolean;
+    /**
+     * 连接桩是否始终可见
+     * - true: 始终显示连接桩（默认）
+     * - false: 仅在鼠标悬停到节点时显示连接桩
+     */
+    portsAlwaysVisible?: boolean;
 }
 
 /**
@@ -129,6 +135,7 @@ export class Node extends Cell {
     private ports: Map<string, Port> = new Map();
     private portManager: PortManager;
     private _resizable: boolean = false;
+    private _portsAlwaysVisible: boolean = true;
 
     // HTML 节点相关
     private htmlElement: HTMLElement | null = null;
@@ -260,6 +267,7 @@ export class Node extends Cell {
         this.position = { x: options.x, y: options.y };
         this.style = { ...Node.DEFAULT_STYLE, ...options.style };
         this._resizable = options.resizable ?? false;
+        this._portsAlwaysVisible = options.portsAlwaysVisible ?? true;
         
         // 解析 shape 配置
         if (options.shape) {
@@ -315,6 +323,22 @@ export class Node extends Cell {
      */
     setResizable(resizable: boolean): void {
         this._resizable = resizable;
+    }
+
+    /**
+     * 获取连接桩是否始终可见
+     * @returns true 表示始终可见，false 表示仅在悬停时可见
+     */
+    get portsAlwaysVisible(): boolean {
+        return this._portsAlwaysVisible;
+    }
+
+    /**
+     * 设置连接桩是否始终可见
+     * @param visible - true 表示始终可见，false 表示仅在悬停时可见
+     */
+    setPortsAlwaysVisible(visible: boolean): void {
+        this._portsAlwaysVisible = visible;
     }
 
     /**

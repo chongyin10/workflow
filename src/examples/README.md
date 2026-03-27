@@ -112,6 +112,8 @@ const node = graph.addNode({
     shape?: Shape | ShapeConfig,   // 形状配置
     style?: Partial<NodeStyle>,    // 样式配置
     data?: Record<string, any>,    // 自定义数据
+    resizable?: boolean,           // 是否可调整大小，默认 false
+    portsAlwaysVisible?: boolean,  // 连接桩是否始终可见，默认 true
 });
 
 // 位置操作
@@ -124,6 +126,10 @@ node.addPort(options: PortOptions): Port;
 node.removePort(portId): boolean;
 node.getPort(portId): Port | undefined;
 node.getAllPorts(): Port[];
+
+// 连接桩可见性控制
+node.portsAlwaysVisible: boolean;           // 获取连接桩是否始终可见
+node.setPortsAlwaysVisible(visible): void;  // 设置连接桩是否始终可见
 
 // 获取连接点
 node.getAnchorPoint(position): { x, y };

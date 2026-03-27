@@ -30,6 +30,7 @@ const nodeOptionsData = [
   { name: 'locked', type: 'boolean', required: '否', default: 'false', description: '是否锁定（不可交互）' },
   { name: 'zIndex', type: 'number', required: '否', default: '0', description: '层级索引，数值越高显示越在上层' },
   { name: 'resizable', type: 'boolean', required: '否', default: 'false', description: '是否允许拉伸缩小' },
+  { name: 'portsAlwaysVisible', type: 'boolean', required: '否', default: 'true', description: '连接桩是否始终可见。true: 始终显示；false: 仅在鼠标悬停时显示' },
 ];
 
 // Node 类方法表格数据
@@ -72,6 +73,8 @@ const nodeMethodsData = [
   { key: '29', name: 'calculateResize(handlePosition, deltaX, deltaY, minWidth?, minHeight?)', params: 'handlePosition: ResizeHandlePosition, deltaX: number, deltaY: number, minWidth?: number, minHeight?: number', return: '{ x, y, width, height, changed }', description: '计算 resize 后的新尺寸和位置' },
   { key: '30', name: 'resizable (getter)', params: '-', return: 'boolean', description: '获取节点是否可拉伸缩小' },
   { key: '31', name: 'setResizable(resizable)', params: 'resizable: boolean', return: 'void', description: '设置节点是否可拉伸缩小' },
+  { key: '32', name: 'portsAlwaysVisible (getter)', params: '-', return: 'boolean', description: '获取连接桩是否始终可见' },
+  { key: '33', name: 'setPortsAlwaysVisible(visible)', params: 'visible: boolean', return: 'void', description: '设置连接桩是否始终可见（false 时仅在悬停时显示）' },
 ];
 
 // 示例 1: 基础形状
@@ -611,6 +614,73 @@ graph.on('node:unselected', (e) => {
 addLog('💡 左侧节点可调整大小，右侧节点不可调整');
 addLog('💡 点击节点选中后，可调整的节点会显示圆形手柄');`;
 
+// 示例 8: 连接桩显隐控制
+const EXAMPLE_8_CODE = `// 创建 Graph 画布
+const graph = new Graph({
+  container: container,
+  width: 600,
+  height: 320,
+  draggable: true,
+  scalable: true,
+  backgroundColor: '#f8fafc',
+  grid: { enabled: true, size: 20, color: '#e2e8f0' },
+});
+
+// 创建始终显示连接桩的节点（默认）
+const alwaysVisibleNode = graph.addNode({
+  id: 'node-always-visible',
+  label: '始终显示连接桩',
+  x: 150,
+  y: 100,
+  shape: Shape.Rect,
+  portsAlwaysVisible: true, // 默认值，连接桩始终可见
+  style: {
+    width: 160,
+    height: 80,
+    backgroundColor: '#22c55e',
+    borderColor: '#16a34a',
+    borderWidth: 2,
+    borderRadius: 8,
+    textColor: '#ffffff',
+  },
+});
+
+// 创建悬停显示连接桩的节点
+const hoverVisibleNode = graph.addNode({
+  id: 'node-hover-visible',
+  label: '悬停显示连接桩',
+  x: 450,
+  y: 100,
+  shape: Shape.Rect,
+  portsAlwaysVisible: false, // 仅在悬停时显示连接桩
+  style: {
+    width: 160,
+    height: 80,
+    backgroundColor: '#3b82f6',
+    borderColor: '#2563eb',
+    borderWidth: 2,
+    borderRadius: 8,
+    textColor: '#ffffff',
+  },
+});
+
+// 为两个节点添加连接桩
+alwaysVisibleNode.addPort({ id: 'port-left-1', position: 'left', label: '左' });
+alwaysVisibleNode.addPort({ id: 'port-right-1', position: 'right', label: '右' });
+alwaysVisibleNode.addPort({ id: 'port-top-1', position: 'top', label: '上' });
+alwaysVisibleNode.addPort({ id: 'port-bottom-1', position: 'bottom', label: '下' });
+
+hoverVisibleNode.addPort({ id: 'port-left-2', position: 'left', label: '左' });
+hoverVisibleNode.addPort({ id: 'port-right-2', position: 'right', label: '右' });
+hoverVisibleNode.addPort({ id: 'port-top-2', position: 'top', label: '上' });
+hoverVisibleNode.addPort({ id: 'port-bottom-2', position: 'bottom', label: '下' });
+
+// 创建提示信息
+const info = document.createElement('div');
+info.style.cssText = 'position:absolute;bottom:8px;left:8px;right:8px;background:#f1f5f9;padding:12px;borderRadius:6px;fontSize:13px;color:#475569;';
+info.innerHTML = '💡 <strong>左侧节点</strong>：连接桩始终可见（默认）<br/>💡 <strong>右侧节点</strong>：鼠标悬停时才会显示连接桩';
+container.appendChild(info);`;
+
 // 所有示例
 const EXAMPLES = [
   { id: 'example-1', title: '基础形状', code: EXAMPLE_1_CODE },
@@ -620,6 +690,7 @@ const EXAMPLES = [
   { id: 'example-5', title: '动态交互', code: EXAMPLE_5_CODE },
   { id: 'example-6', title: '节点事件', code: EXAMPLE_6_CODE },
   { id: 'example-7', title: '调整大小', code: EXAMPLE_7_CODE },
+  { id: 'example-8', title: '连接桩显隐', code: EXAMPLE_8_CODE },
 ];
 
 // Node 事件表格数据

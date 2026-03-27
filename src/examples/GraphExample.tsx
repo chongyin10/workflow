@@ -212,14 +212,15 @@ const startNode = graph.addNode({
 });
 
 // 处理节点 - 矩形
+// 演示 portsAlwaysVisible: false，仅在悬停时显示连接桩
 const processNode = graph.addNode({
   id: 'node-process',
-  label: '处理',
+  label: '处理（悬停显示连接桩）',
   x: 300,
   y: 200,
   shape: Shape.Rect,
   style: {
-    width: 100,
+    width: 160,
     height: 60,
     backgroundColor: '#3b82f6',
     borderColor: '#2563eb',
@@ -227,6 +228,7 @@ const processNode = graph.addNode({
     textColor: '#ffffff',
     hoverBackgroundColor: '#60a5fa',
   },
+  portsAlwaysVisible: false, // 设置为 false，仅在鼠标悬停时显示连接桩
 });
 
 // 结束节点 - 圆形

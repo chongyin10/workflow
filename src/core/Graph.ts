@@ -2299,6 +2299,15 @@ export class Graph {
             const nodePos = node.getPosition();
             const nodeStyle = node.getStyle();
             
+            // 判断是否应该显示连接桩：
+            // 1. 如果 portsAlwaysVisible 为 true（默认），始终显示
+            // 2. 如果 portsAlwaysVisible 为 false，仅在鼠标悬停在该节点上时显示
+            const shouldShowPorts = node.portsAlwaysVisible || node === this.lastMouseOverNode;
+            
+            if (!shouldShowPorts) {
+                return; // 跳过此节点的连接桩绘制
+            }
+            
             // 获取所有连接桩
             const allPorts = [
                 ...(node as any).portManager?.getAllPorts() || [],
@@ -3035,6 +3044,10 @@ export class Graph {
                 if (!currentPort) {
                     this.canvas.style.cursor = 'default';
                 }
+                // 如果节点设置了 portsAlwaysVisible 为 false，鼠标离开时需要重新渲染以隐藏连接桩
+                if (!this.lastMouseOverNode.portsAlwaysVisible) {
+                    this.scheduleRender();
+                }
             }
             // 鼠标进入新节点
             if (currentNode) {
@@ -3045,6 +3058,10 @@ export class Graph {
                 // 设置为抓取光标（如果不在 Port 上）
                 if (!currentPort) {
                     this.canvas.style.cursor = 'grab';
+                }
+                // 如果节点设置了 portsAlwaysVisible 为 false，鼠标进入时需要重新渲染以显示连接桩
+                if (!currentNode.portsAlwaysVisible) {
+                    this.scheduleRender();
                 }
             }
             this.lastMouseOverNode = currentNode;

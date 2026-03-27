@@ -143,7 +143,26 @@ class Node extends Cell {
   private ports: Map<string, Port>       // 连接桩集合
   private portManager: PortManager       // 连接桩管理器
   private _resizable: boolean            // 是否可调整大小
+  private _portsAlwaysVisible: boolean   // 连接桩是否始终可见
   private htmlElement: HTMLElement | null // HTML 节点元素
+}
+```
+
+**NodeOptions**:
+```typescript
+interface NodeOptions {
+  id?: string                    // 节点唯一标识符（可选，自动生成）
+  label?: string                 // 节点显示文本
+  x: number                      // 节点 X 坐标（必填）
+  y: number                      // 节点 Y 坐标（必填）
+  shape?: Shape | ShapeConfig     // 节点形状类型，默认 Shape.Rect
+  style?: Partial<NodeStyle>      // 节点样式配置
+  data?: Record<string, any>      // 自定义业务数据
+  visible?: boolean               // 是否可见，默认 true
+  locked?: boolean                // 是否锁定（不可交互），默认 false
+  zIndex?: number                 // 层级索引，默认 0
+  resizable?: boolean             // 是否允许拉伸缩小，默认 false
+  portsAlwaysVisible?: boolean    // 连接桩是否始终可见，默认 true
 }
 ```
 
@@ -171,6 +190,10 @@ getPorts(): Port[]
 
 // 连接桩组（批量添加）
 addPortGroup(options: PortGroupOptions): Port[]
+
+// 连接桩可见性控制
+get portsAlwaysVisible(): boolean      // 获取连接桩是否始终可见
+setPortsAlwaysVisible(visible: boolean): void  // 设置连接桩是否始终可见
 
 // 事件监听
 on(event: NodeEventType, handler: EventHandler): () => void
@@ -626,7 +649,33 @@ node.addPortGroup({
 })
 ```
 
-### 场景3: 完整功能配置
+### 场景3: 连接桩悬停显示
+```typescript
+// 默认情况下，连接桩始终可见（portsAlwaysVisible: true）
+const alwaysVisibleNode = graph.addNode({
+  x: 100,
+  y: 100,
+  label: '始终显示连接桩',
+  portsAlwaysVisible: true  // 默认值
+})
+
+// 设置为 false 时，仅在鼠标悬停时显示连接桩
+const hoverVisibleNode = graph.addNode({
+  x: 300,
+  y: 100,
+  label: '悬停显示连接桩',
+  portsAlwaysVisible: false  // 仅在悬停时显示
+})
+
+// 为两个节点添加连接桩
+alwaysVisibleNode.addPort({ id: 'port1', position: 'left' })
+hoverVisibleNode.addPort({ id: 'port2', position: 'right' })
+
+// 也可以动态修改
+hoverVisibleNode.setPortsAlwaysVisible(true)  // 切换为始终显示
+```
+
+### 场景4: 完整功能配置
 ```typescript
 const graph = new Graph({
   container,
