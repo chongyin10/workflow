@@ -78,3 +78,11 @@ export {
     type SelectionOptions,
     type SelectionEvent,
 } from './Selection';
+
+// 导出插件
+export {
+    Export,
+    type ExportOptions,
+    type ExportFormat,
+    type SVGExportOptions,
+} from './Export';

@@ -70,3 +70,7 @@ export { default as HistoryExampleComponent } from './HistoryExample';
 // Selection 框选示例
 export { SelectionExample } from './SelectionExample';
 export { default as SelectionExampleComponent } from './SelectionExample';
+
+// Export 导出示例
+export { ExportExample } from './ExportExample';
+export { default as ExportExampleComponent } from './ExportExample';

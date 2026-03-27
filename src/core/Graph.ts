@@ -2681,6 +2681,265 @@ export class Graph {
     }
 
     /**
+     * 获取边线层 Canvas 元素
+     */
+    getEdgeCanvas(): HTMLCanvasElement {
+        return this.edgeCanvas;
+    }
+
+    /**
+     * 获取完整的画布内容（合并节点层和边线层）
+     * 导出所有画布元素，而不只是当前可视区域
+     * @param padding - 边距，默认 20
+     * @returns 包含完整内容的 Canvas 元素
+     */
+    getFullCanvas(padding: number = 20): HTMLCanvasElement {
+        // 计算所有元素的世界坐标边界
+        const bounds = this.calculateContentBounds(padding);
+        
+        // 如果没有元素，返回一个空白画布
+        if (!bounds) {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = 100;
+            tempCanvas.height = 100;
+            return tempCanvas;
+        }
+        
+        // 创建临时画布，尺寸为所有元素的范围
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = Math.round(bounds.width);
+        tempCanvas.height = Math.round(bounds.height);
+        const tempCtx = tempCanvas.getContext('2d')!;
+        
+        // 保存当前上下文状态
+        tempCtx.save();
+        
+        // 应用偏移变换，使世界坐标 (bounds.x, bounds.y) 对应画布原点 (0, 0)
+        tempCtx.translate(-bounds.x, -bounds.y);
+        
+        // 绘制所有节点（在世界坐标系中）
+        const sortedNodes = Array.from(this.nodes.values()).sort((a, b) => a.getZIndex() - b.getZIndex());
+        sortedNodes.forEach((node) => {
+            node.draw(tempCtx);
+        });
+        
+        // 绘制所有边和连接桩
+        const drawItems: Array<{ zIndex: number; draw: () => void }> = [];
+        
+        // 绘制边（需要计算端点）
+        this.edges.forEach((edge) => {
+            const sourceAnchor = edge.getSource();
+            const targetAnchor = edge.getTarget();
+            const sourceNode = this.nodes.get(sourceAnchor.nodeId);
+            const targetNode = this.nodes.get(targetAnchor.nodeId);
+            
+            if (!sourceNode || !targetNode) return;
+            
+            // 计算起点
+            let sourcePoint: { x: number; y: number };
+            if (sourceAnchor.portId) {
+                const port = sourceNode.getPort(sourceAnchor.portId);
+                if (port) {
+                    sourcePoint = port.getConnectionPoint(
+                        sourceNode.getPosition().x,
+                        sourceNode.getPosition().y,
+                        sourceNode.getStyle().width,
+                        sourceNode.getStyle().height
+                    );
+                } else {
+                    sourcePoint = sourceNode.getAnchorPoint(sourceAnchor.position || 'center');
+                }
+            } else {
+                sourcePoint = sourceNode.getAnchorPoint(sourceAnchor.position || 'center');
+            }
+            
+            // 计算终点
+            let targetPoint: { x: number; y: number };
+            if (targetAnchor.portId) {
+                const port = targetNode.getPort(targetAnchor.portId);
+                if (port) {
+                    targetPoint = port.getConnectionPoint(
+                        targetNode.getPosition().x,
+                        targetNode.getPosition().y,
+                        targetNode.getStyle().width,
+                        targetNode.getStyle().height
+                    );
+                } else {
+                    targetPoint = targetNode.getAnchorPoint(targetAnchor.position || 'center');
+                }
+            } else {
+                targetPoint = targetNode.getAnchorPoint(targetAnchor.position || 'center');
+            }
+            
+            drawItems.push({
+                type: 'edge',
+                zIndex: edge.getZIndex(),
+                draw: () => {
+                    edge.draw(tempCtx, sourcePoint, targetPoint);
+                }
+            } as any);
+        });
+        
+        // 绘制连接桩
+        this.nodes.forEach((node) => {
+            const nodePos = node.getPosition();
+            const nodeStyle = node.getStyle();
+            const allPorts = node.getAllPorts();
+            
+            allPorts.forEach((port: any) => {
+                drawItems.push({
+                    type: 'port',
+                    zIndex: port.getZIndex(),
+                    draw: () => {
+                        port.draw(tempCtx, nodePos.x, nodePos.y, nodeStyle.width, nodeStyle.height);
+                    }
+                } as any);
+            });
+        });
+        
+        // 按 zIndex 排序后绘制
+        drawItems.sort((a, b) => a.zIndex - b.zIndex).forEach(item => {
+            item.draw();
+        });
+        
+        tempCtx.restore();
+        
+        return tempCanvas;
+    }
+    
+    /**
+     * 计算所有元素的世界坐标边界
+     * @param padding - 边距
+     * @returns 边界框或 null（如果没有元素）
+     */
+    private calculateContentBounds(padding: number = 0): { x: number; y: number; width: number; height: number } | null {
+        const nodes = this.getAllNodes();
+        if (nodes.length === 0) {
+            return null;
+        }
+        
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+        
+        // 遍历所有节点
+        nodes.forEach((node) => {
+            const bounds = node.getBounds();
+            minX = Math.min(minX, bounds.x);
+            minY = Math.min(minY, bounds.y);
+            maxX = Math.max(maxX, bounds.x + bounds.width);
+            maxY = Math.max(maxY, bounds.y + bounds.height);
+        });
+        
+        // 考虑边的端点位置
+        this.edges.forEach((edge) => {
+            const sourceAnchor = edge.getSource();
+            const targetAnchor = edge.getTarget();
+            const sourceNode = this.nodes.get(sourceAnchor.nodeId);
+            const targetNode = this.nodes.get(targetAnchor.nodeId);
+            
+            if (sourceNode) {
+                let sourcePoint: { x: number; y: number };
+                if (sourceAnchor.portId) {
+                    const port = sourceNode.getPort(sourceAnchor.portId);
+                    if (port) {
+                        sourcePoint = port.getConnectionPoint(
+                            sourceNode.getPosition().x,
+                            sourceNode.getPosition().y,
+                            sourceNode.getStyle().width,
+                            sourceNode.getStyle().height
+                        );
+                    } else {
+                        sourcePoint = sourceNode.getAnchorPoint(sourceAnchor.position || 'center');
+                    }
+                } else {
+                    sourcePoint = sourceNode.getAnchorPoint(sourceAnchor.position || 'center');
+                }
+                minX = Math.min(minX, sourcePoint.x);
+                minY = Math.min(minY, sourcePoint.y);
+                maxX = Math.max(maxX, sourcePoint.x);
+                maxY = Math.max(maxY, sourcePoint.y);
+            }
+            
+            if (targetNode) {
+                let targetPoint: { x: number; y: number };
+                if (targetAnchor.portId) {
+                    const port = targetNode.getPort(targetAnchor.portId);
+                    if (port) {
+                        targetPoint = port.getConnectionPoint(
+                            targetNode.getPosition().x,
+                            targetNode.getPosition().y,
+                            targetNode.getStyle().width,
+                            targetNode.getStyle().height
+                        );
+                    } else {
+                        targetPoint = targetNode.getAnchorPoint(targetAnchor.position || 'center');
+                    }
+                } else {
+                    targetPoint = targetNode.getAnchorPoint(targetAnchor.position || 'center');
+                }
+                minX = Math.min(minX, targetPoint.x);
+                minY = Math.min(minY, targetPoint.y);
+                maxX = Math.max(maxX, targetPoint.x);
+                maxY = Math.max(maxY, targetPoint.y);
+            }
+        });
+        
+        // 应用边距
+        return {
+            x: minX - padding,
+            y: minY - padding,
+            width: maxX - minX + padding * 2,
+            height: maxY - minY + padding * 2,
+        };
+    }
+
+    /**
+     * 获取画布可视区域（viewport）的截图
+     * @returns 可视区域的 Canvas 元素
+     */
+    getViewportCanvas(): HTMLCanvasElement {
+        const { width, height } = this.canvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        
+        // 创建临时画布，尺寸为可视区域大小
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = Math.round(width * dpr);
+        tempCanvas.height = Math.round(height * dpr);
+        const tempCtx = tempCanvas.getContext('2d')!;
+        
+        // 从原始画布复制可视区域
+        // 注意：canvas 已经经过 DPR 缩放，所以源坐标需要乘以 dpr
+        tempCtx.drawImage(
+            this.canvas,
+            0, 0, tempCanvas.width, tempCanvas.height,  // 源区域（从左上角开始）
+            0, 0, tempCanvas.width, tempCanvas.height   // 目标区域
+        );
+        
+        // 绘制边线层
+        tempCtx.drawImage(
+            this.edgeCanvas,
+            0, 0, tempCanvas.width, tempCanvas.height,
+            0, 0, tempCanvas.width, tempCanvas.height
+        );
+        
+        return tempCanvas;
+    }
+
+    /**
+     * 获取当前视口信息
+     * @returns 视口的宽度和高度（CSS 像素）
+     */
+    getViewport(): { width: number; height: number } {
+        const rect = this.canvas.getBoundingClientRect();
+        return {
+            width: rect.width,
+            height: rect.height,
+        };
+    }
+
+    /**
      * 启用/禁用拖拽
      */
     setDraggable(enabled: boolean): void {

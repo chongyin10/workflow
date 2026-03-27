@@ -19,6 +19,7 @@ import {
     ContextMenuExample,
     HistoryExample,
     SelectionExample,
+    ExportExample,
 } from './index';
 
 /**
@@ -26,7 +27,7 @@ import {
  *
  * 提供所有核心组件示例的导航和展示
  */
-type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'connectionValidation' | 'dnd' | 'dynamicHeightNode' | 'blankEvent' | 'grid' | 'reactShape' | 'snapline' | 'clipboard' | 'miniMap' | 'siderPane' | 'contextMenu' | 'history' | 'selection';
+type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'connectionValidation' | 'dnd' | 'dynamicHeightNode' | 'blankEvent' | 'grid' | 'reactShape' | 'snapline' | 'clipboard' | 'miniMap' | 'siderPane' | 'contextMenu' | 'history' | 'selection' | 'export';
 
 interface ExampleItem {
     key: ExampleKey;
@@ -149,6 +150,12 @@ const examples: ExampleItem[] = [
         title: '🖱️ Selection 框选示例',
         description: '在画布空白处拖动进行框选，支持多选和自定义样式',
         component: SelectionExample,
+    },
+    {
+        key: 'export',
+        title: '📤 Export 导出示例',
+        description: '将画布内容导出为 PNG、JPEG、SVG 图片格式，支持自定义尺寸和样式',
+        component: ExportExample,
     },
 ];
 
