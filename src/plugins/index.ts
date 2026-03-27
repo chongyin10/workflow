@@ -86,3 +86,10 @@ export {
     type ExportFormat,
     type SVGExportOptions,
 } from './Export';
+
+// 工具栏插件
+export {
+    Tools,
+    type ToolsOptions,
+    type SearchResults,
+} from './Tools';

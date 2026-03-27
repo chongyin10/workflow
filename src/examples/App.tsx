@@ -20,6 +20,7 @@ import {
     HistoryExample,
     SelectionExample,
     ExportExample,
+    ToolsExample,
 } from './index';
 
 /**
@@ -27,7 +28,7 @@ import {
  *
  * 提供所有核心组件示例的导航和展示
  */
-type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'connectionValidation' | 'dnd' | 'dynamicHeightNode' | 'blankEvent' | 'grid' | 'reactShape' | 'snapline' | 'clipboard' | 'miniMap' | 'siderPane' | 'contextMenu' | 'history' | 'selection' | 'export';
+type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'connectionValidation' | 'dnd' | 'dynamicHeightNode' | 'blankEvent' | 'grid' | 'reactShape' | 'snapline' | 'clipboard' | 'miniMap' | 'siderPane' | 'contextMenu' | 'history' | 'selection' | 'export' | 'tools';
 
 interface ExampleItem {
     key: ExampleKey;
@@ -156,6 +157,12 @@ const examples: ExampleItem[] = [
         title: '📤 Export 导出示例',
         description: '将画布内容导出为 PNG、JPEG、SVG 图片格式，支持自定义尺寸和样式',
         component: ExportExample,
+    },
+    {
+        key: 'tools',
+        title: '🔧 Tools 工具栏示例',
+        description: '提供缩放、拖拽切换、撤销重做、搜索等工具栏功能',
+        component: ToolsExample,
     },
 ];
 

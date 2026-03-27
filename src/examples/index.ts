@@ -74,3 +74,7 @@ export { default as SelectionExampleComponent } from './SelectionExample';
 // Export 导出示例
 export { ExportExample } from './ExportExample';
 export { default as ExportExampleComponent } from './ExportExample';
+
+// Tools 工具栏示例
+export { ToolsExample } from './ToolsExample';
+export { default as ToolsExampleComponent } from './ToolsExample';
