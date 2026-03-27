@@ -1,5 +1,9 @@
 # zjpcy-workflow
 
+> **📖 开发文档**：请参考 [`AI_CONTEXT.md`](./AI_CONTEXT.md) 获取完整的 API 文档、架构说明和开发指南，方便快速理解和二次开发(可在大模型中直接读取md文件，基本了解方法如何使用)。
+
+> **💡 提示**：若组件在使用中遇到问题，建议从 GitHub 下载源码，直接使用大模型（如 Claude、GPT 等）进行修改和完善。可将 `AI_CONTEXT.md` 作为上下文提供给大模型，帮助其快速理解项目架构。
+
 一个基于 React + TypeScript 的可交互画布组件库，支持拖拽、缩放等操作。
 
 ## 特性
@@ -15,7 +19,7 @@
 ## 安装
 
 ```bash
-npm install zjpcy-workflow
+npm install @zjpcy/workflow
 ```
 
 ## 使用
@@ -24,9 +28,9 @@ npm install zjpcy-workflow
 
 ```tsx
 import { useEffect, useRef } from 'react';
-import { Graph } from 'zjpcy-workflow';
-import type { Point } from 'zjpcy-workflow';
-import 'zjpcy-workflow/dist/styles.css';
+import { Graph } from '@zjpcy/workflow';
+import type { Point } from '@zjpcy/workflow';
+import '@zjpcy/workflow/dist/esm/index.css';
 
 function App() {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -63,7 +67,7 @@ function App() {
 ### 自定义绘制
 
 ```tsx
-import { Graph } from 'zjpcy-workflow';
+import { Graph } from '@zjpcy/workflow';
 
 class CustomGraph extends Graph {
     protected onRender(): void {
