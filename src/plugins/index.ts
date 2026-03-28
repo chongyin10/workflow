@@ -93,3 +93,11 @@ export {
     type ToolsOptions,
     type SearchResults,
 } from './Tools';
+
+// 力导向布局插件
+export {
+    ForceDirected,
+    type ForceDirectedOptions,
+    type NodePhysics,
+    type EdgePhysics,
+} from './ForceDirected';

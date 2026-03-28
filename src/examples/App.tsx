@@ -21,6 +21,7 @@ import {
     SelectionExample,
     ExportExample,
     ToolsExample,
+    ForceDirectedExample,
 } from './index';
 
 /**
@@ -28,7 +29,7 @@ import {
  *
  * 提供所有核心组件示例的导航和展示
  */
-type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'connectionValidation' | 'dnd' | 'dynamicHeightNode' | 'blankEvent' | 'grid' | 'reactShape' | 'snapline' | 'clipboard' | 'miniMap' | 'siderPane' | 'contextMenu' | 'history' | 'selection' | 'export' | 'tools';
+type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'connectionValidation' | 'dnd' | 'dynamicHeightNode' | 'blankEvent' | 'grid' | 'reactShape' | 'snapline' | 'clipboard' | 'miniMap' | 'siderPane' | 'contextMenu' | 'history' | 'selection' | 'export' | 'tools' | 'forceDirected';
 
 interface ExampleItem {
     key: ExampleKey;
@@ -163,6 +164,12 @@ const examples: ExampleItem[] = [
         title: '🔧 Tools 工具栏示例',
         description: '提供缩放、拖拽切换、撤销重做、搜索等工具栏功能',
         component: ToolsExample,
+    },
+    {
+        key: 'forceDirected',
+        title: '🌀 ForceDirected 力导向布局',
+        description: '使用物理模拟算法自动布局节点和边',
+        component: ForceDirectedExample,
     },
 ];
 

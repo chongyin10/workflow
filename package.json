@@ -1,6 +1,6 @@
 {
   "name": "@zjpcy/workflow",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "React component library with Next.js for development and Rollup for publishing",
   "main": "dist/cjs/lib/index.js",
   "module": "dist/esm/lib/index.mjs",

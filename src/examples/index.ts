@@ -78,3 +78,7 @@ export { default as ExportExampleComponent } from './ExportExample';
 // Tools 工具栏示例
 export { ToolsExample } from './ToolsExample';
 export { default as ToolsExampleComponent } from './ToolsExample';
+
+// ForceDirected 力导向布局示例
+export { ForceDirectedExample } from './ForceDirectedExample';
+export { default as ForceDirectedExampleComponent } from './ForceDirectedExample';
