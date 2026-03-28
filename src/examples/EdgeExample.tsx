@@ -108,8 +108,12 @@ const edgeMethodsData = [
   { key: '15', name: 'disconnect()', params: '-', return: 'boolean', description: '断开边连接（隐藏但不删除）' },
   { key: '16', name: 'reconnect()', params: '-', return: 'boolean', description: '重新连接边' },
   { key: '17', name: 'isConnected()', params: '-', return: 'boolean', description: '检查边是否已连接' },
-  { key: '18', name: 'toJSON()', params: '-', return: 'EdgeData', description: '序列化为 JSON' },
-  { key: '19', name: 'clone(newId?)', params: 'newId?: string', return: 'Edge', description: '克隆边' },
+  { key: '18', name: 'getOffset()', params: '-', return: '{ x: number, y: number }', description: '获取边的当前偏移量' },
+  { key: '19', name: 'setOffset(x, y)', params: 'x: number, y: number', return: 'void', description: '设置边的偏移量（移动边位置）' },
+  { key: '20', name: 'updateOffset(deltaX, deltaY)', params: 'deltaX: number, deltaY: number', return: 'void', description: '相对当前偏移量更新边位置' },
+  { key: '21', name: 'resetOffset()', params: '-', return: 'void', description: '重置边的偏移量为零' },
+  { key: '22', name: 'toJSON()', params: '-', return: 'EdgeData', description: '序列化为 JSON（包含偏移量）' },
+  { key: '23', name: 'clone(newId?)', params: 'newId?: string', return: 'Edge', description: '克隆边（包含偏移量）' },
 ];
 
 // EdgeType 枚举
@@ -1397,6 +1401,166 @@ graph.addEdge({
 console.log('跳线示例：展示了带交叉跳线效果的边');
 console.log('水平边线在穿过垂直边线时，会绘制拱形跳线标记表示"跳过"关系');`;
 
+// 示例 11: 边移动（拖拽边而不改变连接节点）
+const EXAMPLE_11_CODE = `// 创建 Graph 画布
+const graph = new Graph({
+  container: container,
+  width: 700,
+  height: 450,
+  draggable: true,
+  scalable: true,
+  backgroundColor: '#f8fafc',
+  grid: { enabled: true, size: 20, color: '#e2e8f0' },
+});
+
+// 创建日志显示区域
+const logContainer = document.createElement('div');
+logContainer.style.cssText = 'position:absolute;bottom:8px;left:8px;right:8px;height:80px;background:#1e293b;color:#e2e8f0;padding:8px;borderRadius:6px;overflow:auto;fontSize:12px;fontFamily:monospace;';
+container.appendChild(logContainer);
+
+const addLog = (msg) => {
+  const line = document.createElement('div');
+  line.textContent = '[\${new Date().toLocaleTimeString()}] ' + msg;
+  logContainer.appendChild(line);
+  logContainer.scrollTop = logContainer.scrollHeight;
+};
+
+// 创建左侧节点
+const leftNode = graph.addNode({
+  id: 'node-left',
+  label: '源节点',
+  x: 80,
+  y: 200,
+  shape: Shape.Rect,
+  style: {
+    width: 100,
+    height: 60,
+    backgroundColor: '#3b82f6',
+    borderColor: '#2563eb',
+    textColor: '#ffffff',
+  },
+});
+
+// 创建右侧节点
+const rightNode = graph.addNode({
+  id: 'node-right',
+  label: '目标节点',
+  x: 520,
+  y: 200,
+  shape: Shape.Rect,
+  style: {
+    width: 100,
+    height: 60,
+    backgroundColor: '#22c55e',
+    borderColor: '#16a34a',
+    textColor: '#ffffff',
+  },
+});
+
+// 添加端口
+leftNode.addPort({ id: 'port-out', position: 'right', visible: true });
+rightNode.addPort({ id: 'port-in', position: 'left', visible: true });
+
+// 创建各种类型的边供拖拽测试
+const edges = [];
+
+// 直线边
+const edge1 = graph.addEdge({
+  id: 'edge-straight',
+  source: { nodeId: 'node-left', portId: 'port-out' },
+  target: { nodeId: 'node-right', portId: 'port-in' },
+  label: '直线（可拖动）',
+  type: EdgeType.Straight,
+  style: {
+    stroke: '#8b5cf6',
+    strokeWidth: 3,
+    arrowSize: 10,
+    hoverStroke: '#a78bfa',
+    selectedStroke: '#f59e0b',
+  },
+});
+edges.push(edge1);
+
+// 贝塞尔曲线边
+const edge2 = graph.addEdge({
+  id: 'edge-bezier',
+  source: { nodeId: 'node-left', portId: 'port-out' },
+  target: { nodeId: 'node-right', portId: 'port-in' },
+  label: '贝塞尔曲线（可拖动）',
+  type: EdgeType.Bezier,
+  style: {
+    stroke: '#f59e0b',
+    strokeWidth: 3,
+    arrowSize: 10,
+    hoverStroke: '#fbbf24',
+    selectedStroke: '#f59e0b',
+  },
+});
+edges.push(edge2);
+
+// 添加控制按钮
+const buttonContainer = document.createElement('div');
+buttonContainer.style.cssText = 'position:absolute;top:8px;left:8px;display:flex;gap:8px;';
+container.appendChild(buttonContainer);
+
+// 重置偏移按钮
+const resetBtn = document.createElement('button');
+resetBtn.textContent = '重置所有边位置';
+resetBtn.style.cssText = 'padding:6px 12px;background:#3b82f6;color:#fff;border:none;borderRadius:4px;cursor:pointer;fontSize:12px;';
+resetBtn.onclick = () => {
+  edges.forEach(edge => {
+    edge.resetOffset();
+  });
+  addLog('已重置所有边的位置');
+  graph.scheduleRender();
+};
+buttonContainer.appendChild(resetBtn);
+
+// 随机偏移按钮
+const randomBtn = document.createElement('button');
+randomBtn.textContent = '随机偏移';
+randomBtn.style.cssText = 'padding:6px 12px;background:#22c55e;color:#fff;border:none;borderRadius:4px;cursor:pointer;fontSize:12px;';
+randomBtn.onclick = () => {
+  edges.forEach(edge => {
+    const offsetX = (Math.random() - 0.5) * 100;
+    const offsetY = (Math.random() - 0.5) * 60;
+    edge.setOffset(offsetX, offsetY);
+  });
+  addLog('已随机偏移所有边');
+  graph.scheduleRender();
+};
+buttonContainer.appendChild(randomBtn);
+
+// 显示偏移信息
+const infoBtn = document.createElement('button');
+infoBtn.textContent = '查看偏移信息';
+infoBtn.style.cssText = 'padding:6px 12px;background:#8b5cf6;color:#fff;border:none;borderRadius:4px;cursor:pointer;fontSize:12px;';
+infoBtn.onclick = () => {
+  edges.forEach(edge => {
+    const offset = edge.getOffset();
+    addLog('边 "' + edge.getLabel() + '" 偏移: (' + offset.x.toFixed(1) + ', ' + offset.y.toFixed(1) + ')');
+  });
+};
+buttonContainer.appendChild(infoBtn);
+
+// 监听边选中事件
+graph.on('edge:selected', (e) => {
+  const offset = e.edge.getOffset();
+  addLog('选中边: ' + e.edge.getLabel() + '，当前偏移: (' + offset.x.toFixed(1) + ', ' + offset.y.toFixed(1) + ')');
+});
+
+// 监听画布空白点击，显示提示
+graph.on('blank:click', () => {
+  addLog('提示：鼠标悬停在边上，光标变为 move 时可拖动边');
+});
+
+addLog('边移动示例已加载');
+addLog('操作说明：');
+addLog('1. 鼠标悬停在边上，光标变为 move');
+addLog('2. 按住鼠标拖动即可移动边');
+addLog('3. 连接到的节点位置不会改变');
+addLog('4. 偏移量会自动保存到 JSON');`;
+
 // 所有示例
 const EXAMPLES = [
   { id: 'example-1', title: '直线边', code: EXAMPLE_1_CODE },
@@ -1409,6 +1573,7 @@ const EXAMPLES = [
   { id: 'example-8', title: '层级 zIndex', code: EXAMPLE_8_CODE },
   { id: 'example-9', title: '阶梯折线边', code: EXAMPLE_9_CODE },
   { id: 'example-10', title: '跳线边', code: EXAMPLE_10_CODE },
+  { id: 'example-11', title: '边移动', code: EXAMPLE_11_CODE },
 ];
 
 /**

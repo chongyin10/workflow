@@ -165,6 +165,11 @@ export class Graph {
     private dragStartPosition: Point = { x: 0, y: 0 };
     private dragNodeStartPosition: Point = { x: 0, y: 0 };
 
+    // 边拖拽状态
+    private isDraggingEdge: boolean = false;
+    private draggedEdge: Edge | null = null;
+    private dragEdgeStartOffset: Point = { x: 0, y: 0 };
+
     // 连接拖拽状态
     private isConnecting: boolean = false;
     private connectSourceNode: Node | null = null;
@@ -774,6 +779,18 @@ export class Graph {
             }
         }
 
+        // 检查是否点击了边（只有在没有点击节点时才检查）
+        let clickedEdge: Edge | null = null;
+        if (!clickedNode) {
+            const edges = this.getAllEdges();
+            for (let i = edges.length - 1; i >= 0; i--) {
+                if (edges[i].containsPoint(worldPoint)) {
+                    clickedEdge = edges[i];
+                    break;
+                }
+            }
+        }
+
         // 分发 mousedown 事件（复用已检测的结果）
         this.dispatchMouseEventWithTarget('mousedown', e, worldPoint, clickedNode, clickedPort);
 
@@ -786,6 +803,12 @@ export class Graph {
         // 如果点击了连接桩，开始连接拖拽
         if (clickedPort && clickedNode) {
             this.startConnection(clickedNode, clickedPort, worldPoint);
+            return;
+        }
+
+        // 如果点击了边，开始拖拽边
+        if (clickedEdge) {
+            this.startEdgeDrag(clickedEdge, screenPoint, worldPoint);
             return;
         }
 
@@ -1002,6 +1025,59 @@ export class Graph {
         this.scheduleRender();
     }
 
+    // ==================== 边拖拽相关方法 ====================
+
+    /**
+     * 开始拖拽边
+     */
+    private startEdgeDrag(edge: Edge, screenPoint: Point, worldPoint: Point): void {
+        this.isDraggingEdge = true;
+        this.draggedEdge = edge;
+        this.dragStartPosition = { ...screenPoint };
+        this.dragEdgeStartOffset = edge.getOffset();
+        
+        // 选中边
+        this.selectEdge(edge.getId());
+        
+        this.canvas.style.cursor = 'move';
+        
+        this.scheduleRender();
+    }
+
+    /**
+     * 更新边拖拽
+     */
+    private updateEdgeDrag(screenPoint: Point): void {
+        if (!this.isDraggingEdge || !this.draggedEdge) return;
+
+        // 计算鼠标移动的差值（世界坐标）
+        const deltaX = (screenPoint.x - this.dragStartPosition.x) / this.state.scale;
+        const deltaY = (screenPoint.y - this.dragStartPosition.y) / this.state.scale;
+
+        // 更新边的偏移量
+        const newOffsetX = this.dragEdgeStartOffset.x + deltaX;
+        const newOffsetY = this.dragEdgeStartOffset.y + deltaY;
+        this.draggedEdge.setOffset(newOffsetX, newOffsetY);
+
+        this.scheduleRender();
+    }
+
+    /**
+     * 完成边拖拽
+     */
+    private completeEdgeDrag(): void {
+        if (!this.isDraggingEdge || !this.draggedEdge) return;
+
+        this.isDraggingEdge = false;
+        this.draggedEdge = null;
+        this.dragStartPosition = { x: 0, y: 0 };
+        this.dragEdgeStartOffset = { x: 0, y: 0 };
+        
+        this.canvas.style.cursor = 'default';
+        
+        this.scheduleRender();
+    }
+
     // ==================== Resize 相关方法 ====================
 
     /**
@@ -1124,6 +1200,18 @@ export class Graph {
             const worldPoint = this.screenToWorld(screenPoint);
             
             this.updateConnectionTarget(worldPoint);
+            return;
+        }
+
+        // 处理边拖拽
+        if (this.isDraggingEdge) {
+            const rect = this.canvas.getBoundingClientRect();
+            const screenPoint: Point = {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top,
+            };
+            
+            this.updateEdgeDrag(screenPoint);
             return;
         }
 
@@ -1281,6 +1369,12 @@ export class Graph {
             return;
         }
 
+        // 处理边拖拽结束
+        if (this.isDraggingEdge) {
+            this.completeEdgeDrag();
+            return;
+        }
+
         // 处理节点拖拽结束
         if (this.isDraggingNode && this.draggedNode) {
             // 触发 node:dragend 事件
@@ -1341,6 +1435,12 @@ export class Graph {
         // 如果正在连接，取消连接
         if (this.isConnecting) {
             this.cancelConnection();
+            return;
+        }
+
+        // 如果正在拖拽边，完成拖拽（保留偏移）
+        if (this.isDraggingEdge) {
+            this.completeEdgeDrag();
             return;
         }
 
@@ -3534,8 +3634,8 @@ export class Graph {
                 const eventData = { ...baseEventData, target: currentEdge, edge: currentEdge };
                 currentEdge.emit(EVENT_NAMES.EDGE_MOUSEENTER, eventData);
                 this.emit(EVENT_NAMES.EDGE_MOUSEENTER, eventData);
-                // 设置为指针光标
-                this.canvas.style.cursor = 'pointer';
+                // 设置为移动光标，表示可以移动边
+                this.canvas.style.cursor = 'move';
             }
             this.lastMouseOverEdge = currentEdge;
         }

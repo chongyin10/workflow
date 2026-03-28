@@ -121,6 +121,8 @@ export interface EdgeData extends CellData {
     type: EdgeType;
     /** 是否处于连接状态 */
     connected?: boolean;
+    /** 边的偏移量 */
+    offset?: Point;
 }
 
 /**
@@ -155,6 +157,9 @@ export class Edge extends Cell {
     private lastMidPoint: Point | null = null;
     // 用于保存实际路径点（用于波浪动画）
     private pathPoints: Point[] = [];
+    
+    // 边的偏移量（用于移动边而不改变连接的节点）
+    private offset: Point = { x: 0, y: 0 };
 
     // 默认样式
     private static readonly DEFAULT_STYLE: EdgeStyle = {
@@ -312,6 +317,39 @@ export class Edge extends Cell {
     }
 
     /**
+     * 获取边的偏移量
+     */
+    getOffset(): Point {
+        return { ...this.offset };
+    }
+
+    /**
+     * 设置边的偏移量
+     * @param x - X 方向偏移
+     * @param y - Y 方向偏移
+     */
+    setOffset(x: number, y: number): void {
+        this.offset = { x, y };
+    }
+
+    /**
+     * 更新边的偏移量（相对当前偏移）
+     * @param deltaX - X 方向变化量
+     * @param deltaY - Y 方向变化量
+     */
+    updateOffset(deltaX: number, deltaY: number): void {
+        this.offset.x += deltaX;
+        this.offset.y += deltaY;
+    }
+
+    /**
+     * 重置边的偏移量
+     */
+    resetOffset(): void {
+        this.offset = { x: 0, y: 0 };
+    }
+
+    /**
      * 获取样式
      */
     getStyle(): EdgeStyle {
@@ -371,7 +409,8 @@ export class Edge extends Cell {
             return;
         }
 
-        // 保存点用于碰撞检测
+        // 端点保持连接到节点，不应用偏移量
+        // 偏移量只影响边的中间部分（在各个绘制方法中处理）
         this.lastSourcePoint = sourcePoint;
         this.lastTargetPoint = targetPoint;
 
@@ -470,20 +509,42 @@ export class Edge extends Cell {
 
     /**
      * 绘制直线
+     * 当有偏移量时，将直线的中点偏移形成弧线效果
+     * 偏移量直接应用到控制点，端点保持连接到节点
      */
     private drawStraight(ctx: CanvasRenderingContext2D, source: Point, target: Point): void {
-        // 保存路径点
-        this.pathPoints = [source, target];
-        
-        ctx.moveTo(source.x, source.y);
-        ctx.lineTo(target.x, target.y);
-        this.lastSegmentAngle = Math.atan2(target.y - source.y, target.x - source.x);
+        // 如果有偏移量，将中点偏移形成弧线效果
+        if (this.offset.x !== 0 || this.offset.y !== 0) {
+            // 计算直线中点
+            const midX = (source.x + target.x) / 2;
+            const midY = (source.y + target.y) / 2;
+            
+            // 控制点 = 中点 + 偏移量
+            const controlX = midX + this.offset.x;
+            const controlY = midY + this.offset.y;
+            
+            // 保存路径点（用于波浪动画）- 使用采样点近似弧线
+            this.pathPoints = this.sampleQuadraticCurve(source, { x: controlX, y: controlY }, target, 20);
+            
+            // 绘制二次贝塞尔曲线（弧线）
+            ctx.moveTo(source.x, source.y);
+            ctx.quadraticCurveTo(controlX, controlY, target.x, target.y);
+            
+            // 计算终点处的切线角度
+            this.lastSegmentAngle = Math.atan2(target.y - controlY, target.x - controlX);
+        } else {
+            // 无偏移量，绘制普通直线
+            this.pathPoints = [source, target];
+            
+            ctx.moveTo(source.x, source.y);
+            ctx.lineTo(target.x, target.y);
+            this.lastSegmentAngle = Math.atan2(target.y - source.y, target.x - source.x);
+        }
     }
 
     /**
      * 绘制跳线（带跳线效果的直线）
-     * 在边上绘制多个拱形跳线标记，用于模拟边穿过其他边的交叉效果
-     * 使用正弦波形状创建平滑的拱形凸起
+     * 直线类型不支持偏移量，因为只有两个端点
      */
     private drawJumpLine(ctx: CanvasRenderingContext2D, source: Point, target: Point): void {
         const { jumpHeight, jumpWidth } = this.style;
@@ -598,63 +659,73 @@ export class Edge extends Cell {
 
     /**
      * 绘制水平折线
+     * 偏移量只影响转折点，端点保持连接到节点
      */
     private drawHorizontal(ctx: CanvasRenderingContext2D, source: Point, target: Point): void {
-        const midX = (source.x + target.x) / 2;
+        // 转折点应用偏移量，端点不应用偏移量
+        const midX = (source.x + target.x) / 2 + this.offset.x;
+        const midY = source.y + this.offset.y;
         const r = this.style.cornerRadius;
 
-        // 保存路径点（用于波浪动画）- 水平折线路径：source -> (midX, source.y) -> (midX, target.y) -> target
+        // 保存路径点（用于波浪动画）
+        // 注意：路径点也包含偏移量，因为这是边的实际形状
+        const cornerY = target.y + this.offset.y;
         this.pathPoints = [
             source,
-            { x: midX, y: source.y },
-            { x: midX, y: target.y },
+            { x: midX, y: midY },
+            { x: midX, y: cornerY },
             target
         ];
 
         // 保存中间点用于碰撞检测（向后兼容）
-        this.lastMidPoint = { x: midX, y: target.y };
+        this.lastMidPoint = { x: midX, y: cornerY };
 
         ctx.moveTo(source.x, source.y);
 
+        // 水平段到转折点附近
         if (Math.abs(target.x - source.x) > 2 * r) {
             // 有足够的空间绘制圆角
             if (source.x < target.x) {
-                ctx.lineTo(midX - r, source.y);
-                ctx.quadraticCurveTo(midX, source.y, midX, source.y + (target.y > source.y ? r : -r));
+                ctx.lineTo(midX - r, midY);
+                ctx.quadraticCurveTo(midX, midY, midX, midY + (cornerY > midY ? r : -r));
             } else {
-                ctx.lineTo(midX + r, source.y);
-                ctx.quadraticCurveTo(midX, source.y, midX, source.y + (target.y > source.y ? r : -r));
+                ctx.lineTo(midX + r, midY);
+                ctx.quadraticCurveTo(midX, midY, midX, midY + (cornerY > midY ? r : -r));
             }
-            ctx.lineTo(midX, target.y - (target.y > source.y ? r : -r));
-            ctx.quadraticCurveTo(midX, target.y, midX + (target.x > source.x ? r : -r), target.y);
+            ctx.lineTo(midX, cornerY - (cornerY > midY ? r : -r));
+            ctx.quadraticCurveTo(midX, cornerY, midX + (target.x > midX ? r : -r), cornerY);
         } else {
-            ctx.lineTo(midX, source.y);
-            ctx.lineTo(midX, target.y);
+            ctx.lineTo(midX, midY);
+            ctx.lineTo(midX, cornerY);
         }
 
         ctx.lineTo(target.x, target.y);
 
         // 计算最后一段的角度
-        this.lastSegmentAngle = Math.atan2(target.y - (source.y + target.y) / 2, target.x - midX);
+        this.lastSegmentAngle = Math.atan2(target.y - cornerY, target.x - midX);
     }
 
     /**
      * 绘制垂直折线
+     * 偏移量只影响转折点，端点保持连接到节点
      */
     private drawVertical(ctx: CanvasRenderingContext2D, source: Point, target: Point): void {
-        const midY = (source.y + target.y) / 2;
+        // 转折点应用偏移量，端点不应用偏移量
+        const midY = (source.y + target.y) / 2 + this.offset.y;
+        const midX = source.x + this.offset.x;
         const r = this.style.cornerRadius;
 
-        // 保存路径点（用于波浪动画）- 垂直折线路径：source -> (source.x, midY) -> (target.x, midY) -> target
+        // 保存路径点
+        const cornerX = target.x + this.offset.x;
         this.pathPoints = [
             source,
-            { x: source.x, y: midY },
-            { x: target.x, y: midY },
+            { x: midX, y: midY },
+            { x: cornerX, y: midY },
             target
         ];
 
         // 保存中间点用于碰撞检测（向后兼容）
-        this.lastMidPoint = { x: target.x, y: midY };
+        this.lastMidPoint = { x: cornerX, y: midY };
 
         ctx.moveTo(source.x, source.y);
 
@@ -662,22 +733,22 @@ export class Edge extends Cell {
             // 有足够的空间绘制圆角
             if (source.y < target.y) {
                 ctx.lineTo(source.x, midY - r);
-                ctx.quadraticCurveTo(source.x, midY, source.x + (target.x > source.x ? r : -r), midY);
+                ctx.quadraticCurveTo(source.x, midY, midX + (cornerX > midX ? r : -r), midY);
             } else {
                 ctx.lineTo(source.x, midY + r);
-                ctx.quadraticCurveTo(source.x, midY, source.x + (target.x > source.x ? r : -r), midY);
+                ctx.quadraticCurveTo(source.x, midY, midX + (cornerX > midX ? r : -r), midY);
             }
-            ctx.lineTo(target.x - (target.x > source.x ? r : -r), midY);
-            ctx.quadraticCurveTo(target.x, midY, target.x, midY + (target.y > source.y ? r : -r));
+            ctx.lineTo(cornerX - (cornerX > midX ? r : -r), midY);
+            ctx.quadraticCurveTo(cornerX, midY, cornerX, midY + (target.y > midY ? r : -r));
         } else {
             ctx.lineTo(source.x, midY);
-            ctx.lineTo(target.x, midY);
+            ctx.lineTo(cornerX, midY);
         }
 
         ctx.lineTo(target.x, target.y);
 
         // 计算最后一段的角度
-        this.lastSegmentAngle = Math.atan2(target.y - midY, target.x - (source.x + target.x) / 2);
+        this.lastSegmentAngle = Math.atan2(target.y - midY, target.x - cornerX);
     }
 
     /**
@@ -735,6 +806,7 @@ export class Edge extends Cell {
 
     /**
      * 绘制弧度曲线
+     * 偏移量影响弧线的控制点，端点保持连接到节点
      */
     private drawArc(ctx: CanvasRenderingContext2D, source: Point, target: Point): void {
         const midX = (source.x + target.x) / 2;
@@ -750,8 +822,9 @@ export class Edge extends Cell {
         const perpX = -dy / dist * arcHeight;
         const perpY = dx / dist * arcHeight;
 
-        const controlX = midX + perpX;
-        const controlY = midY + perpY;
+        // 控制点应用偏移量
+        const controlX = midX + perpX + this.offset.x;
+        const controlY = midY + perpY + this.offset.y;
 
         // 保存路径点（用于波浪动画）- 弧线使用采样点
         this.pathPoints = this.sampleQuadraticCurve(source, { x: controlX, y: controlY }, target, 20);
@@ -782,19 +855,22 @@ export class Edge extends Cell {
 
     /**
      * 绘制阶梯折线（先垂直后水平）
-     * 从 source 垂直向下/上延伸到 target.y，再水平到 target.x
+     * 偏移量影响转折点位置，端点保持连接到节点
      */
     private drawStepDown(ctx: CanvasRenderingContext2D, source: Point, target: Point): void {
-        // 阶梯路径：source -> (source.x, target.y) -> target
-        this.pathPoints = [source, { x: source.x, y: target.y }, target];
-        this.lastMidPoint = { x: source.x, y: target.y };
+        // 转折点应用偏移量
+        const cornerX = source.x + this.offset.x;
+        const cornerY = target.y + this.offset.y;
+        
+        this.pathPoints = [source, { x: cornerX, y: cornerY }, target];
+        this.lastMidPoint = { x: cornerX, y: cornerY };
 
         ctx.moveTo(source.x, source.y);
-        ctx.lineTo(source.x, target.y);
+        ctx.lineTo(cornerX, cornerY);
         ctx.lineTo(target.x, target.y);
 
         // 计算最后一段的角度（水平段）
-        this.lastSegmentAngle = Math.atan2(0, target.x - source.x);
+        this.lastSegmentAngle = Math.atan2(target.y - cornerY, target.x - cornerX);
     }
 
     /**
@@ -841,11 +917,12 @@ export class Edge extends Cell {
 
     /**
      * 绘制圆角阶梯折线（先垂直后水平）
-     * 与 drawStepDown 类似但带有圆角
+     * 偏移量影响转折点位置，端点保持连接到节点
      */
     private drawRoundedStepDown(ctx: CanvasRenderingContext2D, source: Point, target: Point): void {
-        const cornerX = source.x;
-        const cornerY = target.y;
+        // 转折点应用偏移量
+        const cornerX = source.x + this.offset.x;
+        const cornerY = target.y + this.offset.y;
         const r = this.style.cornerRadius;
 
         // 路径点
@@ -854,12 +931,12 @@ export class Edge extends Cell {
 
         ctx.moveTo(source.x, source.y);
 
-        // 判断拐角方向
-        const goRight = target.x > source.x;
-        const goDown = target.y > source.y;
+        // 判断拐角方向（基于偏移后的转折点）
+        const goRight = target.x > cornerX;
+        const goDown = cornerY > source.y;
 
         // 计算拐角处的圆角
-        if (Math.abs(target.y - source.y) > r && Math.abs(target.x - source.x) > r) {
+        if (Math.abs(cornerY - source.y) > r && Math.abs(target.x - cornerX) > r) {
             // 垂直线到圆角起点
             const arcStartY = goDown ? cornerY - r : cornerY + r;
             ctx.lineTo(cornerX, arcStartY);
@@ -872,48 +949,49 @@ export class Edge extends Cell {
             ctx.lineTo(target.x, target.y);
 
             // 计算最后一段角度
-            this.lastSegmentAngle = Math.atan2(0, target.x - arcEndX);
+            this.lastSegmentAngle = Math.atan2(target.y - cornerY, target.x - arcEndX);
         } else {
             // 空间不足，直接绘制直角
             ctx.lineTo(cornerX, cornerY);
             ctx.lineTo(target.x, target.y);
-            this.lastSegmentAngle = Math.atan2(0, target.x - cornerX);
+            this.lastSegmentAngle = Math.atan2(target.y - cornerY, target.x - cornerX);
         }
     }
 
     /**
      * 绘制平滑 L 型折线（正交圆角）
-     * 使用平滑的曲线连接两段直线
+     * 偏移量影响转折点位置，端点保持连接到节点
      */
     private drawSmoothStep(ctx: CanvasRenderingContext2D, source: Point, target: Point): void {
         const dx = target.x - source.x;
         const dy = target.y - source.y;
-        const r = Math.min(this.style.cornerRadius, Math.abs(dx) / 2, Math.abs(dy) / 2);
+        
+        // 转折点应用偏移量
+        const midX = target.x + this.offset.x;
+        const midY = source.y + this.offset.y;
+        
+        const r = Math.min(this.style.cornerRadius, Math.abs(midX - source.x) / 2, Math.abs(target.y - midY) / 2);
 
-        // 判断方向
-        const goRight = dx > 0;
-        const goDown = dy > 0;
-
-        // 计算转折点
-        const midX = target.x;
-        const midY = source.y;
+        // 判断方向（基于偏移后的转折点）
+        const goRight = midX > source.x;
+        const goDown = target.y > midY;
 
         // 路径点 - 使用采样点来近似曲线
         this.pathPoints = [source];
 
         ctx.moveTo(source.x, source.y);
 
-        if (Math.abs(dx) > 2 * r && Math.abs(dy) > 2 * r) {
+        if (Math.abs(midX - source.x) > 2 * r && Math.abs(target.y - midY) > 2 * r) {
             // 先水平线
             const hLineEndX = goRight ? midX - r : midX + r;
-            ctx.lineTo(hLineEndX, source.y);
+            ctx.lineTo(hLineEndX, midY);
 
             // 添加路径点
-            this.pathPoints.push({ x: hLineEndX, y: source.y });
+            this.pathPoints.push({ x: hLineEndX, y: midY });
 
             // 平滑曲线拐角
             const cp1x = hLineEndX + (goRight ? r * 0.5 : -r * 0.5);
-            const cp1y = source.y;
+            const cp1y = midY;
             const cp2x = midX;
             const cp2y = goDown ? midY + r * 0.5 : midY - r * 0.5;
             const arcEndY = goDown ? midY + r : midY - r;
@@ -928,13 +1006,13 @@ export class Edge extends Cell {
             this.pathPoints.push(target);
 
             // 计算最后一段角度
-            this.lastSegmentAngle = Math.atan2(dy, 0);
+            this.lastSegmentAngle = Math.atan2(target.y - arcEndY, target.x - midX);
         } else {
             // 空间不足，简化为直角
             ctx.lineTo(midX, midY);
             ctx.lineTo(target.x, target.y);
             this.pathPoints.push({ x: midX, y: midY }, target);
-            this.lastSegmentAngle = Math.atan2(dy, 0);
+            this.lastSegmentAngle = Math.atan2(target.y - midY, target.x - midX);
         }
 
         this.lastMidPoint = { x: midX, y: midY };
@@ -942,7 +1020,7 @@ export class Edge extends Cell {
 
     /**
      * 绘制正交折线（智能路由）
-     * 根据源点和目标点的相对位置选择最优路径
+     * 偏移量影响转折点位置，端点保持连接到节点
      */
     private drawOrthogonal(ctx: CanvasRenderingContext2D, source: Point, target: Point): void {
         const dx = target.x - source.x;
@@ -954,18 +1032,18 @@ export class Edge extends Cell {
         const goHorizontalFirst = Math.abs(dx) >= Math.abs(dy);
 
         if (goHorizontalFirst) {
-            // 类似 StepRight，但可能根据方向调整
-            const midX = target.x;
-            const midY = source.y;
+            // 类似 StepRight，转折点应用偏移量
+            const midX = target.x + this.offset.x;
+            const midY = source.y + this.offset.y;
 
             this.pathPoints = [source, { x: midX, y: midY }, target];
             this.lastMidPoint = { x: midX, y: midY };
 
             ctx.moveTo(source.x, source.y);
 
-            if (Math.abs(dx) > 2 * r && Math.abs(dy) > 2 * r) {
-                const goRight = dx > 0;
-                const goDown = dy > 0;
+            if (Math.abs(midX - source.x) > 2 * r && Math.abs(target.y - midY) > 2 * r) {
+                const goRight = midX > source.x;
+                const goDown = target.y > midY;
 
                 ctx.lineTo(goRight ? midX - r : midX + r, midY);
                 ctx.quadraticCurveTo(
@@ -979,20 +1057,20 @@ export class Edge extends Cell {
                 ctx.lineTo(target.x, target.y);
             }
 
-            this.lastSegmentAngle = Math.atan2(dy, 0);
+            this.lastSegmentAngle = Math.atan2(target.y - midY, target.x - midX);
         } else {
-            // 类似 StepDown
-            const midX = source.x;
-            const midY = target.y;
+            // 类似 StepDown，转折点应用偏移量
+            const midX = source.x + this.offset.x;
+            const midY = target.y + this.offset.y;
 
             this.pathPoints = [source, { x: midX, y: midY }, target];
             this.lastMidPoint = { x: midX, y: midY };
 
             ctx.moveTo(source.x, source.y);
 
-            if (Math.abs(dx) > 2 * r && Math.abs(dy) > 2 * r) {
-                const goRight = dx > 0;
-                const goDown = dy > 0;
+            if (Math.abs(target.x - midX) > 2 * r && Math.abs(midY - source.y) > 2 * r) {
+                const goRight = target.x > midX;
+                const goDown = midY > source.y;
 
                 ctx.lineTo(midX, goDown ? midY - r : midY + r);
                 ctx.quadraticCurveTo(
@@ -1006,7 +1084,7 @@ export class Edge extends Cell {
                 ctx.lineTo(target.x, target.y);
             }
 
-            this.lastSegmentAngle = Math.atan2(0, dx);
+            this.lastSegmentAngle = Math.atan2(target.y - midY, target.x - midX);
         }
     }
 
@@ -1295,6 +1373,7 @@ export class Edge extends Cell {
 
     /**
      * 获取曲线（贝塞尔或弧线）上某比例的点的精确坐标
+     * 控制点应用偏移量
      */
     private getPointOnCurve(source: Point, target: Point, ratio: number): Point | null {
         if (ratio <= 0) return { ...source };
@@ -1312,10 +1391,11 @@ export class Edge extends Cell {
             const targetDirX = this.getDirectionX(this.target.position) ?? (Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? -1 : 1) : 0);
             const targetDirY = this.getDirectionY(this.target.position) ?? (Math.abs(dy) >= Math.abs(dx) ? (dy > 0 ? -1 : 1) : 0);
 
-            const cp1x = source.x + sourceDirX * controlDist;
-            const cp1y = source.y + sourceDirY * controlDist;
-            const cp2x = target.x + targetDirX * controlDist;
-            const cp2y = target.y + targetDirY * controlDist;
+            // 控制点应用偏移量
+            const cp1x = source.x + sourceDirX * controlDist + this.offset.x;
+            const cp1y = source.y + sourceDirY * controlDist + this.offset.y;
+            const cp2x = target.x + targetDirX * controlDist + this.offset.x;
+            const cp2y = target.y + targetDirY * controlDist + this.offset.y;
 
             // 三次贝塞尔曲线公式
             const t = ratio;
@@ -1335,8 +1415,9 @@ export class Edge extends Cell {
             const arcHeight = dist * 0.2;
             const perpX = -dy / dist * arcHeight;
             const perpY = dx / dist * arcHeight;
-            const controlX = midX + perpX;
-            const controlY = midY + perpY;
+            // 控制点应用偏移量
+            const controlX = midX + perpX + this.offset.x;
+            const controlY = midY + perpY + this.offset.y;
 
             // 二次贝塞尔曲线公式
             const t = ratio;
@@ -1632,6 +1713,7 @@ export class Edge extends Cell {
             type: this.type,
             data: { ...this.data },
             connected: this.connected,
+            offset: { ...this.offset },
         };
     }
 
@@ -1650,6 +1732,9 @@ export class Edge extends Cell {
         if (data.connected === false) {
             edge.disconnect();
         }
+        if (data.offset) {
+            edge.setOffset(data.offset.x, data.offset.y);
+        }
         return edge;
     }
 
@@ -1657,7 +1742,7 @@ export class Edge extends Cell {
      * 克隆边
      */
     clone(newId?: string): Edge {
-        return new Edge({
+        const edge = new Edge({
             id: newId || `${this.id}_clone`,
             source: { ...this.source },
             target: { ...this.target },
@@ -1666,6 +1751,8 @@ export class Edge extends Cell {
             style: { ...this.style },
             data: { ...this.data },
         });
+        edge.setOffset(this.offset.x, this.offset.y);
+        return edge;
     }
 
     /**
@@ -1779,11 +1866,27 @@ export class Edge extends Cell {
             return false;
         }
 
+        // 对于所有类型，优先使用 pathPoints 进行精确检测
+        // pathPoints 包含了偏移后的路径形状
+        if (this.pathPoints.length >= 2) {
+            for (let i = 0; i < this.pathPoints.length - 1; i++) {
+                if (this.isPointOnLineSegment(point, this.pathPoints[i], this.pathPoints[i + 1], tolerance)) {
+                    return true;
+                }
+            }
+            // 对于有多个路径点的类型（折线、曲线等），已经检测完成
+            if (this.pathPoints.length > 2) {
+                return false;
+            }
+        }
+
+        // 回退到简单检测（用于直线或 pathPoints 不可用的情况）
         const source = this.lastSourcePoint;
         const target = this.lastTargetPoint;
 
         switch (this.type) {
             case EdgeType.Straight:
+            case EdgeType.JumpLine:
                 return this.isPointOnLineSegment(point, source, target, tolerance);
             case EdgeType.Horizontal:
             case EdgeType.Vertical:
@@ -1805,14 +1908,6 @@ export class Edge extends Cell {
             case EdgeType.Orthogonal:
             case EdgeType.DashedStep:
             case EdgeType.DashedRounded:
-                // 阶梯折线类型，使用 pathPoints 进行精确检测
-                if (this.pathPoints.length >= 2) {
-                    for (let i = 0; i < this.pathPoints.length - 1; i++) {
-                        if (this.isPointOnLineSegment(point, this.pathPoints[i], this.pathPoints[i + 1], tolerance)) {
-                            return true;
-                        }
-                    }
-                }
                 // 回退到 lastMidPoint 检测
                 if (this.lastMidPoint) {
                     return this.isPointOnLineSegment(point, source, this.lastMidPoint, tolerance) ||
