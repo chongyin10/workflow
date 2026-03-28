@@ -52,6 +52,8 @@ const edgeStyleData = [
   { name: 'waveLength', type: 'number', default: '15', description: '单个波浪长度（像素）' },
   { name: 'waveSpeed', type: 'number', default: '1.5', description: '波浪流动速度（像素/帧）' },
   { name: 'waveOpacity', type: 'number', default: '0.6', description: '波浪透明度（0-1）' },
+  { name: 'jumpHeight', type: 'number', default: '8', description: '跳线高度（用于跳线类型的边）' },
+  { name: 'jumpWidth', type: 'number', default: '12', description: '跳线宽度（用于跳线类型的边）' },
 ];
 
 // Edge 事件表格数据
@@ -130,6 +132,7 @@ const edgeTypeData = [
   { name: 'EdgeType.Orthogonal', description: '正交折线 - 智能路由，自动选择最优路径' },
   { name: 'EdgeType.DashedStep', description: '虚线阶梯 - 虚线直角阶梯，适合辅助连接' },
   { name: 'EdgeType.DashedRounded', description: '虚线圆角 - 虚线圆角折线，适合辅助连接' },
+  { name: 'EdgeType.JumpLine', description: '跳线 - 带交叉跳线效果的直线，用于表示边之间的交叉关系' },
 ];
 
 // 示例 1: 直线边
@@ -1218,6 +1221,182 @@ console.log('阶梯折线示例：展示了8种新的边类型');
 console.log('上行（斜向）：StepRight, RoundedStepRight, SmoothStep, DashedStep');
 console.log('下行（直角）：StepDown, RoundedStepDown, Orthogonal, DashedRounded');`;
 
+// 示例 10: 跳线（交叉跳线效果）
+const EXAMPLE_10_CODE = `// 创建 Graph 画布
+const graph = new Graph({
+  container: container,
+  width: 800,
+  height: 400,
+  draggable: true,
+  scalable: true,
+  backgroundColor: '#f8fafc',
+  grid: { enabled: true, size: 20, color: '#e2e8f0' },
+});
+
+// 创建上方一排节点
+const topNodes = [];
+for (let i = 0; i < 5; i++) {
+  const node = graph.addNode({
+    id: 'top-' + i,
+    label: '上' + (i + 1),
+    x: 150 + i * 120,
+    y: 50,
+    shape: Shape.Rect,
+    style: {
+      width: 80,
+      height: 40,
+      backgroundColor: '#e2e8f0',
+      borderColor: '#94a3b8',
+      textColor: '#475569',
+    },
+  });
+  node.addPort({ id: 'bottom', position: 'bottom', visible: true });
+  topNodes.push(node);
+}
+
+// 创建下方一排节点
+const bottomNodes = [];
+for (let i = 0; i < 5; i++) {
+  const node = graph.addNode({
+    id: 'bottom-' + i,
+    label: '下' + (i + 1),
+    x: 150 + i * 120,
+    y: 250,
+    shape: Shape.Rect,
+    style: {
+      width: 80,
+      height: 40,
+      backgroundColor: '#f1f5f9',
+      borderColor: '#cbd5e1',
+      textColor: '#64748b',
+    },
+  });
+  node.addPort({ id: 'top', position: 'top', visible: true });
+  bottomNodes.push(node);
+}
+
+// 创建左侧节点
+const leftNode = graph.addNode({
+  id: 'left-start',
+  label: '起点',
+  x: 30,
+  y: 150,
+  shape: Shape.Rect,
+  style: {
+    width: 80,
+    height: 40,
+    backgroundColor: '#8b5cf6',
+    borderColor: '#7c3aed',
+    textColor: '#ffffff',
+  },
+});
+leftNode.addPort({ id: 'out', position: 'right', visible: true });
+
+// 创建右侧终点节点
+const rightNode = graph.addNode({
+  id: 'right-end',
+  label: '终点',
+  x: 700,
+  y: 150,
+  shape: Shape.Rect,
+  style: {
+    width: 80,
+    height: 40,
+    backgroundColor: '#10b981',
+    borderColor: '#059669',
+    textColor: '#ffffff',
+  },
+});
+rightNode.addPort({ id: 'in', position: 'left', visible: true });
+
+// 创建垂直连接线（上方节点到下方节点）- 这些会被水平跳线"跳过"
+const verticalEdges = [];
+for (let i = 0; i < 5; i++) {
+  const edge = graph.addEdge({
+    id: 'vertical-' + i,
+    source: { nodeId: 'top-' + i, portId: 'bottom' },
+    target: { nodeId: 'bottom-' + i, portId: 'top' },
+    type: EdgeType.Straight,
+    style: {
+      stroke: '#f59e0b',
+      strokeWidth: 2,
+      arrowSize: 8,
+      arrowColor: '#f59e0b',
+    },
+  });
+  verticalEdges.push(edge);
+}
+
+// 创建水平跳线（从左侧穿过垂直线到右侧）
+// 第一条跳线 - 穿过所有垂直线
+graph.addEdge({
+  id: 'jump-1',
+  source: { nodeId: 'left-start', portId: 'out' },
+  target: { nodeId: 'right-end', portId: 'in' },
+  label: '跳线 1',
+  type: EdgeType.JumpLine,
+  style: {
+    stroke: '#8b5cf6',
+    strokeWidth: 3,
+    arrowSize: 10,
+    arrowColor: '#8b5cf6',
+    jumpHeight: 12,
+    jumpWidth: 20,
+  },
+});
+
+// 创建第二条水平跳线（稍偏下）
+const leftNode2 = graph.addNode({
+  id: 'left-start-2',
+  label: '起点2',
+  x: 30,
+  y: 180,
+  shape: Shape.Rect,
+  style: {
+    width: 80,
+    height: 40,
+    backgroundColor: '#6366f1',
+    borderColor: '#4f46e5',
+    textColor: '#ffffff',
+  },
+});
+leftNode2.addPort({ id: 'out', position: 'right', visible: true });
+
+const rightNode2 = graph.addNode({
+  id: 'right-end-2',
+  label: '终点2',
+  x: 700,
+  y: 180,
+  shape: Shape.Rect,
+  style: {
+    width: 80,
+    height: 40,
+    backgroundColor: '#06b6d4',
+    borderColor: '#0891b2',
+    textColor: '#ffffff',
+  },
+});
+rightNode2.addPort({ id: 'in', position: 'left', visible: true });
+
+graph.addEdge({
+  id: 'jump-2',
+  source: { nodeId: 'left-start-2', portId: 'out' },
+  target: { nodeId: 'right-end-2', portId: 'in' },
+  label: '跳线 2',
+  type: EdgeType.JumpLine,
+  style: {
+    stroke: '#6366f1',
+    strokeWidth: 3,
+    arrowSize: 10,
+    arrowColor: '#6366f1',
+    jumpHeight: 10,
+    jumpWidth: 16,
+  },
+});
+
+console.log('跳线示例：展示了带交叉跳线效果的边');
+console.log('水平边线在穿过垂直边线时，会绘制拱形跳线标记表示"跳过"关系');`;
+
 // 所有示例
 const EXAMPLES = [
   { id: 'example-1', title: '直线边', code: EXAMPLE_1_CODE },
@@ -1229,6 +1408,7 @@ const EXAMPLES = [
   { id: 'example-7', title: '流动波浪', code: EXAMPLE_7_CODE },
   { id: 'example-8', title: '层级 zIndex', code: EXAMPLE_8_CODE },
   { id: 'example-9', title: '阶梯折线边', code: EXAMPLE_9_CODE },
+  { id: 'example-10', title: '跳线边', code: EXAMPLE_10_CODE },
 ];
 
 /**
@@ -1373,7 +1553,7 @@ export const EdgeExample: React.FC = () => {
 
   return (
     <div ref={mainContainerRef} style={{ position: 'relative' }}>
-      <div id="edge-example-title" style={{ height: '600px' }}>
+      <div id="edge-example-title" style={{ height: '500px', display: 'flex', flexDirection: 'column' }}>
         <PanelHeader title="Edge 边组件示例" />
         {/* 示例切换按钮 */}
         <div
@@ -1386,25 +1566,26 @@ export const EdgeExample: React.FC = () => {
           }}
         >
           {EXAMPLES.map((ex, index) => (
-            <button
-              key={ex.id}
-              onClick={() => switchExample(index)}
-              style={{
-                padding: '6px 16px',
-                background: currentExample === index ? '#3b82f6' : '#ffffff',
-                color: currentExample === index ? '#ffffff' : '#64748b',
-                border: '1px solid #e2e8f0',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '13px',
-                fontWeight: 500,
-              }}
-            >
-              示例 {index + 1}: {ex.title}
-            </button>
+            <div key={ex.id} id={ex.id}>
+              <button
+                onClick={() => switchExample(index)}
+                style={{
+                  padding: '6px 16px',
+                  background: currentExample === index ? '#3b82f6' : '#ffffff',
+                  color: currentExample === index ? '#ffffff' : '#64748b',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                }}
+              >
+                示例 {index + 1}: {ex.title}
+              </button>
+            </div>
           ))}
         </div>
-        <Splitter style={{ height: '100%' }}>
+        <Splitter style={{ flex: 1, minHeight: 0 }}>
           {LeftPanel}
           {RightPanel}
         </Splitter>

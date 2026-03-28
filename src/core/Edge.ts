@@ -49,6 +49,10 @@ export interface EdgeStyle {
     waveSpeed: number;
     /** 波浪透明度 */
     waveOpacity: number;
+    /** 跳线高度（用于跳线类型的边） */
+    jumpHeight: number;
+    /** 跳线宽度（用于跳线类型的边） */
+    jumpWidth: number;
 }
 
 /**
@@ -81,6 +85,8 @@ export enum EdgeType {
     DashedStep = 'dashedStep',
     /** 虚线圆角折线 */
     DashedRounded = 'dashedRounded',
+    /** 跳线（带交叉跳线效果的直线） */
+    JumpLine = 'jumpLine',
 }
 
 /**
@@ -168,11 +174,16 @@ export class Edge extends Cell {
         waveLength: 15,
         waveSpeed: 1.5,
         waveOpacity: 0.6,
+        jumpHeight: 8,
+        jumpWidth: 12,
     };
 
     // 动画状态
     private isAnimating: boolean = false;
     private waveOffset: number = 0;
+
+    // 跳线交叉点位置（用于 JumpLine 类型）
+    private jumpPoints: Point[] = [];
 
     /**
      * CSS 样式字符串 - 可用于外部容器
@@ -419,6 +430,9 @@ export class Edge extends Cell {
             case EdgeType.DashedRounded:
                 this.drawRoundedStepDown(ctx, sourcePoint, targetPoint);
                 break;
+            case EdgeType.JumpLine:
+                this.drawJumpLine(ctx, sourcePoint, targetPoint);
+                break;
         }
 
         // 如果启用了波浪动画，先绘制虚线轨道，再绘制波浪效果
@@ -464,6 +478,122 @@ export class Edge extends Cell {
         ctx.moveTo(source.x, source.y);
         ctx.lineTo(target.x, target.y);
         this.lastSegmentAngle = Math.atan2(target.y - source.y, target.x - source.x);
+    }
+
+    /**
+     * 绘制跳线（带跳线效果的直线）
+     * 在边上绘制多个拱形跳线标记，用于模拟边穿过其他边的交叉效果
+     * 使用正弦波形状创建平滑的拱形凸起
+     */
+    private drawJumpLine(ctx: CanvasRenderingContext2D, source: Point, target: Point): void {
+        const { jumpHeight, jumpWidth } = this.style;
+        
+        // 计算线段角度和长度
+        const dx = target.x - source.x;
+        const dy = target.y - source.y;
+        const angle = Math.atan2(dy, dx);
+        const length = Math.sqrt(dx * dx + dy * dy);
+        
+        // 如果线段太短，直接画直线
+        if (length < jumpWidth * 2) {
+            this.pathPoints = [source, target];
+            ctx.moveTo(source.x, source.y);
+            ctx.lineTo(target.x, target.y);
+            this.lastSegmentAngle = angle;
+            return;
+        }
+
+        // 计算沿线条方向的单位向量
+        const dirX = dx / length;
+        const dirY = dy / length;
+        
+        // 计算垂直于线段的单位向量（向上）
+        const perpX = -dirY;
+        const perpY = dirX;
+        
+        // 计算跳线位置：使用实际的交叉点或均匀分布
+        let jumpDistances: number[] = [];
+        const halfWidth = jumpWidth / 2;
+        
+        if (this.jumpPoints.length > 0) {
+            // 使用实际的交叉点位置
+            jumpDistances = this.jumpPoints.map(point => {
+                // 计算交叉点在线段上的投影距离
+                const px = point.x - source.x;
+                const py = point.y - source.y;
+                // 投影到线段方向上的距离
+                return px * dirX + py * dirY;
+            }).filter(dist => dist > halfWidth && dist < length - halfWidth)
+              .sort((a, b) => a - b);
+        } else {
+            // 没有交叉点信息时，均匀分布多个跳线标记
+            const spacing = 120;
+            const numJumps = Math.max(1, Math.floor(length / spacing));
+            const actualSpacing = length / (numJumps + 1);
+            for (let i = 1; i <= numJumps; i++) {
+                jumpDistances.push(actualSpacing * i);
+            }
+        }
+        
+        const pathPoints: Point[] = [source];
+        
+        // 如果没有跳线点，直接画直线
+        if (jumpDistances.length === 0) {
+            ctx.moveTo(source.x, source.y);
+            ctx.lineTo(target.x, target.y);
+            this.pathPoints = [source, target];
+            this.lastSegmentAngle = angle;
+            return;
+        }
+        
+        // 绘制跳线
+        // 确保每个跳线拱形有足够的采样点（至少 20 个点）
+        const minSegmentsPerJump = 20;
+        const segments = Math.max(jumpDistances.length * minSegmentsPerJump + 20, Math.ceil(length / 2));
+        
+        for (let s = 0; s <= segments; s++) {
+            const t = s / segments; // 0 到 1
+            const dist = t * length;
+            
+            // 基础位置（在线段上）
+            let baseX = source.x + dirX * dist;
+            let baseY = source.y + dirY * dist;
+            
+            // 计算偏移量（跳线效果）
+            let offset = 0;
+            
+            for (const jumpCenter of jumpDistances) {
+                // 检查是否在当前跳线范围内
+                if (dist >= jumpCenter - halfWidth && dist <= jumpCenter + halfWidth) {
+                    // 计算在跳线范围内的位置（-1 到 1）
+                    const localPos = (dist - jumpCenter) / halfWidth;
+                    // 使用抛物线创建平滑轻微的拱形凸起
+                    // 1 - localPos² 在 localPos=0 时为 1，在 localPos=±1 时为 0
+                    // 这种形状比余弦函数更平缓，凸起更轻微
+                    const arch = 1 - localPos * localPos;
+                    offset = Math.max(offset, arch * jumpHeight);
+                }
+            }
+            
+            // 应用垂直偏移
+            const x = baseX + perpX * offset;
+            const y = baseY + perpY * offset;
+            
+            if (s === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+            
+            // 记录路径点（用于碰撞检测）
+            if (s % 5 === 0) {
+                pathPoints.push({ x, y });
+            }
+        }
+        
+        pathPoints.push(target);
+        this.pathPoints = pathPoints;
+        this.lastSegmentAngle = angle;
     }
 
     /**
@@ -1608,6 +1738,22 @@ export class Edge extends Cell {
      */
     isConnected(): boolean {
         return this.connected;
+    }
+
+    /**
+     * 设置跳线交叉点位置（用于 JumpLine 类型）
+     * @param points - 交叉点位置数组
+     */
+    setJumpPoints(points: Point[]): void {
+        this.jumpPoints = points;
+    }
+
+    /**
+     * 获取跳线交叉点位置
+     * @returns 交叉点位置数组
+     */
+    getJumpPoints(): Point[] {
+        return [...this.jumpPoints];
     }
 
     /**

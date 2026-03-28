@@ -2192,6 +2192,146 @@ export class Graph {
     }
 
     /**
+     * 更新跳线边的交叉点位置
+     * 计算每条 JumpLine 类型边与其他边的交叉点，并设置跳线位置
+     * @private
+     */
+    private updateJumpLineIntersections(): void {
+        // 收集所有边的连接点信息
+        interface EdgeInfo {
+            edge: Edge;
+            sourcePoint: Point;
+            targetPoint: Point;
+            isJumpLine: boolean;
+        }
+        
+        const edgeInfos: EdgeInfo[] = [];
+        
+        this.edges.forEach((edge) => {
+            const sourceNode = this.nodes.get(edge.getSourceId());
+            const targetNode = this.nodes.get(edge.getTargetId());
+            
+            if (sourceNode && targetNode) {
+                const sourceAnchor = edge.getSourceAnchor();
+                const targetAnchor = edge.getTargetAnchor();
+                
+                // 获取源连接点
+                let sourcePoint: Point;
+                if (sourceAnchor.portId) {
+                    const port = sourceNode.getPort(sourceAnchor.portId);
+                    if (port) {
+                        sourcePoint = port.getConnectionPoint(
+                            sourceNode.getPosition().x,
+                            sourceNode.getPosition().y,
+                            sourceNode.getStyle().width,
+                            sourceNode.getStyle().height
+                        );
+                    } else {
+                        sourcePoint = sourceNode.getAnchorPoint(sourceAnchor.position || 'center');
+                    }
+                } else {
+                    sourcePoint = sourceNode.getAnchorPoint(sourceAnchor.position || 'center');
+                }
+                
+                // 获取目标连接点
+                let targetPoint: Point;
+                if (targetAnchor.portId) {
+                    const port = targetNode.getPort(targetAnchor.portId);
+                    if (port) {
+                        targetPoint = port.getConnectionPoint(
+                            targetNode.getPosition().x,
+                            targetNode.getPosition().y,
+                            targetNode.getStyle().width,
+                            targetNode.getStyle().height
+                        );
+                    } else {
+                        targetPoint = targetNode.getAnchorPoint(targetAnchor.position || 'center');
+                    }
+                } else {
+                    targetPoint = targetNode.getAnchorPoint(targetAnchor.position || 'center');
+                }
+                
+                edgeInfos.push({
+                    edge,
+                    sourcePoint,
+                    targetPoint,
+                    isJumpLine: edge.getType() === EdgeType.JumpLine
+                });
+            }
+        });
+        
+        // 为每条跳线边计算与其他边的交叉点
+        edgeInfos.forEach((jumpLineInfo) => {
+            if (!jumpLineInfo.isJumpLine) return;
+            
+            const intersections: Point[] = [];
+            
+            edgeInfos.forEach((otherInfo) => {
+                // 跳过自己
+                if (otherInfo.edge === jumpLineInfo.edge) return;
+                // 跳过其他跳线边（跳线只与非跳线边交叉时才显示）
+                if (otherInfo.isJumpLine) return;
+                
+                // 计算两条线段的交叉点
+                const intersection = this.getLineSegmentIntersection(
+                    jumpLineInfo.sourcePoint, jumpLineInfo.targetPoint,
+                    otherInfo.sourcePoint, otherInfo.targetPoint
+                );
+                
+                if (intersection) {
+                    intersections.push(intersection);
+                }
+            });
+            
+            // 设置跳线位置
+            jumpLineInfo.edge.setJumpPoints(intersections);
+        });
+    }
+
+    /**
+     * 计算两条线段的交叉点
+     * @param p1 - 第一条线段起点
+     * @param p2 - 第一条线段终点
+     * @param p3 - 第二条线段起点
+     * @param p4 - 第二条线段终点
+     * @returns 交叉点坐标，如果不相交则返回 null
+     * @private
+     */
+    private getLineSegmentIntersection(
+        p1: Point, p2: Point,
+        p3: Point, p4: Point
+    ): Point | null {
+        const d1x = p2.x - p1.x;
+        const d1y = p2.y - p1.y;
+        const d2x = p4.x - p3.x;
+        const d2y = p4.y - p3.y;
+        
+        const cross = d1x * d2y - d1y * d2x;
+        
+        // 平行或重合
+        if (Math.abs(cross) < 1e-10) {
+            return null;
+        }
+        
+        const dx = p3.x - p1.x;
+        const dy = p3.y - p1.y;
+        
+        const t1 = (dx * d2y - dy * d2x) / cross;
+        const t2 = (dx * d1y - dy * d1x) / cross;
+        
+        // 检查交叉点是否在两条线段上（不包括端点）
+        const epsilon = 0.01;
+        if (t1 > epsilon && t1 < 1 - epsilon && t2 > epsilon && t2 < 1 - epsilon) {
+            return {
+                x: p1.x + t1 * d1x,
+                y: p1.y + t1 * d1y
+            };
+        }
+        
+        return null;
+    }
+
+    /**
      * 渲染所有边
      * @protected
      */
@@ -2279,6 +2419,9 @@ export class Graph {
             // 如果没有动画边但循环在运行，停止它
             this.stopEdgeAnimation();
         }
+
+        // 计算跳线边的交叉点
+        this.updateJumpLineIntersections();
 
         // 收集所有需要绘制的元素（边和连接桩）
         interface DrawItem {

@@ -1262,7 +1262,7 @@ export const GraphExample: React.FC = () => {
 
   return (
     <div ref={mainContainerRef} style={{ position: 'relative' }}>
-      <div id="graph-example-title" style={{ height: '600px', display: 'flex', flexDirection: 'column' }}>
+      <div id="graph-example-title" style={{ height: '500px', display: 'flex', flexDirection: 'column' }}>
         <PanelHeader title="图编辑器示例" />
         {/* 示例切换按钮 */}
         <div
