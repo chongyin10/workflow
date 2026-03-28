@@ -122,6 +122,14 @@ const edgeTypeData = [
   { name: 'EdgeType.Vertical', description: '垂直折线 - 先垂直后水平的折线，适合垂直布局' },
   { name: 'EdgeType.Bezier', description: '贝塞尔曲线 - 平滑的曲线连接' },
   { name: 'EdgeType.Arc', description: '弧线 - 圆弧连接' },
+  { name: 'EdgeType.StepRight', description: '阶梯折线(先水平后垂直) - 直角阶梯，适合树形结构' },
+  { name: 'EdgeType.StepDown', description: '阶梯折线(先垂直后水平) - 直角阶梯，适合垂直流程' },
+  { name: 'EdgeType.RoundedStepRight', description: '圆角阶梯(先水平后垂直) - 带圆角的阶梯折线' },
+  { name: 'EdgeType.RoundedStepDown', description: '圆角阶梯(先垂直后水平) - 带圆角的阶梯折线' },
+  { name: 'EdgeType.SmoothStep', description: '平滑 L 型 - 正交圆角折线，适合流程图' },
+  { name: 'EdgeType.Orthogonal', description: '正交折线 - 智能路由，自动选择最优路径' },
+  { name: 'EdgeType.DashedStep', description: '虚线阶梯 - 虚线直角阶梯，适合辅助连接' },
+  { name: 'EdgeType.DashedRounded', description: '虚线圆角 - 虚线圆角折线，适合辅助连接' },
 ];
 
 // 示例 1: 直线边
@@ -1028,7 +1036,187 @@ graph.addEdge({
 });
 
 console.log('zIndex 层级示例：观察交叉线条，zIndex 越大的线条显示在上层');`;
-;
+
+// 示例 9: 阶梯折线边（新增类型展示）
+const EXAMPLE_9_CODE = `// 创建 Graph 画布
+const graph = new Graph({
+  container: container,
+  width: 800,
+  height: 500,
+  draggable: true,
+  scalable: true,
+  backgroundColor: '#f8fafc',
+  grid: { enabled: true, size: 20, color: '#e2e8f0' },
+});
+
+// 示例 9: 阶梯折线边展示（对应图片中的8种模式）
+// 创建起始节点（左上）
+const startNode = graph.addNode({
+  id: 'start',
+  label: '起点',
+  x: 50,
+  y: 50,
+  shape: Shape.Rect,
+  style: {
+    width: 80,
+    height: 40,
+    backgroundColor: '#475569',
+    borderColor: '#334155',
+    textColor: '#ffffff',
+  },
+});
+
+// 创建目标节点（4列 x 2行 = 8个节点）
+const targets = [
+  // 第一行 - 斜向（类似图片上行）
+  { id: 't1', x: 200, y: 150, label: 'StepRight', color: '#1f2937' },
+  { id: 't2', x: 350, y: 150, label: 'RoundedRight', color: '#ef4444' },
+  { id: 't3', x: 500, y: 150, label: 'SmoothStep', color: '#f59e0b' },
+  { id: 't4', x: 650, y: 150, label: 'DashedStep', color: '#3b82f6' },
+  // 第二行 - 直角（类似图片下行）
+  { id: 't5', x: 200, y: 350, label: 'StepDown', color: '#1f2937' },
+  { id: 't6', x: 350, y: 350, label: 'RoundedDown', color: '#ef4444' },
+  { id: 't7', x: 500, y: 350, label: 'Orthogonal', color: '#f59e0b' },
+  { id: 't8', x: 650, y: 350, label: 'DashedRounded', color: '#3b82f6' },
+];
+
+targets.forEach(t => {
+  const node = graph.addNode({
+    id: t.id,
+    label: t.label,
+    x: t.x,
+    y: t.y,
+    shape: Shape.Rect,
+    style: {
+      width: 100,
+      height: 40,
+      backgroundColor: t.color,
+      borderColor: t.color,
+      textColor: '#ffffff',
+      fontSize: 11,
+    },
+  });
+  node.addPort({ id: 'port-in', position: 'left', visible: true });
+});
+
+startNode.addPort({ id: 'port-out', position: 'bottom', visible: true });
+
+// 阶梯折线（先水平后垂直）- 黑色直角
+graph.addEdge({
+  id: 'edge-step-right',
+  source: { nodeId: 'start', portId: 'port-out' },
+  target: { nodeId: 't1', portId: 'port-in' },
+  type: EdgeType.StepRight,
+  style: {
+    stroke: '#1f2937',
+    strokeWidth: 2,
+    arrowSize: 10,
+  },
+});
+
+// 圆角阶梯（先水平后垂直）- 红色圆角
+graph.addEdge({
+  id: 'edge-rounded-right',
+  source: { nodeId: 'start', portId: 'port-out' },
+  target: { nodeId: 't2', portId: 'port-in' },
+  type: EdgeType.RoundedStepRight,
+  style: {
+    stroke: '#ef4444',
+    strokeWidth: 2,
+    cornerRadius: 12,
+    arrowSize: 10,
+  },
+});
+
+// 平滑 L 型 - 黄色平滑
+graph.addEdge({
+  id: 'edge-smooth-step',
+  source: { nodeId: 'start', portId: 'port-out' },
+  target: { nodeId: 't3', portId: 'port-in' },
+  type: EdgeType.SmoothStep,
+  style: {
+    stroke: '#f59e0b',
+    strokeWidth: 2,
+    cornerRadius: 15,
+    arrowSize: 10,
+  },
+});
+
+// 虚线阶梯 - 蓝色虚线
+graph.addEdge({
+  id: 'edge-dashed-step',
+  source: { nodeId: 'start', portId: 'port-out' },
+  target: { nodeId: 't4', portId: 'port-in' },
+  type: EdgeType.DashedStep,
+  style: {
+    stroke: '#3b82f6',
+    strokeWidth: 2,
+    dashed: true,
+    dashPattern: [8, 4],
+    arrowSize: 10,
+  },
+});
+
+// 阶梯折线（先垂直后水平）- 黑色直角（下行）
+graph.addEdge({
+  id: 'edge-step-down',
+  source: { nodeId: 'start', portId: 'port-out' },
+  target: { nodeId: 't5', portId: 'port-in' },
+  type: EdgeType.StepDown,
+  style: {
+    stroke: '#1f2937',
+    strokeWidth: 2,
+    arrowSize: 10,
+  },
+});
+
+// 圆角阶梯（先垂直后水平）- 红色圆角（下行）
+graph.addEdge({
+  id: 'edge-rounded-down',
+  source: { nodeId: 'start', portId: 'port-out' },
+  target: { nodeId: 't6', portId: 'port-in' },
+  type: EdgeType.RoundedStepDown,
+  style: {
+    stroke: '#ef4444',
+    strokeWidth: 2,
+    cornerRadius: 12,
+    arrowSize: 10,
+  },
+});
+
+// 正交折线 - 智能路由
+graph.addEdge({
+  id: 'edge-orthogonal',
+  source: { nodeId: 'start', portId: 'port-out' },
+  target: { nodeId: 't7', portId: 'port-in' },
+  type: EdgeType.Orthogonal,
+  style: {
+    stroke: '#f59e0b',
+    strokeWidth: 2,
+    cornerRadius: 8,
+    arrowSize: 10,
+  },
+});
+
+// 虚线圆角 - 蓝色虚线圆角（下行）
+graph.addEdge({
+  id: 'edge-dashed-rounded',
+  source: { nodeId: 'start', portId: 'port-out' },
+  target: { nodeId: 't8', portId: 'port-in' },
+  type: EdgeType.DashedRounded,
+  style: {
+    stroke: '#3b82f6',
+    strokeWidth: 2,
+    dashed: true,
+    dashPattern: [10, 5],
+    cornerRadius: 12,
+    arrowSize: 10,
+  },
+});
+
+console.log('阶梯折线示例：展示了8种新的边类型');
+console.log('上行（斜向）：StepRight, RoundedStepRight, SmoothStep, DashedStep');
+console.log('下行（直角）：StepDown, RoundedStepDown, Orthogonal, DashedRounded');`;
 
 // 所有示例
 const EXAMPLES = [
@@ -1040,6 +1228,7 @@ const EXAMPLES = [
   { id: 'example-6', title: '边事件', code: EXAMPLE_6_CODE },
   { id: 'example-7', title: '流动波浪', code: EXAMPLE_7_CODE },
   { id: 'example-8', title: '层级 zIndex', code: EXAMPLE_8_CODE },
+  { id: 'example-9', title: '阶梯折线边', code: EXAMPLE_9_CODE },
 ];
 
 /**

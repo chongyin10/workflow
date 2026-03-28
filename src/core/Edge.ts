@@ -65,6 +65,22 @@ export enum EdgeType {
     Bezier = 'bezier',
     /** 弧度曲线 */
     Arc = 'arc',
+    /** 阶梯折线（先水平后垂直） */
+    StepRight = 'stepRight',
+    /** 阶梯折线（先垂直后水平） */
+    StepDown = 'stepDown',
+    /** 圆角阶梯折线（先水平后垂直） */
+    RoundedStepRight = 'roundedStepRight',
+    /** 圆角阶梯折线（先垂直后水平） */
+    RoundedStepDown = 'roundedStepDown',
+    /** 平滑 L 型折线（正交圆角） */
+    SmoothStep = 'smoothStep',
+    /** 正交折线（智能路由） */
+    Orthogonal = 'orthogonal',
+    /** 虚线阶梯折线 */
+    DashedStep = 'dashedStep',
+    /** 虚线圆角折线 */
+    DashedRounded = 'dashedRounded',
 }
 
 /**
@@ -379,6 +395,30 @@ export class Edge extends Cell {
             case EdgeType.Arc:
                 this.drawArc(ctx, sourcePoint, targetPoint);
                 break;
+            case EdgeType.StepRight:
+                this.drawStepRight(ctx, sourcePoint, targetPoint);
+                break;
+            case EdgeType.StepDown:
+                this.drawStepDown(ctx, sourcePoint, targetPoint);
+                break;
+            case EdgeType.RoundedStepRight:
+                this.drawRoundedStepRight(ctx, sourcePoint, targetPoint);
+                break;
+            case EdgeType.RoundedStepDown:
+                this.drawRoundedStepDown(ctx, sourcePoint, targetPoint);
+                break;
+            case EdgeType.SmoothStep:
+                this.drawSmoothStep(ctx, sourcePoint, targetPoint);
+                break;
+            case EdgeType.Orthogonal:
+                this.drawOrthogonal(ctx, sourcePoint, targetPoint);
+                break;
+            case EdgeType.DashedStep:
+                this.drawStepDown(ctx, sourcePoint, targetPoint);
+                break;
+            case EdgeType.DashedRounded:
+                this.drawRoundedStepDown(ctx, sourcePoint, targetPoint);
+                break;
         }
 
         // 如果启用了波浪动画，先绘制虚线轨道，再绘制波浪效果
@@ -594,6 +634,253 @@ export class Edge extends Cell {
     }
 
     /**
+     * 绘制阶梯折线（先水平后垂直）
+     * 类似于 drawHorizontal，但从 source.x 水平延伸到 target.x，再垂直到 target.y
+     */
+    private drawStepRight(ctx: CanvasRenderingContext2D, source: Point, target: Point): void {
+        // 阶梯路径：source -> (target.x, source.y) -> target
+        this.pathPoints = [source, { x: target.x, y: source.y }, target];
+        this.lastMidPoint = { x: target.x, y: source.y };
+
+        ctx.moveTo(source.x, source.y);
+        ctx.lineTo(target.x, source.y);
+        ctx.lineTo(target.x, target.y);
+
+        // 计算最后一段的角度（垂直段）
+        this.lastSegmentAngle = Math.atan2(target.y - source.y, 0);
+    }
+
+    /**
+     * 绘制阶梯折线（先垂直后水平）
+     * 从 source 垂直向下/上延伸到 target.y，再水平到 target.x
+     */
+    private drawStepDown(ctx: CanvasRenderingContext2D, source: Point, target: Point): void {
+        // 阶梯路径：source -> (source.x, target.y) -> target
+        this.pathPoints = [source, { x: source.x, y: target.y }, target];
+        this.lastMidPoint = { x: source.x, y: target.y };
+
+        ctx.moveTo(source.x, source.y);
+        ctx.lineTo(source.x, target.y);
+        ctx.lineTo(target.x, target.y);
+
+        // 计算最后一段的角度（水平段）
+        this.lastSegmentAngle = Math.atan2(0, target.x - source.x);
+    }
+
+    /**
+     * 绘制圆角阶梯折线（先水平后垂直）
+     * 与 drawStepRight 类似但带有圆角
+     */
+    private drawRoundedStepRight(ctx: CanvasRenderingContext2D, source: Point, target: Point): void {
+        const cornerX = target.x;
+        const cornerY = source.y;
+        const r = this.style.cornerRadius;
+
+        // 路径点
+        this.pathPoints = [source, { x: cornerX, y: cornerY }, target];
+        this.lastMidPoint = { x: cornerX, y: cornerY };
+
+        ctx.moveTo(source.x, source.y);
+
+        // 判断拐角方向
+        const goRight = target.x > source.x;
+        const goDown = target.y > source.y;
+
+        // 计算拐角处的圆角
+        if (Math.abs(target.x - source.x) > r && Math.abs(target.y - source.y) > r) {
+            // 水平线到圆角起点
+            const arcStartX = goRight ? cornerX - r : cornerX + r;
+            ctx.lineTo(arcStartX, cornerY);
+
+            // 绘制四分之一圆弧
+            const arcEndY = goDown ? cornerY + r : cornerY - r;
+            ctx.quadraticCurveTo(cornerX, cornerY, cornerX, arcEndY);
+
+            // 垂直线到目标
+            ctx.lineTo(target.x, target.y);
+
+            // 计算最后一段角度
+            this.lastSegmentAngle = Math.atan2(target.y - arcEndY, 0);
+        } else {
+            // 空间不足，直接绘制直角
+            ctx.lineTo(cornerX, cornerY);
+            ctx.lineTo(target.x, target.y);
+            this.lastSegmentAngle = Math.atan2(target.y - cornerY, 0);
+        }
+    }
+
+    /**
+     * 绘制圆角阶梯折线（先垂直后水平）
+     * 与 drawStepDown 类似但带有圆角
+     */
+    private drawRoundedStepDown(ctx: CanvasRenderingContext2D, source: Point, target: Point): void {
+        const cornerX = source.x;
+        const cornerY = target.y;
+        const r = this.style.cornerRadius;
+
+        // 路径点
+        this.pathPoints = [source, { x: cornerX, y: cornerY }, target];
+        this.lastMidPoint = { x: cornerX, y: cornerY };
+
+        ctx.moveTo(source.x, source.y);
+
+        // 判断拐角方向
+        const goRight = target.x > source.x;
+        const goDown = target.y > source.y;
+
+        // 计算拐角处的圆角
+        if (Math.abs(target.y - source.y) > r && Math.abs(target.x - source.x) > r) {
+            // 垂直线到圆角起点
+            const arcStartY = goDown ? cornerY - r : cornerY + r;
+            ctx.lineTo(cornerX, arcStartY);
+
+            // 绘制四分之一圆弧
+            const arcEndX = goRight ? cornerX + r : cornerX - r;
+            ctx.quadraticCurveTo(cornerX, cornerY, arcEndX, cornerY);
+
+            // 水平线到目标
+            ctx.lineTo(target.x, target.y);
+
+            // 计算最后一段角度
+            this.lastSegmentAngle = Math.atan2(0, target.x - arcEndX);
+        } else {
+            // 空间不足，直接绘制直角
+            ctx.lineTo(cornerX, cornerY);
+            ctx.lineTo(target.x, target.y);
+            this.lastSegmentAngle = Math.atan2(0, target.x - cornerX);
+        }
+    }
+
+    /**
+     * 绘制平滑 L 型折线（正交圆角）
+     * 使用平滑的曲线连接两段直线
+     */
+    private drawSmoothStep(ctx: CanvasRenderingContext2D, source: Point, target: Point): void {
+        const dx = target.x - source.x;
+        const dy = target.y - source.y;
+        const r = Math.min(this.style.cornerRadius, Math.abs(dx) / 2, Math.abs(dy) / 2);
+
+        // 判断方向
+        const goRight = dx > 0;
+        const goDown = dy > 0;
+
+        // 计算转折点
+        const midX = target.x;
+        const midY = source.y;
+
+        // 路径点 - 使用采样点来近似曲线
+        this.pathPoints = [source];
+
+        ctx.moveTo(source.x, source.y);
+
+        if (Math.abs(dx) > 2 * r && Math.abs(dy) > 2 * r) {
+            // 先水平线
+            const hLineEndX = goRight ? midX - r : midX + r;
+            ctx.lineTo(hLineEndX, source.y);
+
+            // 添加路径点
+            this.pathPoints.push({ x: hLineEndX, y: source.y });
+
+            // 平滑曲线拐角
+            const cp1x = hLineEndX + (goRight ? r * 0.5 : -r * 0.5);
+            const cp1y = source.y;
+            const cp2x = midX;
+            const cp2y = goDown ? midY + r * 0.5 : midY - r * 0.5;
+            const arcEndY = goDown ? midY + r : midY - r;
+
+            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, midX, arcEndY);
+
+            // 添加曲线采样点
+            this.pathPoints.push({ x: midX, y: arcEndY });
+
+            // 垂直线到目标
+            ctx.lineTo(target.x, target.y);
+            this.pathPoints.push(target);
+
+            // 计算最后一段角度
+            this.lastSegmentAngle = Math.atan2(dy, 0);
+        } else {
+            // 空间不足，简化为直角
+            ctx.lineTo(midX, midY);
+            ctx.lineTo(target.x, target.y);
+            this.pathPoints.push({ x: midX, y: midY }, target);
+            this.lastSegmentAngle = Math.atan2(dy, 0);
+        }
+
+        this.lastMidPoint = { x: midX, y: midY };
+    }
+
+    /**
+     * 绘制正交折线（智能路由）
+     * 根据源点和目标点的相对位置选择最优路径
+     */
+    private drawOrthogonal(ctx: CanvasRenderingContext2D, source: Point, target: Point): void {
+        const dx = target.x - source.x;
+        const dy = target.y - source.y;
+        const r = this.style.cornerRadius;
+
+        // 根据距离决定是先水平还是先垂直
+        // 如果水平距离更大，先水平后垂直；否则先垂直后水平
+        const goHorizontalFirst = Math.abs(dx) >= Math.abs(dy);
+
+        if (goHorizontalFirst) {
+            // 类似 StepRight，但可能根据方向调整
+            const midX = target.x;
+            const midY = source.y;
+
+            this.pathPoints = [source, { x: midX, y: midY }, target];
+            this.lastMidPoint = { x: midX, y: midY };
+
+            ctx.moveTo(source.x, source.y);
+
+            if (Math.abs(dx) > 2 * r && Math.abs(dy) > 2 * r) {
+                const goRight = dx > 0;
+                const goDown = dy > 0;
+
+                ctx.lineTo(goRight ? midX - r : midX + r, midY);
+                ctx.quadraticCurveTo(
+                    midX, midY,
+                    midX,
+                    goDown ? midY + r : midY - r
+                );
+                ctx.lineTo(target.x, target.y);
+            } else {
+                ctx.lineTo(midX, midY);
+                ctx.lineTo(target.x, target.y);
+            }
+
+            this.lastSegmentAngle = Math.atan2(dy, 0);
+        } else {
+            // 类似 StepDown
+            const midX = source.x;
+            const midY = target.y;
+
+            this.pathPoints = [source, { x: midX, y: midY }, target];
+            this.lastMidPoint = { x: midX, y: midY };
+
+            ctx.moveTo(source.x, source.y);
+
+            if (Math.abs(dx) > 2 * r && Math.abs(dy) > 2 * r) {
+                const goRight = dx > 0;
+                const goDown = dy > 0;
+
+                ctx.lineTo(midX, goDown ? midY - r : midY + r);
+                ctx.quadraticCurveTo(
+                    midX, midY,
+                    goRight ? midX + r : midX - r,
+                    midY
+                );
+                ctx.lineTo(target.x, target.y);
+            } else {
+                ctx.lineTo(midX, midY);
+                ctx.lineTo(target.x, target.y);
+            }
+
+            this.lastSegmentAngle = Math.atan2(0, dx);
+        }
+    }
+
+    /**
      * 绘制流动波浪效果
      * @param ctx - Canvas 2D 上下文
      * @param source - 起点坐标
@@ -686,6 +973,27 @@ export class Edge extends Cell {
                 const dist1 = Math.sqrt(Math.pow(midX - source.x, 2) + Math.pow(midY - source.y, 2));
                 const dist2 = Math.sqrt(Math.pow(target.x - midX, 2) + Math.pow(target.y - midY, 2));
                 return (dist1 + dist2) * 1.2; // 曲线比直线稍长
+            
+            case EdgeType.StepRight:
+            case EdgeType.StepDown:
+            case EdgeType.RoundedStepRight:
+            case EdgeType.RoundedStepDown:
+            case EdgeType.SmoothStep:
+            case EdgeType.Orthogonal:
+            case EdgeType.DashedStep:
+            case EdgeType.DashedRounded:
+                // 阶梯折线类型，两段直线之和
+                if (this.lastMidPoint) {
+                    const seg1 = Math.sqrt(Math.pow(this.lastMidPoint.x - source.x, 2) + Math.pow(this.lastMidPoint.y - source.y, 2));
+                    const seg2 = Math.sqrt(Math.pow(target.x - this.lastMidPoint.x, 2) + Math.pow(target.y - this.lastMidPoint.y, 2));
+                    // 圆角版本稍微长一点
+                    const isRounded = this.type === EdgeType.RoundedStepRight ||
+                                     this.type === EdgeType.RoundedStepDown ||
+                                     this.type === EdgeType.SmoothStep ||
+                                     this.type === EdgeType.DashedRounded;
+                    return isRounded ? (seg1 + seg2) * 1.05 : seg1 + seg2;
+                }
+                return Math.sqrt(Math.pow(target.x - source.x, 2) + Math.pow(target.y - source.y, 2));
             
             default:
                 return Math.sqrt(Math.pow(target.x - source.x, 2) + Math.pow(target.y - source.y, 2));
@@ -952,6 +1260,35 @@ export class Edge extends Cell {
                     y: source.y + (target.y - source.y) * ratio
                 };
 
+            case EdgeType.StepRight:
+            case EdgeType.StepDown:
+            case EdgeType.RoundedStepRight:
+            case EdgeType.RoundedStepDown:
+            case EdgeType.SmoothStep:
+            case EdgeType.Orthogonal:
+            case EdgeType.DashedStep:
+            case EdgeType.DashedRounded:
+                // 阶梯折线类型，使用 pathPoints
+                if (this.pathPoints.length >= 2) {
+                    return this.getPointOnPathByPoints(ratio);
+                }
+                // 回退到 lastMidPoint 检测
+                if (this.lastMidPoint) {
+                    const seg1Length = this.calculatePathLength(source, this.lastMidPoint);
+                    const totalLength = this.calculatePathLength(source, target);
+                    const midRatio = seg1Length / totalLength;
+                    
+                    if (ratio <= midRatio) {
+                        return this.getPointOnLine(source, this.lastMidPoint, ratio / midRatio);
+                    } else {
+                        return this.getPointOnLine(this.lastMidPoint, target, (ratio - midRatio) / (1 - midRatio));
+                    }
+                }
+                return {
+                    x: source.x + (target.x - source.x) * ratio,
+                    y: source.y + (target.y - source.y) * ratio
+                };
+
             default:
                 return {
                     x: source.x + (target.x - source.x) * ratio,
@@ -968,6 +1305,45 @@ export class Edge extends Cell {
             x: start.x + (end.x - start.x) * ratio,
             y: start.y + (end.y - start.y) * ratio
         };
+    }
+
+    /**
+     * 使用 pathPoints 数组获取路径上某比例的点的坐标
+     */
+    private getPointOnPathByPoints(ratio: number): Point | null {
+        if (this.pathPoints.length < 2) return null;
+        if (ratio <= 0) return { ...this.pathPoints[0] };
+        if (ratio >= 1) return { ...this.pathPoints[this.pathPoints.length - 1] };
+
+        // 计算每个点的累积距离
+        const distances: number[] = [0];
+        let totalLength = 0;
+        for (let i = 1; i < this.pathPoints.length; i++) {
+            const dx = this.pathPoints[i].x - this.pathPoints[i - 1].x;
+            const dy = this.pathPoints[i].y - this.pathPoints[i - 1].y;
+            totalLength += Math.sqrt(dx * dx + dy * dy);
+            distances.push(totalLength);
+        }
+
+        if (totalLength === 0) return { ...this.pathPoints[0] };
+
+        const targetDist = ratio * totalLength;
+
+        // 找到目标距离所在的段
+        for (let i = 0; i < this.pathPoints.length - 1; i++) {
+            const segStart = distances[i];
+            const segEnd = distances[i + 1];
+
+            if (targetDist >= segStart && targetDist <= segEnd) {
+                const segLength = segEnd - segStart;
+                if (segLength === 0) continue;
+
+                const segRatio = (targetDist - segStart) / segLength;
+                return this.getPointOnLine(this.pathPoints[i], this.pathPoints[i + 1], segRatio);
+            }
+        }
+
+        return { ...this.pathPoints[this.pathPoints.length - 1] };
     }
 
     /**
@@ -1275,6 +1651,28 @@ export class Edge extends Cell {
             case EdgeType.Arc:
                 // 对于贝塞尔曲线和弧线，使用近似检测（点到起止点的距离）
                 return this.isPointNearCurve(point, source, target, tolerance);
+            case EdgeType.StepRight:
+            case EdgeType.StepDown:
+            case EdgeType.RoundedStepRight:
+            case EdgeType.RoundedStepDown:
+            case EdgeType.SmoothStep:
+            case EdgeType.Orthogonal:
+            case EdgeType.DashedStep:
+            case EdgeType.DashedRounded:
+                // 阶梯折线类型，使用 pathPoints 进行精确检测
+                if (this.pathPoints.length >= 2) {
+                    for (let i = 0; i < this.pathPoints.length - 1; i++) {
+                        if (this.isPointOnLineSegment(point, this.pathPoints[i], this.pathPoints[i + 1], tolerance)) {
+                            return true;
+                        }
+                    }
+                }
+                // 回退到 lastMidPoint 检测
+                if (this.lastMidPoint) {
+                    return this.isPointOnLineSegment(point, source, this.lastMidPoint, tolerance) ||
+                           this.isPointOnLineSegment(point, this.lastMidPoint, target, tolerance);
+                }
+                return this.isPointOnLineSegment(point, source, target, tolerance);
             default:
                 return false;
         }
