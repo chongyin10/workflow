@@ -2294,11 +2294,17 @@ export class Graph {
     }
 
     /**
-     * 检查是否有带动画的边
+     * 检查是否有带动画的边或节点
      */
     private checkAnimatedEdges(): boolean {
         for (const edge of this.edges.values()) {
             if (edge.isAnimationPlaying()) {
+                return true;
+            }
+        }
+        // 检查是否有边框动画的节点
+        for (const node of this.nodes.values()) {
+            if (!node.isHtmlNode() && node.getStyle().borderStyle === 'animated') {
                 return true;
             }
         }
@@ -2654,7 +2660,7 @@ export class Graph {
         // 按 zIndex 排序后绘制（zIndex 小的先绘制，大的在上面）
         const sortedNodes = Array.from(this.nodes.values()).sort((a, b) => a.getZIndex() - b.getZIndex());
         sortedNodes.forEach((node) => {
-            node.draw(this.ctx);
+            node.draw(this.ctx, this.animationTime);
         });
 
         // 在选中的节点上绘制 resize handles
@@ -2977,7 +2983,7 @@ export class Graph {
         // 绘制所有节点（在世界坐标系中）
         const sortedNodes = Array.from(this.nodes.values()).sort((a, b) => a.getZIndex() - b.getZIndex());
         sortedNodes.forEach((node) => {
-            node.draw(tempCtx);
+            node.draw(tempCtx, this.animationTime);
         });
         
         // 绘制所有边和连接桩

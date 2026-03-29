@@ -681,6 +681,173 @@ info.style.cssText = 'position:absolute;bottom:8px;left:8px;right:8px;background
 info.innerHTML = '💡 <strong>左侧节点</strong>：连接桩始终可见（默认）<br/>💡 <strong>右侧节点</strong>：鼠标悬停时才会显示连接桩';
 container.appendChild(info);`;
 
+// 示例 9: 边框样式（实线、虚线、波浪流动）
+const EXAMPLE_9_CODE = `// 创建 Graph 画布
+const graph = new Graph({
+  container: container,
+  width: 600,
+  height: 320,
+  draggable: true,
+  scalable: true,
+  backgroundColor: '#f8fafc',
+  grid: { enabled: true, size: 20, color: '#e2e8f0' },
+});
+
+// 实线边框（默认）
+const solidNode = graph.addNode({
+  id: 'node-solid',
+  label: '实线边框',
+  x: 100,
+  y: 80,
+  shape: Shape.Rect,
+  style: {
+    width: 140,
+    height: 70,
+    backgroundColor: '#ffffff',
+    borderColor: '#3b82f6',
+    borderWidth: 2,
+    borderRadius: 8,
+    textColor: '#1e293b',
+    borderStyle: 'solid',
+  },
+});
+
+// 虚线边框
+const dashedNode = graph.addNode({
+  id: 'node-dashed',
+  label: '虚线边框',
+  x: 300,
+  y: 80,
+  shape: Shape.Rect,
+  style: {
+    width: 140,
+    height: 70,
+    backgroundColor: '#ffffff',
+    borderColor: '#f59e0b',
+    borderWidth: 2,
+    borderRadius: 8,
+    textColor: '#1e293b',
+    borderStyle: 'dashed',
+    dashPattern: [8, 4],
+  },
+});
+
+// 波浪流动边框（蚂蚁线动画）
+const animatedNode = graph.addNode({
+  id: 'node-animated',
+  label: '波浪流动边框',
+  x: 500,
+  y: 80,
+  shape: Shape.Rect,
+  style: {
+    width: 140,
+    height: 70,
+    backgroundColor: '#ffffff',
+    borderColor: '#d1d5db',
+    borderWidth: 2,
+    borderRadius: 8,
+    textColor: '#1e293b',
+    borderStyle: 'animated',
+    animatedBorderColor: '#3b82f6',
+    animatedDashPattern: [8, 4],
+    animatedBorderSpeed: 1.5,
+  },
+});
+
+// 更多波浪流动样式展示
+const animatedNode2 = graph.addNode({
+  id: 'node-animated-2',
+  label: '橙色流动',
+  x: 100,
+  y: 200,
+  shape: Shape.Rect,
+  style: {
+    width: 140,
+    height: 70,
+    backgroundColor: '#fffbeb',
+    borderColor: '#fed7aa',
+    borderWidth: 2,
+    borderRadius: 8,
+    textColor: '#92400e',
+    borderStyle: 'animated',
+    animatedBorderColor: '#f59e0b',
+    animatedDashPattern: [6, 6],
+    animatedBorderSpeed: 2,
+  },
+});
+
+const animatedNode3 = graph.addNode({
+  id: 'node-animated-3',
+  label: '绿色流动',
+  x: 300,
+  y: 200,
+  shape: Shape.Rect,
+  style: {
+    width: 140,
+    height: 70,
+    backgroundColor: '#f0fdf4',
+    borderColor: '#bbf7d0',
+    borderWidth: 2,
+    borderRadius: 8,
+    textColor: '#166534',
+    borderStyle: 'animated',
+    animatedBorderColor: '#22c55e',
+    animatedDashPattern: [12, 4],
+    animatedBorderSpeed: 1,
+  },
+});
+
+const animatedNode4 = graph.addNode({
+  id: 'node-animated-4',
+  label: '紫色虚线',
+  x: 500,
+  y: 200,
+  shape: Shape.Rect,
+  style: {
+    width: 140,
+    height: 70,
+    backgroundColor: '#faf5ff',
+    borderColor: '#8b5cf6',
+    borderWidth: 2,
+    borderRadius: 8,
+    textColor: '#581c87',
+    borderStyle: 'dashed',
+    dashPattern: [12, 6],
+  },
+});
+
+// 点击切换边框样式
+const toggleNode = graph.addNode({
+  id: 'node-toggle',
+  label: '点击切换样式',
+  x: 300,
+  y: 140,
+  shape: Shape.Rect,
+  style: {
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+    borderColor: 'transparent',
+    borderWidth: 0,
+    textColor: 'transparent',
+  },
+});
+
+let borderMode = 0;
+const modes = ['solid', 'dashed', 'animated'];
+const modeLabels = ['实线', '虚线', '波浪流动'];
+
+// 点击上方三个主节点可切换边框样式
+[solidNode, dashedNode, animatedNode].forEach((node) => {
+  graph.on('node:click', (e) => {
+    if (e.node.getId() === node.getId()) {
+      borderMode = (borderMode + 1) % modes.length;
+      e.node.updateStyle({ borderStyle: modes[borderMode] });
+      e.node.setLabel(modeLabels[borderMode] + '边框');
+    }
+  });
+});`;
+
 // 所有示例
 const EXAMPLES = [
   { id: 'example-1', title: '基础形状', code: EXAMPLE_1_CODE },
@@ -691,6 +858,7 @@ const EXAMPLES = [
   { id: 'example-6', title: '节点事件', code: EXAMPLE_6_CODE },
   { id: 'example-7', title: '调整大小', code: EXAMPLE_7_CODE },
   { id: 'example-8', title: '连接桩显隐', code: EXAMPLE_8_CODE },
+  { id: 'example-9', title: '边框样式', code: EXAMPLE_9_CODE },
 ];
 
 // Node 事件表格数据

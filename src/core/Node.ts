@@ -47,6 +47,14 @@ export interface NodeEvent extends CellEvent {
 export type { PortGroupOptions, PortLayoutConfig } from './Port';
 
 /**
+ * 节点边框样式
+ * - 'solid': 实线（默认）
+ * - 'dashed': 虚线
+ * - 'animated': 波浪流动（蚂蚁线动画）
+ */
+export type BorderStyle = 'solid' | 'dashed' | 'animated';
+
+/**
  * 节点样式接口
  */
 export interface NodeStyle {
@@ -62,6 +70,16 @@ export interface NodeStyle {
     borderWidth: number;
     /** 边框圆角 */
     borderRadius: number;
+    /** 边框样式：实线、虚线、波浪流动 */
+    borderStyle: BorderStyle;
+    /** 虚线模式 [实线长度, 间隔长度]，仅 borderStyle 为 'dashed' 时有效 */
+    dashPattern: [number, number];
+    /** 波浪流动颜色，仅 borderStyle 为 'animated' 时有效 */
+    animatedBorderColor: string;
+    /** 波浪流动虚线模式，仅 borderStyle 为 'animated' 时有效 */
+    animatedDashPattern: [number, number];
+    /** 波浪流动速度（像素/帧），仅 borderStyle 为 'animated' 时有效 */
+    animatedBorderSpeed: number;
     /** 文字颜色 */
     textColor: string;
     /** 字体大小 */
@@ -156,6 +174,11 @@ export class Node extends Cell {
         borderColor: '#3b82f6',
         borderWidth: 1,
         borderRadius: 12,
+        borderStyle: 'solid',
+        dashPattern: [6, 4],
+        animatedBorderColor: '#3b82f6',
+        animatedDashPattern: [8, 4],
+        animatedBorderSpeed: 1,
         textColor: '#1f2937',
         fontSize: 14,
         fontFamily: 'system-ui, -apple-system, sans-serif',
@@ -427,8 +450,9 @@ export class Node extends Cell {
     /**
      * 绘制节点
      * @param ctx - Canvas 2D 上下文
+     * @param time - 当前时间戳（用于动画）
      */
-    draw(ctx: CanvasRenderingContext2D): void {
+    draw(ctx: CanvasRenderingContext2D, time?: number): void {
         const style = this.style;
 
         // HTML 节点在 Canvas 中绘制占位符，真实 DOM 元素由 Graph 管理
@@ -473,9 +497,35 @@ export class Node extends Cell {
 
         // 绘制边框
         ctx.shadowColor = 'transparent';
-        ctx.lineWidth = style.borderWidth;
-        ctx.strokeStyle = style.borderColor;
-        ctx.stroke();
+        ctx.lineWidth = this.isSelected ? style.selectedBorderWidth : style.borderWidth;
+
+        if (style.borderStyle === 'dashed') {
+            // 虚线边框
+            ctx.strokeStyle = this.isSelected ? style.selectedBorderColor : style.borderColor;
+            ctx.setLineDash(style.dashPattern);
+            ctx.stroke();
+        } else if (style.borderStyle === 'animated') {
+            // 波浪流动边框（蚂蚁线动画）
+            const animTime = time !== undefined ? time : performance.now();
+            // 底层虚线轨道
+            ctx.strokeStyle = style.borderColor;
+            ctx.setLineDash(style.animatedDashPattern);
+            ctx.globalAlpha = 0.3;
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+            // 流动波浪层
+            const offset = (animTime * style.animatedBorderSpeed / 50) % (style.animatedDashPattern[0] + style.animatedDashPattern[1]);
+            ctx.lineDashOffset = -offset;
+            ctx.strokeStyle = style.animatedBorderColor;
+            ctx.stroke();
+            ctx.lineDashOffset = 0;
+        } else {
+            // 实线边框（默认）
+            ctx.strokeStyle = this.isSelected ? style.selectedBorderColor : style.borderColor;
+            ctx.stroke();
+        }
+
+        ctx.setLineDash([]);
 
         // 绘制文字
         ctx.fillStyle = style.textColor;

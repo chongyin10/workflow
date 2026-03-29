@@ -1,6 +1,6 @@
 {
   "name": "@zjpcy/workflow",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "React component library with Next.js for development and Rollup for publishing",
   "main": "dist/cjs/lib/index.js",
   "module": "dist/esm/lib/index.mjs",
@@ -65,7 +65,7 @@
     "start": "next start",
     "lint": "next lint",
     "build:lib": "rollup -c rollup.config.js && npm run copy:docs",
-    "copy:docs": "cp README.md AI_CONTEXT.md dist/",
+    "copy:docs": "cp README.md API_REFERENCE.md dist/",
     "build:lib:watch": "rollup -c rollup.config.js --watch",
     "dev": "webpack serve --config webpack.config.js",
     "build:webpack": "webpack --config webpack.config.js --mode=production",
