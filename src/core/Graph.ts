@@ -1103,6 +1103,15 @@ export class Graph {
         };
         this.canvas.style.cursor = cursorMap[handle];
         
+        // 触发 resize 开始事件
+        this.emit('node:resizestart', {
+            type: 'node',
+            target: node,
+            node: node,
+            handle: handle,
+            startPoint: startPoint,
+        });
+        
         this.scheduleRender();
     }
 
@@ -1136,6 +1145,14 @@ export class Graph {
                 height: result.height,
             });
             
+            // 触发 resize 事件（resize 过程中持续触发）
+            this.emit('node:resize', {
+                type: 'node',
+                target: this.resizingNode,
+                node: this.resizingNode,
+                bounds: this.resizingNode.getBounds(),
+            });
+            
             // 立即渲染，使 handles 跟随节点实时更新
             this.render();
         }
@@ -1148,7 +1165,7 @@ export class Graph {
         if (this.isResizing && this.resizingNode) {
             // 触发 resize 完成事件
             const bounds = this.resizingNode.getBounds();
-            this.emit('node:resize', {
+            this.emit('node:resizeend', {
                 type: 'node',
                 target: this.resizingNode,
                 node: this.resizingNode,

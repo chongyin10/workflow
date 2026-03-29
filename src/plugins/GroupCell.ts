@@ -26,6 +26,14 @@ export interface GroupCellOptions {
     syncEdgeMove?: boolean;
     /** 是否自动嵌入（节点移动到 group 内部时自动成为子节点） */
     autoEmbed?: boolean;
+    /** 父节点调整大小时是否同步调整子节点位置（保持相对位置比例） */
+    syncChildResize?: boolean;
+    /**
+     * Group resize 后是否自动嵌入被包含的节点
+     * - 当 Group resize 后包含了之前在外部的节点时，自动将其设为子节点
+     * - 默认 false（保持原有逻辑）
+     */
+    autoEmbedOnResize?: boolean;
     /** 父节点移动前回调 */
     onBeforeParentMove?: (parentNode: Node, delta: Point) => boolean | void;
     /** 父节点移动后回调 */
@@ -94,11 +102,18 @@ export class GroupCell implements Plugin {
         recursiveMove: true,
         syncEdgeMove: true,
         autoEmbed: true,
+        syncChildResize: true,
+        autoEmbedOnResize: false,
         onBeforeParentMove: () => {},
         onAfterParentMove: () => {},
         onChildEmbed: () => {},
         onChildUnembed: () => {},
     };
+
+    // resize 状态
+    private isResizing: boolean = false;
+    private resizeStartBounds: Map<string, { x: number; y: number; width: number; height: number }> = new Map();
+    private resizeChildRelativePositions: Map<string, Map<string, { x: number; y: number }>> = new Map();
 
     constructor(options: GroupCellOptions = {}) {
         this.options = { ...GroupCell.DEFAULT_OPTIONS, ...options };
@@ -118,6 +133,11 @@ export class GroupCell implements Plugin {
         // 监听节点添加事件，自动检查是否需要嵌入 group
         graph.on('node:add', this.handleNodeAdd.bind(this));
 
+        // 监听节点 resize 事件
+        graph.on('node:resizestart', this.handleNodeResizeStart.bind(this));
+        graph.on('node:resize', this.handleNodeResize.bind(this));
+        graph.on('node:resizeend', this.handleNodeResizeEnd.bind(this));
+
         console.log('✅ GroupCell 插件已安装');
     }
 
@@ -130,9 +150,14 @@ export class GroupCell implements Plugin {
             this.graph.off('node:drag', this.handleNodeDrag.bind(this));
             this.graph.off('node:dragend', this.handleNodeDragEnd.bind(this));
             this.graph.off('node:add', this.handleNodeAdd.bind(this));
+            this.graph.off('node:resizestart', this.handleNodeResizeStart.bind(this));
+            this.graph.off('node:resize', this.handleNodeResize.bind(this));
+            this.graph.off('node:resizeend', this.handleNodeResizeEnd.bind(this));
         }
         this.graph = null;
         this.nodeRelations.clear();
+        this.resizeStartBounds.clear();
+        this.resizeChildRelativePositions.clear();
         console.log('❌ GroupCell 插件已卸载');
     }
 
@@ -300,6 +325,251 @@ export class GroupCell implements Plugin {
                 y: point.y + deltaY,
             }));
             (edge as any).setWaypoints?.(newWaypoints);
+        }
+    }
+
+    /**
+     * 处理节点 resize 开始
+     */
+    private handleNodeResizeStart(e: { node: Node }): void {
+        if (!this.options.enabled) return;
+
+        const node = e.node;
+
+        // 检查是否是 group 类型的节点
+        if (node.getType?.() !== 'group') return;
+
+        this.isResizing = true;
+
+        const parentId = node.getId();
+        const parentBounds = node.getBounds();
+
+        // 记录父节点初始边界
+        this.resizeStartBounds.set(parentId, { ...parentBounds });
+
+        // 记录所有子节点相对于父节点的位置比例
+        const childRelativePositions = new Map<string, { x: number; y: number }>();
+        this.recordChildRelativePositions(parentId, parentBounds, childRelativePositions);
+        this.resizeChildRelativePositions.set(parentId, childRelativePositions);
+    }
+
+    /**
+     * 递归记录子节点相对于父节点的位置比例
+     */
+    private recordChildRelativePositions(
+        parentId: string,
+        parentBounds: { x: number; y: number; width: number; height: number },
+        result: Map<string, { x: number; y: number }>
+    ): void {
+        const relation = this.nodeRelations.get(parentId);
+        if (!relation) return;
+
+        for (const childId of relation.childrenIds) {
+            const child = this.graph?.getNode(childId);
+            if (child) {
+                const childPos = child.getPosition();
+                // 计算相对于父节点边界的比例位置 (0-1)
+                const relativeX = (childPos.x - parentBounds.x) / parentBounds.width;
+                const relativeY = (childPos.y - parentBounds.y) / parentBounds.height;
+                result.set(childId, { x: relativeX, y: relativeY });
+
+                // 递归记录孙节点
+                this.recordChildRelativePositions(childId, parentBounds, result);
+            }
+        }
+    }
+
+    /**
+     * 处理节点 resize 中
+     */
+    private handleNodeResize(e: { node: Node; bounds: { x: number; y: number; width: number; height: number } }): void {
+        if (!this.options.enabled || !this.isResizing) return;
+
+        const parentNode = e.node;
+        const parentId = parentNode.getId();
+
+        // 只处理 group 类型的节点
+        if (parentNode.getType?.() !== 'group') return;
+
+        const newBounds = e.bounds;
+        const startBounds = this.resizeStartBounds.get(parentId);
+        const childRelativePositions = this.resizeChildRelativePositions.get(parentId);
+
+        if (!startBounds || !childRelativePositions) return;
+
+        // 同步调整子节点位置
+        if (this.options.syncChildResize) {
+            this.syncChildrenPosition(parentId, startBounds, newBounds, childRelativePositions);
+        }
+
+        // 同步调整相关边的路径点
+        if (this.options.syncEdgeMove) {
+            const deltaX = newBounds.x - startBounds.x;
+            const deltaY = newBounds.y - startBounds.y;
+            this.syncRelatedEdgesOnResize(parentId, startBounds, newBounds, deltaX, deltaY);
+        }
+    }
+
+    /**
+     * 同步子节点位置（保持相对位置比例）
+     */
+    private syncChildrenPosition(
+        parentId: string,
+        startBounds: { x: number; y: number; width: number; height: number },
+        newBounds: { x: number; y: number; width: number; height: number },
+        relativePositions: Map<string, { x: number; y: number }>
+    ): void {
+        const relation = this.nodeRelations.get(parentId);
+        if (!relation) return;
+
+        for (const childId of relation.childrenIds) {
+            const child = this.graph?.getNode(childId);
+            const relativePos = relativePositions.get(childId);
+
+            if (child && relativePos) {
+                // 根据新的父节点边界和相对比例计算新位置
+                const newX = newBounds.x + relativePos.x * newBounds.width;
+                const newY = newBounds.y + relativePos.y * newBounds.height;
+                child.setPosition(newX, newY);
+
+                // 递归同步孙节点
+                this.syncChildrenPosition(childId, startBounds, newBounds, relativePositions);
+            }
+        }
+    }
+
+    /**
+     * 同步调整与节点相关的边的路径点
+     */
+    private syncRelatedEdgesOnResize(
+        nodeId: string,
+        startBounds: { x: number; y: number; width: number; height: number },
+        newBounds: { x: number; y: number; width: number; height: number },
+        deltaX: number,
+        deltaY: number
+    ): void {
+        if (!this.graph) return;
+
+        const edges = this.graph.getAllEdges();
+
+        for (const edge of edges) {
+            const sourceId = edge.getSourceId();
+            const targetId = edge.getTargetId();
+
+            // 检查边的起点或终点是否是我们正在 resize 的节点或其子节点
+            const isSourceRelated = this.isNodeOrChild(nodeId, sourceId);
+            const isTargetRelated = this.isNodeOrChild(nodeId, targetId);
+
+            // 如果边的两端都在移动的节点集合中，按比例调整路径点
+            if (isSourceRelated && isTargetRelated) {
+                this.resizeEdgeWaypoints(edge, startBounds, newBounds);
+            }
+        }
+    }
+
+    /**
+     * 按比例调整边的路径点
+     */
+    private resizeEdgeWaypoints(
+        edge: Edge,
+        startBounds: { x: number; y: number; width: number; height: number },
+        newBounds: { x: number; y: number; width: number; height: number }
+    ): void {
+        const waypoints = (edge as any).getWaypoints?.();
+        if (!waypoints || !Array.isArray(waypoints) || waypoints.length === 0) return;
+
+        const newWaypoints = waypoints.map((point: Point) => {
+            // 计算相对于起始边界的位置比例
+            const relativeX = (point.x - startBounds.x) / startBounds.width;
+            const relativeY = (point.y - startBounds.y) / startBounds.height;
+
+            // 应用到新的边界
+            return {
+                x: newBounds.x + relativeX * newBounds.width,
+                y: newBounds.y + relativeY * newBounds.height,
+            };
+        });
+
+        (edge as any).setWaypoints?.(newWaypoints);
+    }
+
+    /**
+     * 处理节点 resize 结束
+     */
+    private handleNodeResizeEnd(e: { node: Node }): void {
+        if (!this.options.enabled) return;
+
+        const node = e.node;
+        const nodeId = node.getId();
+
+        // 清理 resize 状态
+        this.isResizing = false;
+        this.resizeStartBounds.delete(nodeId);
+        this.resizeChildRelativePositions.delete(nodeId);
+
+        // 检查子节点是否仍在父节点内
+        this.checkChildrenAfterResize(node);
+
+        // 如果启用了 autoEmbedOnResize，检查是否有外部节点被包含进来
+        if (this.options.autoEmbedOnResize && node.getType?.() === 'group') {
+            this.checkAndEmbedNodesOnResize(node);
+        }
+    }
+
+    /**
+     * Group resize 后检查并自动嵌入被包含的节点
+     */
+    private checkAndEmbedNodesOnResize(groupNode: Node): void {
+        if (!this.graph) return;
+
+        const groupId = groupNode.getId();
+
+        // 获取所有非 group 类型的节点
+        const allNodes = this.graph.getAllNodes();
+
+        for (const node of allNodes) {
+            const nodeId = node.getId();
+
+            // 跳过自己
+            if (nodeId === groupId) continue;
+
+            // 跳过 group 类型节点（避免嵌套问题）
+            if (node.getType?.() === 'group') continue;
+
+            // 跳过已经是子节点的节点
+            const currentParent = this.getParent(node);
+            if (currentParent?.getId() === groupId) continue;
+
+            // 检查节点当前位置是否在 Group 内部
+            if (this.isNodeInsideParent(node, groupNode)) {
+                // 检查是否形成循环依赖
+                if (!this.isAncestor(nodeId, groupId)) {
+                    // 自动设置为子节点
+                    this.setParent(node, groupNode, true);
+                    console.log(`📦 Resize 后自动嵌入: ${nodeId} -> ${groupId}`);
+                }
+            }
+        }
+    }
+
+    /**
+     * resize 后检查子节点状态
+     */
+    private checkChildrenAfterResize(parentNode: Node): void {
+        const children = this.getChildren(parentNode);
+
+        for (const child of children) {
+            const isInside = this.isNodeInsideParent(child, parentNode);
+            const isEmbedded = this.isEmbedded(child);
+
+            // 如果节点在父节点内部但当前不是嵌入状态，设置为嵌入
+            if (isInside && !isEmbedded) {
+                this.setEmbedded(child, true);
+            }
+            // 如果节点移出了父节点但当前是嵌入状态，取消嵌入
+            else if (!isInside && isEmbedded) {
+                this.setEmbedded(child, false);
+            }
         }
     }
 

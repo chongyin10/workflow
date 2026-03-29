@@ -22,6 +22,8 @@ const groupCellConfigData = [
   { name: 'recursiveMove', type: 'boolean', default: 'true', description: '是否递归移动子节点' },
   { name: 'syncEdgeMove', type: 'boolean', default: 'true', description: '是否同步移动相关边' },
   { name: 'autoEmbed', type: 'boolean', default: 'true', description: '是否自动嵌入（节点移动到 group 类型节点内部时自动成为子节点）' },
+  { name: 'syncChildResize', type: 'boolean', default: 'true', description: '父节点调整大小时是否同步调整子节点位置（保持相对位置比例）' },
+  { name: 'autoEmbedOnResize', type: 'boolean', default: 'false', description: 'Group resize 后是否自动嵌入被包含的节点（外部节点被 resize 进 Group 时自动成为子节点）' },
   { name: 'onBeforeParentMove', type: '(node, delta) => boolean', default: '-', description: '父节点移动前回调，返回 false 可阻止移动' },
   { name: 'onAfterParentMove', type: '(node, delta) => void', default: '-', description: '父节点移动后回调' },
   { name: 'onChildEmbed', type: '(child, parent) => void', default: '-', description: '子节点嵌入父节点时回调' },
@@ -75,24 +77,26 @@ const graph = new Graph({
   backgroundColor: '#f8fafc',
 });
 
-// 创建 GroupCell 插件（启用自动嵌入）
+// 创建 GroupCell 插件（启用自动嵌入和 resize 同步）
 const groupCell = new GroupCell({
   enabled: true,
   recursiveMove: true,
   syncEdgeMove: true,
-  autoEmbed: true,  // 启用自动嵌入
+  autoEmbed: true,      // 启用自动嵌入
+  syncChildResize: true, // 启用 resize 时同步子节点位置
 });
 
 // 安装插件
 graph.use(groupCell);
 
-// 创建 group 类型节点（容器）
+// 创建 group 类型节点（容器）- 支持 resize
 const group = graph.addNode({
   id: 'group',
-  type: 'group',  // 设置为 group 类型
+  type: 'group',      // 设置为 group 类型
   label: 'Group Container',
   x: 350,
   y: 200,
+  resizable: true,    // 启用 resize 功能（四周四个点可调大小）
   style: {
     width: 280,
     height: 180,
@@ -152,7 +156,8 @@ graph.addEdge({
 console.log('✅ 自动嵌入群组示例');
 console.log('   1. 将 Node 1 拖动到 Group 内部 → 自动成为子节点');
 console.log('   2. 将 Node 2 拖出 Group → 自动解除父子关系');
-console.log('   3. 拖动 Group → 内部所有节点跟随移动');`;
+console.log('   3. 拖动 Group → 内部所有节点跟随移动');
+console.log('   4. 选中 Group 后拖动四角 resize handle → 内部节点同步调整位置');`;
 
 // 示例 2: 多层嵌套群组（自动嵌入）
 const EXAMPLE_2_CODE = `// 创建 Graph 画布
@@ -525,6 +530,217 @@ setTimeout(() => {
 
 console.log('🎯 尝试将节点拖动到 Root Group 内部，观察自动嵌入效果');`;
 
+// 示例 6: Group Resize 调整大小（支持四周四个点）
+const EXAMPLE_6_CODE = `// 创建 Graph 画布
+const graph = new Graph({
+  container: container,
+  width: 700,
+  height: 400,
+  draggable: true,
+  scalable: true,
+  backgroundColor: '#f8fafc',
+});
+
+// 创建 GroupCell 插件（启用自动嵌入和 resize 同步）
+const groupCell = new GroupCell({
+  enabled: true,
+  recursiveMove: true,
+  syncEdgeMove: true,
+  autoEmbed: true,
+  syncChildResize: true,  // 启用 resize 时同步子节点位置
+});
+
+graph.use(groupCell);
+
+// 创建 group 类型节点（容器）- 设置为可调整大小
+const group = graph.addNode({
+  id: 'group',
+  type: 'group',  // 设置为 group 类型
+  label: 'Group Container',
+  x: 350,
+  y: 200,
+  resizable: true,  // 启用 resize 功能
+  style: {
+    width: 320,
+    height: 200,
+    backgroundColor: '#f0f9ff',
+    borderColor: '#3b82f6',
+    borderWidth: 2,
+    borderRadius: 12,
+    textColor: '#1e40af',
+  },
+});
+
+// 创建普通节点（在 group 内部）
+const node1 = graph.addNode({
+  id: 'node-1',
+  type: 'node',
+  label: 'Node 1',
+  x: 280,
+  y: 180,
+  style: {
+    width: 90,
+    height: 50,
+    backgroundColor: '#ffffff',
+    borderColor: '#64748b',
+    borderWidth: 1.5,
+    borderRadius: 8,
+  },
+});
+
+const node2 = graph.addNode({
+  id: 'node-2',
+  type: 'node',
+  label: 'Node 2',
+  x: 420,
+  y: 180,
+  style: {
+    width: 90,
+    height: 50,
+    backgroundColor: '#ffffff',
+    borderColor: '#22c55e',
+    borderWidth: 1.5,
+    borderRadius: 8,
+  },
+});
+
+// 创建连接边
+graph.addEdge({
+  id: 'edge-1',
+  source: 'node-1',
+  target: 'node-2',
+  style: {
+    stroke: '#64748b',
+    strokeWidth: 1.5,
+  },
+});
+
+console.log('📐 Group Resize 示例（支持四周四个点）');
+console.log('========================================');
+console.log('');
+console.log('操作指南：');
+console.log('   1. 点击 Group Container 选中它');
+console.log('   2. 拖动四个角的 resize handle（蓝色小方块）');
+console.log('      - 左上角 (nw): 向左上调整大小');
+console.log('      - 右上角 (ne): 向右上调整大小');
+console.log('      - 左下角 (sw): 向左下调整大小');
+console.log('      - 右下角 (se): 向右下调整大小');
+console.log('   3. 内部节点会自动跟随 Group 的大小变化调整位置');
+console.log('   4. 边的路径点也会同步调整');
+console.log('   5. 将 Group resize 到包含 Node 1 的位置');
+console.log('      → Node 1 会自动成为 Group 的子节点');
+console.log('      → 之后拖动 Group，Node 1 会跟随移动');
+console.log('');
+console.log('✨ 特性：');
+console.log('   • 子节点保持相对位置比例');
+console.log('   • resize 后自动嵌入外部节点（autoEmbedOnResize）');
+console.log('   • 边线跟随调整');
+console.log('   • 实时同步更新');`;
+
+// 示例 7: Group Resize 自动嵌入（演示 autoEmbedOnResize）
+const EXAMPLE_7_CODE = `// 创建 Graph 画布
+const graph = new Graph({
+  container: container,
+  width: 700,
+  height: 400,
+  draggable: true,
+  scalable: true,
+  backgroundColor: '#f8fafc',
+});
+
+// 创建 GroupCell 插件（启用 autoEmbedOnResize）
+const groupCell = new GroupCell({
+  enabled: true,
+  recursiveMove: true,
+  syncEdgeMove: true,
+  autoEmbed: true,
+  syncChildResize: true,
+  autoEmbedOnResize: true,  // 启用 resize 后自动嵌入
+});
+
+graph.use(groupCell);
+
+// 创建 group 类型节点（容器）- 初始较小
+const group = graph.addNode({
+  id: 'group',
+  type: 'group',
+  label: 'Group Container',
+  x: 500,
+  y: 200,
+  resizable: true,
+  style: {
+    width: 200,
+    height: 150,
+    backgroundColor: '#f0f9ff',
+    borderColor: '#3b82f6',
+    borderWidth: 2,
+    borderRadius: 12,
+    textColor: '#1e40af',
+  },
+});
+
+// 创建普通节点（初始在 group 外部左侧）
+const node1 = graph.addNode({
+  id: 'node-1',
+  type: 'node',
+  label: 'Node 1（外部）',
+  x: 150,
+  y: 200,
+  style: {
+    width: 120,
+    height: 50,
+    backgroundColor: '#ffffff',
+    borderColor: '#64748b',
+    borderWidth: 1.5,
+    borderRadius: 8,
+  },
+});
+
+// 创建普通节点（初始在 group 内部）
+const node2 = graph.addNode({
+  id: 'node-2',
+  type: 'node',
+  label: 'Node 2（内部）',
+  x: 500,
+  y: 200,
+  style: {
+    width: 120,
+    height: 50,
+    backgroundColor: '#ffffff',
+    borderColor: '#22c55e',
+    borderWidth: 1.5,
+    borderRadius: 8,
+  },
+});
+
+// 创建连接边
+graph.addEdge({
+  id: 'edge-1',
+  source: 'node-1',
+  target: 'node-2',
+  style: {
+    stroke: '#64748b',
+    strokeWidth: 1.5,
+  },
+});
+
+console.log('📦 Group Resize 自动嵌入示例');
+console.log('==============================');
+console.log('');
+console.log('场景说明：');
+console.log('   • 初始状态：Node 1 在 Group 外部，Node 2 在 Group 内部');
+console.log('   • Node 2 已经是 Group 的子节点（跟随 Group 移动）');
+console.log('   • Node 1 是独立节点（不跟随 Group 移动）');
+console.log('');
+console.log('操作步骤：');
+console.log('   1. 选中 Group Container（显示 resize handles）');
+console.log('   2. 向左拖动左边的 resize handle，将 Group 扩大');
+console.log('   3. 当 Group 包含 Node 1 后松开鼠标');
+console.log('   4. Node 1 会自动成为 Group 的子节点');
+console.log('   5. 现在拖动 Group，Node 1 和 Node 2 都会跟随移动');
+console.log('');
+console.log('💡 关键配置：autoEmbedOnResize: true');`;
+
 // 所有示例
 const EXAMPLES = [
   { id: 'example-1', title: '自动嵌入基础', code: EXAMPLE_1_CODE },
@@ -532,6 +748,8 @@ const EXAMPLES = [
   { id: 'example-3', title: '边的父节点跟随', code: EXAMPLE_3_CODE },
   { id: 'example-4', title: '动态嵌入回调', code: EXAMPLE_4_CODE },
   { id: 'example-5', title: '群组 API 演示', code: EXAMPLE_5_CODE },
+  { id: 'example-6', title: 'Group Resize 调整大小', code: EXAMPLE_6_CODE },
+  { id: 'example-7', title: 'Resize 自动嵌入', code: EXAMPLE_7_CODE },
 ];
 
 export const GroupCellExample: React.FC = () => {
