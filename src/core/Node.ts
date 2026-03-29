@@ -117,6 +117,12 @@ export interface NodeOptions extends CellOptions {
      * - false: 仅在鼠标悬停到节点时显示连接桩
      */
     portsAlwaysVisible?: boolean;
+    /**
+     * 节点类型
+     * - 'node': 普通节点（默认）
+     * - 'group': 群组节点，可以作为其他节点的容器
+     */
+    type?: 'node' | 'group';
 }
 
 /**
@@ -136,6 +142,7 @@ export class Node extends Cell {
     private portManager: PortManager;
     private _resizable: boolean = false;
     private _portsAlwaysVisible: boolean = true;
+    private _type: 'node' | 'group';
 
     // HTML 节点相关
     private htmlElement: HTMLElement | null = null;
@@ -268,6 +275,7 @@ export class Node extends Cell {
         this.style = { ...Node.DEFAULT_STYLE, ...options.style };
         this._resizable = options.resizable ?? false;
         this._portsAlwaysVisible = options.portsAlwaysVisible ?? true;
+        this._type = options.type ?? 'node';
         
         // 解析 shape 配置
         if (options.shape) {
@@ -323,6 +331,30 @@ export class Node extends Cell {
      */
     setResizable(resizable: boolean): void {
         this._resizable = resizable;
+    }
+
+    /**
+     * 获取节点类型
+     * @returns 'node' | 'group'
+     */
+    getType(): 'node' | 'group' {
+        return this._type;
+    }
+
+    /**
+     * 设置节点类型
+     * @param type - 'node' 普通节点 或 'group' 群组节点
+     */
+    setType(type: 'node' | 'group'): void {
+        this._type = type;
+    }
+
+    /**
+     * 检查节点是否为群组类型
+     * @returns true 如果是群组节点
+     */
+    isGroup(): boolean {
+        return this._type === 'group';
     }
 
     /**

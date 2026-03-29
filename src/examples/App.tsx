@@ -22,6 +22,7 @@ import {
     ExportExample,
     ToolsExample,
     ForceDirectedExample,
+    GroupCellExample,
 } from './index';
 
 /**
@@ -29,7 +30,7 @@ import {
  *
  * 提供所有核心组件示例的导航和展示
  */
-type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'connectionValidation' | 'dnd' | 'dynamicHeightNode' | 'blankEvent' | 'grid' | 'reactShape' | 'snapline' | 'clipboard' | 'miniMap' | 'siderPane' | 'contextMenu' | 'history' | 'selection' | 'export' | 'tools' | 'forceDirected';
+type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'connectionValidation' | 'dnd' | 'dynamicHeightNode' | 'blankEvent' | 'grid' | 'reactShape' | 'snapline' | 'clipboard' | 'miniMap' | 'siderPane' | 'contextMenu' | 'history' | 'selection' | 'export' | 'tools' | 'forceDirected' | 'groupCell';
 
 interface ExampleItem {
     key: ExampleKey;
@@ -170,6 +171,12 @@ const examples: ExampleItem[] = [
         title: '🌀 ForceDirected 力导向布局',
         description: '使用物理模拟算法自动布局节点和边',
         component: ForceDirectedExample,
+    },
+    {
+        key: 'groupCell',
+        title: '🔗 GroupCell 群组示例',
+        description: '通过父子关系实现群组，移动父节点时子节点跟随移动',
+        component: GroupCellExample,
     },
 ];
 

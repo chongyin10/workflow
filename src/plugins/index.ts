@@ -101,3 +101,9 @@ export {
     type NodePhysics,
     type EdgePhysics,
 } from './ForceDirected';
+
+// 群组单元格插件
+export {
+    GroupCell,
+    type GroupCellOptions,
+} from './GroupCell';

@@ -82,3 +82,7 @@ export { default as ToolsExampleComponent } from './ToolsExample';
 // ForceDirected 力导向布局示例
 export { ForceDirectedExample } from './ForceDirectedExample';
 export { default as ForceDirectedExampleComponent } from './ForceDirectedExample';
+
+// GroupCell 群组示例
+export { GroupCellExample } from './GroupCellExample';
+export { default as GroupCellExampleComponent } from './GroupCellExample';
