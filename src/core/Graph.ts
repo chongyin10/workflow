@@ -550,11 +550,8 @@ export class Graph {
             // 计算屏幕坐标 = 世界坐标 * 缩放 + 偏移
             const screenX = pos.x * scale + offset.x;
             const screenY = pos.y * scale + offset.y;
-            // CSS transform 从右到左执行：
-            // 1. translate(-50%, -50%) 将元素中心移到原点
-            // 2. scale(scale) 缩放元素
-            // 3. translate(screenX, screenY) 移动到目标屏幕位置
-            element.style.transform = `translate(${screenX}px, ${screenY}px) scale(${scale}) translate(-50%, -50%)`;
+            // CSS transform：位移 + 缩放，使 HTML 节点随画布同步缩放
+            element.style.transform = `translate(${screenX}px, ${screenY}px) translate(-50%, -50%) scale(${scale})`;
         }
     }
 

@@ -490,6 +490,166 @@ graph.addNode({
   data: { label: '节点 C' },
 });`;
 
+// 示例 7: 路线规划图（Travel Route）
+const EXAMPLE_7_CODE = `// 路线规划图示例 - 使用 ReactShape 自定义旅行节点
+// 特性：圆形图片、信息卡片、编号徽章、虚线连接
+
+// 创建 Graph 画布
+const graph = new Graph({
+  container: container,
+  width: 800,
+  height: 500,
+  draggable: true,
+  scalable: true,
+  backgroundColor: '#fef9c3', // 黄色背景
+  grid: { enabled: true, size: 20, color: '#fde047', type: 'mesh' }, // 黄色网格
+});
+
+// 安装 ReactShape 插件
+const reactShapePlugin = new ReactShape();
+graph.use(reactShapePlugin);
+
+// 定义旅行节点组件
+const TravelNode = ({ data }) => {
+  const stopNumber = data?.stop || 1;
+  const stopColors = ['#f4a460', '#e8a598', '#98b8d8', '#a8d8b9'];
+  const badgeColor = stopColors[(stopNumber - 1) % stopColors.length];
+  
+  return React.createElement('div', {
+    style: {
+      position: 'relative',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      cursor: 'grab',
+      width: '100%',
+      height: '100%',
+    }
+  }, [
+    // 编号徽章
+    React.createElement('div', {
+      key: 'badge',
+      style: {
+        position: 'absolute',
+        top: -8,
+        left: -8,
+        background: badgeColor,
+        color: '#fff',
+        padding: '4px 10px',
+        borderRadius: '12px',
+        fontSize: '12px',
+        fontWeight: 'bold',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+        zIndex: 10,
+      }
+    }, stopNumber + ' stop'),
+    
+    // 圆形图片
+    React.createElement('img', {
+      key: 'image',
+      src: data?.image || '',
+      style: {
+        width: 80,
+        height: 80,
+        borderRadius: '50%',
+        objectFit: 'cover',
+        border: '3px solid #fff',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+      }
+    }),
+    
+    // 信息卡片
+    React.createElement('div', {
+      key: 'card',
+      style: {
+        marginTop: 8,
+        background: '#fff',
+        padding: '10px 16px',
+        borderRadius: 8,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        minWidth: 140,
+        textAlign: 'center',
+      }
+    }, [
+      React.createElement('div', {
+        key: 'title',
+        style: {
+          fontSize: 14,
+          fontWeight: 500,
+          color: '#374151',
+        }
+      }, data?.title || '未知地点'),
+      data?.subtitle && React.createElement('div', {
+        key: 'subtitle',
+        style: {
+          fontSize: 12,
+          color: '#6b7280',
+          marginTop: 4,
+        }
+      }, data.subtitle),
+    ]),
+  ]);
+};
+
+// 注册旅行节点
+reactShapePlugin.register({
+  shape: 'travel-node',
+  width: 160,
+  height: 150,
+  component: TravelNode,
+});
+
+// 创建 4 个旅行节点
+const travelData = [
+  { stop: 1, title: '法国 - 巴黎铁塔', subtitle: 'Eiffel Tower', image: 'https://images.unsplash.com/photo-1511739001486-6bfe10ce7859?w=200&h=200&fit=crop' },
+  { stop: 2, title: '美国 - 自由女神像', subtitle: 'Statue of Liberty', image: 'https://images.unsplash.com/photo-1605130284535-11dd9eedc58a?w=200&h=200&fit=crop' },
+  { stop: 3, title: '罗马 - 古罗马斗兽场', subtitle: 'Colosseum', image: 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=200&h=200&fit=crop' },
+  { stop: 4, title: '英国 - 伦敦塔桥', subtitle: 'Tower Bridge', image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=200&h=200&fit=crop' },
+];
+
+const positions = [
+  { x: 150, y: 150 },
+  { x: 400, y: 100 },
+  { x: 400, y: 320 },
+  { x: 650, y: 250 },
+];
+
+travelData.forEach((data, index) => {
+  graph.addReactNode({
+    shape: 'travel-node',
+    id: 'travel-' + index,
+    x: positions[index].x,
+    y: positions[index].y,
+    data: data,
+  });
+});
+
+// 添加虚线连接边（带箭头）
+const edgeConfigs = [
+  { source: 'travel-0', target: 'travel-1' },
+  { source: 'travel-1', target: 'travel-2' },
+  { source: 'travel-2', target: 'travel-3' },
+];
+
+edgeConfigs.forEach((config, index) => {
+  graph.addEdge({
+    id: 'edge-' + index,
+    source: { nodeId: config.source },
+    target: { nodeId: config.target },
+    type: 'bezier', // 贝塞尔曲线
+    style: {
+      stroke: '#9ca3af',
+      strokeWidth: 2,
+      dashed: true, // 虚线
+      dashPattern: [8, 4],
+      arrowSize: 12, // 箭头
+      arrowColor: '#9ca3af',
+    },
+  });
+});
+
+console.log('路线规划图示例已加载！包含 4 个旅行节点和虚线连接。');`;
+
 // 所有示例
 const EXAMPLES = [
   { id: 'example-1', title: '基础用法', code: EXAMPLE_1_CODE },
@@ -498,6 +658,7 @@ const EXAMPLES = [
   { id: 'example-4', title: '连接桩', code: EXAMPLE_4_CODE },
   { id: 'example-5', title: '静态注册', code: EXAMPLE_5_CODE },
   { id: 'example-6', title: '简洁 API', code: EXAMPLE_6_CODE },
+  { id: 'example-7', title: '路线规划图', code: EXAMPLE_7_CODE },
 ];
 
 /**
