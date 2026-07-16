@@ -11,7 +11,7 @@ console.log(PORT);
 
 module.exports = {
   mode: 'development',
-  entry: './src/dev/index.tsx',
+      entry: './src/examples/main.tsx',
   output: {
     path: path.resolve(__dirname, 'build'),
     filename: 'bundle.js',

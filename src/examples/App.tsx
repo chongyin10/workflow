@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+    InstallExample,
     GraphExample,
     CellExample,
     EdgeExample,
@@ -30,7 +31,7 @@ import {
  *
  * 提供所有核心组件示例的导航和展示
  */
-type ExampleKey = 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'connectionValidation' | 'dnd' | 'dynamicHeightNode' | 'blankEvent' | 'grid' | 'reactShape' | 'snapline' | 'clipboard' | 'miniMap' | 'siderPane' | 'contextMenu' | 'history' | 'selection' | 'export' | 'tools' | 'forceDirected' | 'groupCell';
+type ExampleKey = 'install' | 'graph' | 'cell' | 'edge' | 'node' | 'port' | 'shape' | 'connectionValidation' | 'dnd' | 'dynamicHeightNode' | 'blankEvent' | 'grid' | 'reactShape' | 'snapline' | 'clipboard' | 'miniMap' | 'siderPane' | 'contextMenu' | 'history' | 'selection' | 'export' | 'tools' | 'forceDirected' | 'groupCell';
 
 interface ExampleItem {
     key: ExampleKey;
@@ -40,6 +41,12 @@ interface ExampleItem {
 }
 
 const examples: ExampleItem[] = [
+    {
+        key: 'install',
+        title: '📦 安装指南',
+        description: '如何安装、引入和快速使用 @zjpcy/workflow',
+        component: InstallExample,
+    },
     {
         key: 'graph',
         title: '📊 Graph 综合示例',
@@ -181,7 +188,7 @@ const examples: ExampleItem[] = [
 ];
 
 const App: React.FC = () => {
-    const [activeKey, setActiveKey] = useState<ExampleKey>('graph');
+    const [activeKey, setActiveKey] = useState<ExampleKey>('install');
 
     const activeExample = examples.find((ex) => ex.key === activeKey);
     const ActiveComponent = activeExample?.component || GraphExample;
@@ -303,7 +310,7 @@ const App: React.FC = () => {
                         </div>
                         <div style={{ display: 'flex', gap: '8px' }}>
                             <a
-                                href="https://github.com/your-repo/zjpcy-workflow"
+                                href="https://github.com/chongyin10/zjpcy-workflow"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 style={{

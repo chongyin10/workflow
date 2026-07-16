@@ -4,6 +4,10 @@
  * 提供 src/core 模块的使用示例
  */
 
+// 安装指南
+export { InstallExample } from './InstallExample';
+export { default as InstallExampleComponent } from './InstallExample';
+
 // Graph 综合示例
 export { GraphExample } from './GraphExample';
 export { default as GraphExampleComponent } from './GraphExample';
